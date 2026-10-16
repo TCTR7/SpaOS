@@ -64,7 +64,7 @@ Mọi endpoint dưới đây (trừ Public) cần `Authorization: Bearer <jwt>`.
 | PATCH | `/customers/{id}` | ADMIN, STAFF | `{ full_name?, notes? }` | `200` UserDetail |
 | GET | `/customers/{customer_id}/packages` | ADMIN, STAFF | - | `200` `[CustomerPackage]` |
 | GET | `/customer-packages` | ADMIN, STAFF | query: `customer_id?`, `status?`, `limit`, `offset` | `200` `[CustomerPackage]` |
-| POST | `/customer-packages` | ADMIN, STAFF | `{ customer_id, service_id, package_name?, total_sessions?, expiry_date?(tương lai) }` — mặc định lấy từ service; service phải `is_package=true` và active, else `422` | `201` CustomerPackage (`used_sessions=0`, `status=ACTIVE`) |
+| POST | `/customer-packages` | ADMIN, STAFF | `{ customer_id, service_id, package_name?, total_sessions?, expiry_date?(tương lai; thiếu offset hiểu là Asia/Ho_Chi_Minh, lưu UTC) }` — mặc định lấy từ service; service phải `is_package=true` và active, else `422` | `201` CustomerPackage (`used_sessions=0`, `status=ACTIVE`) |
 
 ### 2.6. Booking Engine (Sprint 3)
 Quy ước: `date` = `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh`. Slot trả về kèm offset `+07:00`; `start_time`/`end_time` của booking trả về UTC (`TIMESTAMPTZ`). `start_time` gửi lên có offset (ISO8601); nếu không có offset sẽ hiểu là giờ Asia/Ho_Chi_Minh. Lỗi: `401` thiếu/sai token, `403` sai quyền, `404` không thấy (kể cả thuộc tenant khác), `409` xung đột (trùng lịch, hết buổi, sai luồng trạng thái), `422` dữ liệu sai.
@@ -77,7 +77,7 @@ Quy ước: `date` = `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh`. Slot trả về
 | POST | `/bookings` | Bearer: CUSTOMER, ADMIN, STAFF | `{ start_time, staff_id?(null = tự sắp xếp), customer_id?(bắt buộc với ADMIN/STAFF; CUSTOMER lấy từ JWT), note?, items: [{ service_id, customer_package_id? }] (1-10) }` | `201` Booking (`status=PENDING`, `price` item dùng thẻ = 0). `409` KTV không làm việc/đã có lịch/không còn KTV trống/thẻ hết buổi; `422` thẻ sai khách/sai dịch vụ/không ACTIVE/hết hạn, `start_time` quá khứ (CUSTOMER); `403` khách đặt thay người khác |
 | GET | `/bookings` | Bearer: mọi role | query: `date_from?`, `date_to?`, `staff_id?`, `status?`, `customer_id?`, `scope?`(`upcoming`｜`history`), `limit`(50, max 200), `offset`. CUSTOMER luôn chỉ thấy lịch của mình | `200` `[Booking]`. `upcoming`: trạng thái PENDING/CONFIRMED/IN_PROGRESS và chưa kết thúc (sắp xếp tăng dần); `history`: còn lại (giảm dần) |
 | GET | `/bookings/{id}` | Bearer: mọi role (CUSTOMER chỉ lịch của mình) | - | `200` Booking kèm `items`. `404` |
-| PATCH | `/bookings/{id}/status` | Bearer: ADMIN, STAFF | `{ "status": "CONFIRMED"｜"IN_PROGRESS"｜"COMPLETED"｜"CANCELLED"｜"NO_SHOW" }` | `200` Booking. Luồng hợp lệ: `PENDING→CONFIRMED｜CANCELLED`; `CONFIRMED→IN_PROGRESS｜COMPLETED｜CANCELLED｜NO_SHOW`; `IN_PROGRESS→COMPLETED｜CANCELLED`; sai luồng `409`; gửi lại trạng thái hiện tại = no-op `200`. Khi sang `COMPLETED`: item có `customer_package_id` → `used_sessions += 1` (khóa FOR UPDATE, chặn vượt `total_sessions` → `409`; bằng `total_sessions` thì thẻ → `COMPLETED`), không trừ 2 lần |
+| PATCH | `/bookings/{id}/status` | Bearer: ADMIN, STAFF | `{ "status": "CONFIRMED"｜"IN_PROGRESS"｜"COMPLETED"｜"CANCELLED"｜"NO_SHOW" }` | `200` Booking. Luồng hợp lệ: `PENDING→CONFIRMED｜CANCELLED`; `CONFIRMED→IN_PROGRESS｜COMPLETED｜CANCELLED｜NO_SHOW`; `IN_PROGRESS→COMPLETED｜CANCELLED`; sai luồng `409`; gửi lại trạng thái hiện tại = no-op `200`. Khi sang `COMPLETED`: khóa thẻ theo ID trước khi khóa booking; đọc lại trạng thái dưới khóa để chống deadlock với POST và bảo đảm idempotent. item có `customer_package_id` → `used_sessions += 1` (khóa FOR UPDATE, chặn vượt `total_sessions` → `409`; bằng `total_sessions` thì thẻ → `COMPLETED`), không trừ 2 lần |
 | POST | `/bookings/{id}/cancel` | Bearer: CUSTOMER (lịch của mình), ADMIN, STAFF | - | `200` Booking (`CANCELLED`, gọi lại vẫn `200`). CUSTOMER: chỉ hủy khi `PENDING/CONFIRMED` và cách giờ hẹn >= `CANCELLATION_MIN_HOURS` (mặc định 2 giờ) nếu không `409`. ADMIN/STAFF hủy được mọi lịch chưa kết thúc. Buổi thẻ liệu trình bị giữ chỗ được trả lại |
 
 Ghi chú nghiệp vụ:
@@ -90,19 +90,19 @@ Quy ước: `start_date`, `end_date` = `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh
 
 | Method | URL | Quyền | Query Params | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| GET | `/reports/staff-performance` | ADMIN | `start_date`, `end_date` (`end_date >= start_date`, else `422`), `staff_id?` (`404` nếu KTV không thuộc Spa) | `200` `{ start_date, end_date, total_completed_bookings, total_completed_services, total_revenue("500000.00"), items: [{ staff_id, full_name, phone_number, is_active, completed_bookings_count, completed_services_count, single_services_count, package_sessions_count, total_revenue }] }` |
+| GET | `/reports/staff-performance` | ADMIN | `start_date`, `end_date` (`end_date >= start_date`, khoảng tối đa 366 ngày, else `422`), `staff_id?` (`404` nếu KTV không thuộc Spa) | `200` `{ start_date, end_date, timezone: "Asia/Ho_Chi_Minh", staff: [{ staff_id, full_name, is_active, completed_bookings_count, completed_services_count, single_services_count, package_sessions_count, total_revenue }], totals: { completed_bookings_count, completed_services_count, single_services_count, package_sessions_count, total_revenue } }` |
 
 ### 2.8. Thông báo Web Push & In-App (`notifications` - Sprint 4)
 *(Lưu ý PO: Bỏ tích hợp Telegram Bot, chỉ dùng Web Push chuẩn VAPID + In-App Notification).*
-`Notification` = `{ id, tenant_id, user_id, title, body, type("BOOKING_CREATED"｜"BOOKING_CONFIRMED"｜"BOOKING_IN_PROGRESS"｜"BOOKING_COMPLETED"｜"BOOKING_CANCELLED"｜"BOOKING_NO_SHOW"), booking_id, is_read, created_at }`.
+`Notification` = `{ id, title, body, type("BOOKING_CREATED"｜"BOOKING_CONFIRMED"｜"BOOKING_IN_PROGRESS"｜"BOOKING_COMPLETED"｜"BOOKING_CANCELLED"｜"BOOKING_NO_SHOW"), booking_id, is_read, created_at }`.
 
 | Method | URL | Header / Quyền | Request Body / Query | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| GET | `/notifications/vapid-public-key` | Public (không cần JWT) | - | `200` `{ "public_key": "<VAPID_PUBLIC_KEY>", "enabled": true｜false }` |
-| POST | `/notifications/subscribe` | Bearer: mọi role | `{ endpoint, keys: { p256dh, auth }, user_agent? }` | `201` `{ id, endpoint, user_id, tenant_id, created_at }` (idempotent upsert theo `(tenant_id, endpoint)`) |
-| DELETE | `/notifications/unsubscribe` | Bearer: mọi role | `{ endpoint }` | `200` `{ "unsubscribed": true｜false }` |
+| GET | `/notifications/vapid-public-key` | Public (không cần JWT) | - | `200` `{ "public_key": "<VAPID_PUBLIC_KEY>" }`; `503` nếu chưa cấu hình public key |
+| POST | `/notifications/subscribe` | Bearer: mọi role | `{ endpoint, keys: { p256dh, auth }, expirationTime? }`; user agent lấy từ header `User-Agent` | `201` `{ id, endpoint, created_at }` (serialize theo `(tenant_id, endpoint)` bằng transaction advisory lock; chuyển quyền sở hữu endpoint sang user hiện tại) |
+| DELETE | `/notifications/unsubscribe` | Bearer: mọi role | `{ endpoint }` | `200` `{ "deleted": <int> }` |
 | GET | `/notifications` | Bearer: mọi role | query: `unread_only=false`, `limit`(30, max 100), `offset`(0) | `200` `{ unread_count, items: [Notification] }` (mới nhất trước, chỉ của user hiện tại trong tenant) |
-| PATCH | `/notifications/read-all` | Bearer: mọi role | - | `200` `{ "marked_read": <int> }` |
+| PATCH | `/notifications/read-all` | Bearer: mọi role | - | `200` `{ "updated": <int> }` |
 | PATCH | `/notifications/{id}/read` | Bearer: mọi role | - | `200` Notification (`is_read=true`). `404` nếu không tồn tại hoặc của user/tenant khác |
 
 Ghi chú tự động bắn thông báo (`BackgroundTasks`, non-blocking — lỗi Web Push không bao giờ làm fail giao dịch đặt lịch; subscription trả `404/410` tự động bị xóa):

@@ -177,7 +177,7 @@ export default function AdminReportsPage(): React.ReactElement {
                   Tổng lịch hẹn hoàn thành
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {report.total_completed_bookings}
+                  {report.totals.completed_bookings_count}
                 </p>
               </div>
             </CardContent>
@@ -193,7 +193,7 @@ export default function AdminReportsPage(): React.ReactElement {
                   Tổng suất dịch vụ & buổi liệu trình
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {report.total_completed_services}
+                  {report.totals.completed_services_count}
                 </p>
               </div>
             </CardContent>
@@ -209,7 +209,7 @@ export default function AdminReportsPage(): React.ReactElement {
                   Tổng doanh thu dịch vụ
                 </p>
                 <p className="text-2xl font-bold text-primary">
-                  {formatCurrency(report.total_revenue)}
+                  {formatCurrency(report.totals.total_revenue)}
                 </p>
               </div>
             </CardContent>
@@ -233,7 +233,7 @@ export default function AdminReportsPage(): React.ReactElement {
             <p className="p-10 text-center text-xs text-muted-foreground">
               Đang tổng hợp dữ liệu...
             </p>
-          ) : !report || report.items.length === 0 ? (
+          ) : !report || report.staff.length === 0 ? (
             <p className="p-10 text-center text-xs text-muted-foreground">
               Không có dữ liệu Kỹ thuật viên trong khoảng thời gian này.
             </p>
@@ -254,7 +254,7 @@ export default function AdminReportsPage(): React.ReactElement {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {report.items.map((item) => {
+                {report.staff.map((item) => {
                   const rev = parseFloat(item.total_revenue) || 0;
                   const commission = (rev * commissionRate) / 100;
                   return (
@@ -267,7 +267,7 @@ export default function AdminReportsPage(): React.ReactElement {
                               {item.full_name}
                             </p>
                             <p className="text-muted-foreground">
-                              {item.phone_number}
+                              {staffList.find((staff) => staff.id === item.staff_id)?.phone_number}
                             </p>
                           </div>
                           {!item.is_active && (

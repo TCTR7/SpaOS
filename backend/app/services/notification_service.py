@@ -63,6 +63,15 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
     jobs: List[Dict[str, Any]] = []
     async with AsyncSessionLocal() as session:
         await set_tenant_context(session, tenant_id)
+        # Notification INSERTs acquire FK KEY SHARE locks on users and bookings.
+        # Acquire recipient locks first, in the same order as auto-assignment,
+        # so an INSERT cannot hold a booking FK lock while waiting for its staff.
+        await session.execute(
+            select(User.id)
+            .where(User.tenant_id == tenant_id, User.id.in_({d.user_id for d in drafts}))
+            .order_by(User.id)
+            .with_for_update(read=True, key_share=True)
+        )
         rows = [
             Notification(
                 tenant_id=tenant_id, user_id=d.user_id, title=d.title, body=d.body, type=ntype, booking_id=booking_id

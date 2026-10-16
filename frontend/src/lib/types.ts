@@ -151,7 +151,6 @@ export interface BookingCreateInput {
 export interface StaffPerformanceItem {
   staff_id: string;
   full_name: string;
-  phone_number: string;
   is_active: boolean;
   completed_bookings_count: number;
   completed_services_count: number;
@@ -163,10 +162,15 @@ export interface StaffPerformanceItem {
 export interface StaffPerformanceReport {
   start_date: string;
   end_date: string;
-  total_completed_bookings: number;
-  total_completed_services: number;
-  total_revenue: string;
-  items: StaffPerformanceItem[];
+  timezone: string;
+  staff: StaffPerformanceItem[];
+  totals: {
+    completed_bookings_count: number;
+    completed_services_count: number;
+    single_services_count: number;
+    package_sessions_count: number;
+    total_revenue: string;
+  };
 }
 
 export type NotificationType =

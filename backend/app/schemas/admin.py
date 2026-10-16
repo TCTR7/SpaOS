@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime, time
+from datetime import datetime, time, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import List, Optional
 
@@ -189,6 +190,15 @@ class CustomerPackageCreate(BaseModel):
     package_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     total_sessions: Optional[int] = Field(default=None, ge=1, le=1000)
     expiry_date: Optional[datetime] = None
+
+    @field_validator("expiry_date")
+    @classmethod
+    def _aware_expiry(cls, value: Optional[datetime]) -> Optional[datetime]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=ZoneInfo("Asia/Ho_Chi_Minh"))
+        return value.astimezone(timezone.utc)
 
 
 class CustomerPackageOut(BaseModel):

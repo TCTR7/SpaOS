@@ -2,7 +2,7 @@ import uuid
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -44,6 +44,12 @@ async def subscribe(
 ) -> PushSubscription:
     if not body.endpoint.startswith("https://"):
         raise HTTPException(status_code=HTTP_422, detail="endpoint phải là URL https")
+    # Serialize endpoint ownership changes, including the first INSERT (no row yet).
+    # Transaction-scoped and tenant-specific; released on commit/rollback.
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"push:{tenant_id}:{body.endpoint}"},
+    )
     # 1 trình duyệt chỉ thuộc về 1 user: bỏ đăng ký của user khác trên cùng endpoint (đăng xuất/đăng nhập tài khoản khác)
     await db.execute(
         delete(PushSubscription).where(

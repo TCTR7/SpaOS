@@ -174,10 +174,10 @@ async def fetch_busy(
             Booking.tenant_id == tenant.id,
             Booking.staff_id.in_(staff_ids),
             Booking.status != BookingStatus.CANCELLED,
-            Booking.start_time < day_end,
+            Booking.start_time < day_end + timedelta(minutes=tenant.buffer_minutes),
             Booking.end_time > day_start - timedelta(minutes=tenant.buffer_minutes),
         )
-        .order_by(Booking.start_time, Booking.id)
+        .order_by(Booking.id)
     )
     if lock:
         stmt = stmt.with_for_update()
@@ -220,7 +220,7 @@ async def get_booking_full(
 ) -> Optional[Booking]:
     stmt = (
         select(Booking)
-        .options(selectinload(Booking.items))
+        .options(selectinload(Booking.items.and_(BookingItem.tenant_id == tenant_id)))
         .where(Booking.id == booking_id, Booking.tenant_id == tenant_id)
         .execution_options(populate_existing=True)
     )
@@ -241,6 +241,7 @@ async def _lock_packages(
             .where(CustomerPackage.tenant_id == tenant_id, CustomerPackage.id.in_(package_ids))
             .order_by(CustomerPackage.id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).scalars().all()
     return {p.id: p for p in rows}
@@ -435,7 +436,18 @@ async def update_booking_status(
     db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus
 ) -> Tuple[Booking, bool]:
     """Trả về (booking, changed). changed=False khi gửi lại đúng trạng thái hiện tại (no-op)."""
-    # Lock booking trước: 2 request COMPLETED song song không thể cùng trừ buổi
+    # Booking items are immutable after creation. Read their package IDs without
+    # locking the booking, then follow create_booking's package -> booking order.
+    # Re-read the status under the booking lock to keep COMPLETED idempotent.
+    if new_status == BookingStatus.COMPLETED:
+        package_ids = list((await db.execute(
+            select(BookingItem.customer_package_id).where(
+                BookingItem.tenant_id == tenant_id,
+                BookingItem.booking_id == booking_id,
+                BookingItem.customer_package_id.is_not(None),
+            )
+        )).scalars().all())
+        await _lock_packages(db, tenant_id, package_ids)
     booking = await get_booking_full(db, tenant_id, booking_id, lock=True)
     if booking is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch hẹn")
@@ -504,7 +516,7 @@ async def list_bookings(
     limit: int,
     offset: int,
 ) -> List[Booking]:
-    stmt = select(Booking).options(selectinload(Booking.items)).where(Booking.tenant_id == tenant_id)
+    stmt = select(Booking).options(selectinload(Booking.items.and_(BookingItem.tenant_id == tenant_id))).where(Booking.tenant_id == tenant_id)
     if customer_id is not None:
         stmt = stmt.where(Booking.customer_id == customer_id)
     if staff_id is not None:

@@ -16,7 +16,7 @@ from common_setup.config import BASE_DIR, config
 
 def _is_frontend_up(url: str) -> bool:
     try:
-        resp = httpx.get(url, timeout=2.0, follow_redirects=True)
+        resp = httpx.get(url, timeout=10.0, follow_redirects=False)
         return resp.status_code < 500
     except Exception:
         return False
@@ -49,11 +49,18 @@ def ensure_frontend_server() -> Generator[None, None, None]:
             )
         yield
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except Exception:
-            proc.kill()
+        if Path("C:/Windows").exists():
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                proc.kill()
 
 
 @pytest.fixture(scope="session")

@@ -11,14 +11,18 @@ import {
 } from "lucide-react";
 import {
   fetchCustomerNotifications,
-  fetchCustomerVapidKey,
   markAllCustomerNotificationsRead,
   markCustomerNotificationRead,
   subscribeCustomerWebPush,
-  unsubscribeCustomerWebPush,
 } from "@/lib/customer-api";
+import {
+  disableCustomerWebPush,
+  enableCustomerWebPush,
+  getActivePushSubscription,
+  isWebPushSupported,
+} from "@/lib/web-push";
 import type { NotificationItem } from "@/lib/types";
-import { cn, formatDateTimeVN, urlBase64ToUint8Array } from "@/lib/utils";
+import { cn, formatDateTimeVN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export function CustomerNotificationBell({
@@ -60,33 +64,22 @@ export function CustomerNotificationBell({
   }, [loadNotifications]);
 
   React.useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    ) {
-      setPushSupported(false);
-      return;
-    }
-    setPushSupported(true);
+    const supported = isWebPushSupported();
+    setPushSupported(supported);
+    if (!supported) return;
 
     void (async () => {
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          setPushSubscribed(true);
-          const json = sub.toJSON();
-          if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
-            await subscribeCustomerWebPush(slug, {
-              endpoint: json.endpoint,
-              keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-              user_agent: navigator.userAgent,
-            }).catch(() => {});
-          }
+      const sub = await getActivePushSubscription();
+      if (sub) {
+        setPushSubscribed(true);
+        const json = sub.toJSON();
+        if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+          await subscribeCustomerWebPush(slug, {
+            endpoint: json.endpoint,
+            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+            user_agent: navigator.userAgent,
+          }).catch(() => {});
         }
-      } catch {
-        // ignore SW errors
       }
     })();
   }, [slug]);
@@ -109,33 +102,7 @@ export function CustomerNotificationBell({
     setPushBusy(true);
     setPushMsg(null);
     try {
-      const vapid = await fetchCustomerVapidKey(slug);
-      if (!vapid.enabled || !vapid.public_key) {
-        setPushMsg("Spa chưa cấu hình khóa VAPID.");
-        return;
-      }
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        setPushMsg("Bạn đã từ chối quyền thông báo trên trình duyệt.");
-        return;
-      }
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const keyBytes = urlBase64ToUint8Array(vapid.public_key);
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyBytes.buffer as ArrayBuffer,
-      });
-      const json = sub.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        setPushMsg("Không lấy được khóa đăng ký thiết bị.");
-        return;
-      }
-      await subscribeCustomerWebPush(slug, {
-        endpoint: json.endpoint,
-        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-        user_agent: navigator.userAgent,
-      });
+      await enableCustomerWebPush(slug);
       setPushSubscribed(true);
       setPushMsg("Đã bật thông báo nhắc lịch trên điện thoại!");
     } catch (err) {
@@ -151,12 +118,7 @@ export function CustomerNotificationBell({
     setPushBusy(true);
     setPushMsg(null);
     try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      const sub = await reg?.pushManager.getSubscription();
-      if (sub) {
-        await unsubscribeCustomerWebPush(slug, sub.endpoint).catch(() => {});
-        await sub.unsubscribe();
-      }
+      await disableCustomerWebPush(slug);
       setPushSubscribed(false);
       setPushMsg("Đã tắt thông báo đẩy trên thiết bị này.");
     } catch (err) {

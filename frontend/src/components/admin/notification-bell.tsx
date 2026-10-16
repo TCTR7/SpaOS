@@ -11,14 +11,18 @@ import {
 } from "lucide-react";
 import {
   fetchNotifications,
-  fetchVapidPublicKey,
   markAllNotificationsRead,
   markNotificationRead,
   subscribeWebPush,
-  unsubscribeWebPush,
 } from "@/lib/api";
+import {
+  disableAdminWebPush,
+  enableAdminWebPush,
+  getActivePushSubscription,
+  isWebPushSupported,
+} from "@/lib/web-push";
 import type { NotificationItem } from "@/lib/types";
-import { cn, formatDateTimeVN, urlBase64ToUint8Array } from "@/lib/utils";
+import { cn, formatDateTimeVN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export function NotificationBell(): React.ReactElement {
@@ -45,7 +49,6 @@ export function NotificationBell(): React.ReactElement {
     }
   }, []);
 
-  // Poll notifications every 20s and on initial mount
   React.useEffect(() => {
     void loadNotifications();
     const timer = window.setInterval(() => {
@@ -54,40 +57,27 @@ export function NotificationBell(): React.ReactElement {
     return () => window.clearInterval(timer);
   }, [loadNotifications]);
 
-  // Check Service Worker & Web Push subscription state
   React.useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    ) {
-      setPushSupported(false);
-      return;
-    }
-    setPushSupported(true);
+    const supported = isWebPushSupported();
+    setPushSupported(supported);
+    if (!supported) return;
 
     void (async () => {
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        const existingSub = await reg.pushManager.getSubscription();
-        if (existingSub) {
-          setPushSubscribed(true);
-          const json = existingSub.toJSON();
-          if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
-            await subscribeWebPush({
-              endpoint: json.endpoint,
-              keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-              user_agent: navigator.userAgent,
-            }).catch(() => {});
-          }
+      const existingSub = await getActivePushSubscription();
+      if (existingSub) {
+        setPushSubscribed(true);
+        const json = existingSub.toJSON();
+        if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+          await subscribeWebPush({
+            endpoint: json.endpoint,
+            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+            user_agent: navigator.userAgent,
+          }).catch(() => {});
         }
-      } catch {
-        // SW registration failed
       }
     })();
   }, []);
 
-  // Close dropdown on click outside
   React.useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e: MouseEvent): void => {
@@ -106,33 +96,7 @@ export function NotificationBell(): React.ReactElement {
     setPushBusy(true);
     setPushMessage(null);
     try {
-      const vapid = await fetchVapidPublicKey();
-      if (!vapid.enabled || !vapid.public_key) {
-        setPushMessage("Server chưa cấu hình VAPID_PUBLIC_KEY.");
-        return;
-      }
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setPushMessage("Trình duyệt đã từ chối quyền thông báo.");
-        return;
-      }
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const appServerKey = urlBase64ToUint8Array(vapid.public_key);
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: appServerKey.buffer as ArrayBuffer,
-      });
-      const json = sub.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        setPushMessage("Không đọc được khóa mã hóa Push Subscription.");
-        return;
-      }
-      await subscribeWebPush({
-        endpoint: json.endpoint,
-        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-        user_agent: navigator.userAgent,
-      });
+      await enableAdminWebPush();
       setPushSubscribed(true);
       setPushMessage("Đã bật nhận thông báo đẩy trình duyệt!");
     } catch (err) {
@@ -148,12 +112,7 @@ export function NotificationBell(): React.ReactElement {
     setPushBusy(true);
     setPushMessage(null);
     try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      const sub = await reg?.pushManager.getSubscription();
-      if (sub) {
-        await unsubscribeWebPush(sub.endpoint).catch(() => {});
-        await sub.unsubscribe();
-      }
+      await disableAdminWebPush();
       setPushSubscribed(false);
       setPushMessage("Đã tắt Web Push trên thiết bị này.");
     } catch (err) {
