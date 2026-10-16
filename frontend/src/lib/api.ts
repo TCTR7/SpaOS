@@ -17,8 +17,7 @@ import type {
   VapidPublicKeyResponse,
 } from "./types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api/v1";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 const TOKEN_KEY = "spaos_admin_token";
 const SLUG_KEY = "spaos_admin_slug";
