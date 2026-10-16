@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    container_name: spaos_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spaos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spaos_password}
+      POSTGRES_DB: ${POSTGRES_DB:-spaos}
+      APP_DB_USER: ${APP_DB_USER:-spaos_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-spaos_app_password}
+      TZ: UTC
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - spaos_pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spaos} -d ${POSTGRES_DB:-spaos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spaos_backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${APP_DB_USER:-spaos_app}:${APP_DB_PASSWORD:-spaos_app_password}@db:5432/${POSTGRES_DB:-spaos}
+      - MIGRATION_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-spaos}:${POSTGRES_PASSWORD:-spaos_password}@db:5432/${POSTGRES_DB:-spaos}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-with-a-long-random-string}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      - DEFAULT_TIMEZONE=${DEFAULT_TIMEZONE:-Asia/Ho_Chi_Minh}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@spaos.local}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  spaos_pgdata:

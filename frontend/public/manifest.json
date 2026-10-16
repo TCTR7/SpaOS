@@ -1,0 +1,17 @@
+{
+  "name": "SpaOS — Đặt lịch & Chăm sóc sắc đẹp",
+  "short_name": "SpaOS",
+  "description": "Ứng dụng đặt lịch Spa nhanh chóng, theo dõi thẻ liệu trình và nhận nhắc lịch tự động.",
+  "start_url": "/spa-demo",
+  "display": "standalone",
+  "background_color": "#fdfbf9",
+  "theme_color": "#be185d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

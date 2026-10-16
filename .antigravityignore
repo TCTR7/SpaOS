@@ -1,0 +1,19 @@
+# Bỏ qua thư mục cài đặt của Backend (Python FastAPI)
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+*.pyc
+
+# Bỏ qua thư mục cài đặt & build của Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/package-lock.json
+frontend/yarn.lock
+frontend/pnpm-lock.yaml
+
+# Bỏ qua dữ liệu ổ cứng của Docker Postgres
+postgres_data/
+.env
