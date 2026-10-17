@@ -24,7 +24,9 @@ from app.models.models import (
     User,
     UserRole,
 )
-from app.schemas.booking import BookingCreate
+from app.schemas.booking import BookingCreate, BookingUpdate
+from app.services.audit_service import audit
+from app.services.customer_access import customer_access, booking_access, customer_scope
 
 TZ = ZoneInfo(settings.DEFAULT_TIMEZONE)
 SLOT_STEP_MINUTES = 15
@@ -321,6 +323,8 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
         if customer is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy khách hàng")
 
+    customer = await customer_access(db, tenant_id, customer.id, actor, write=True)
+
     # 2. Dịch vụ, thời lượng
     tenant = await load_tenant(db, tenant_id)
     service_ids = [i.service_id for i in body.items]
@@ -376,6 +380,12 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
                 status_code=status.HTTP_409_CONFLICT, detail="Không còn kỹ thuật viên trống trong khung giờ này"
             )
 
+    # First successful booking establishes an owner; future bookings never transfer it.
+    if customer.assigned_staff_id is None:
+        customer.assigned_staff_id = staff_id
+        audit(db, tenant_id, actor, "CUSTOMER_ASSIGNED", "customer", customer.id,
+              {"from_staff_id": None, "to_staff_id": str(staff_id), "source": "first_booking"})
+
     # 5. Tạo booking + items
     items: List[BookingItem] = []
     total_price = Decimal("0")
@@ -407,6 +417,8 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
     db.add(booking)
     await db.flush()
     booking_id = booking.id
+    audit(db, tenant_id, actor, "BOOKING_CREATED", "booking", booking.id,
+          {"customer_id": str(customer.id), "staff_id": str(staff_id), "start_time": start.isoformat()})
     await db.commit()  # nhả toàn bộ lock
 
     await set_tenant_context(db, tenant_id)
@@ -433,9 +445,11 @@ async def _consume_package_sessions(db: AsyncSession, tenant_id: uuid.UUID, book
 
 
 async def update_booking_status(
-    db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus
+    db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus, actor: Optional[User] = None
 ) -> Tuple[Booking, bool]:
     """Trả về (booking, changed). changed=False khi gửi lại đúng trạng thái hiện tại (no-op)."""
+    if actor is not None:
+        await booking_access(db, tenant_id, booking_id, actor, write=True)
     # Booking items are immutable after creation. Read their package IDs without
     # locking the booking, then follow create_booking's package -> booking order.
     # Re-read the status under the booking lock to keep COMPLETED idempotent.
@@ -460,7 +474,10 @@ async def update_booking_status(
         )
     if new_status == BookingStatus.COMPLETED:
         await _consume_package_sessions(db, tenant_id, booking)
+    previous_status = booking.status
     booking.status = new_status
+    audit(db, tenant_id, actor, "BOOKING_STATUS_CHANGED", "booking", booking.id,
+          {"from_status": previous_status.value, "to_status": new_status.value})
     await db.commit()
 
     await set_tenant_context(db, tenant_id)
@@ -473,6 +490,7 @@ async def cancel_booking(
     db: AsyncSession, tenant_id: uuid.UUID, actor: User, booking_id: uuid.UUID
 ) -> Tuple[Booking, bool]:
     """Trả về (booking, changed)."""
+    await booking_access(db, tenant_id, booking_id, actor, write=True)
     booking = await get_booking_full(db, tenant_id, booking_id, lock=True)
     if booking is None or (actor.role == UserRole.CUSTOMER and booking.customer_id != actor.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch hẹn")
@@ -494,7 +512,10 @@ async def cancel_booking(
             status_code=status.HTTP_409_CONFLICT, detail=f"Không thể hủy lịch ở trạng thái {booking.status.value}"
         )
 
+    previous_status = booking.status
     booking.status = BookingStatus.CANCELLED
+    audit(db, tenant_id, actor, "BOOKING_CANCELLED", "booking", booking.id,
+          {"from_status": previous_status.value})
     await db.commit()
     await set_tenant_context(db, tenant_id)
     full = await get_booking_full(db, tenant_id, booking_id)
@@ -515,8 +536,11 @@ async def list_bookings(
     scope: Optional[str],
     limit: int,
     offset: int,
+    actor: Optional[User] = None,
 ) -> List[Booking]:
     stmt = select(Booking).options(selectinload(Booking.items.and_(BookingItem.tenant_id == tenant_id))).where(Booking.tenant_id == tenant_id)
+    if actor is not None and actor.role == UserRole.STAFF:
+        stmt = stmt.where(Booking.customer_id.in_(customer_scope(tenant_id, actor)))
     if customer_id is not None:
         stmt = stmt.where(Booking.customer_id == customer_id)
     if staff_id is not None:
@@ -537,3 +561,59 @@ async def list_bookings(
     else:
         stmt = stmt.order_by(Booking.start_time.desc(), Booking.id)
     return list((await db.execute(stmt.limit(limit).offset(offset))).scalars().all())
+
+
+async def reschedule_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User,
+                             booking_id: uuid.UUID, body: BookingUpdate) -> Booking:
+    customer = await booking_access(db, tenant_id, booking_id, actor, write=True)
+    if body.transfer_customer and actor.role != UserRole.ADMIN:
+        raise HTTPException(403, "Chỉ Admin được chuyển người phụ trách")
+    booking = await get_booking_full(db, tenant_id, booking_id)
+    if booking.status not in (BookingStatus.PENDING, BookingStatus.CONFIRMED):
+        raise HTTPException(409, "Chỉ được sửa lịch PENDING/CONFIRMED")
+    now = datetime.now(timezone.utc)
+    start = ensure_aware(body.start_time).astimezone(timezone.utc)
+    if start <= now:
+        raise HTTPException(422, "start_time phải ở tương lai")
+    if actor.role == UserRole.CUSTOMER and booking.start_time - now < timedelta(hours=settings.CANCELLATION_MIN_HOURS):
+        raise HTTPException(409, "Chỉ được đổi lịch trước giờ hẹn tối thiểu 2 giờ")
+    tenant = await load_tenant(db, tenant_id)
+    packages = await _lock_packages(db, tenant_id, sorted({
+        item.customer_package_id for item in booking.items if item.customer_package_id}))
+    for package in packages.values():
+        if package.status != PackageStatus.ACTIVE or (package.expiry_date and package.expiry_date <= start):
+            raise HTTPException(422, "Thẻ liệu trình không còn hiệu lực tại giờ hẹn mới")
+    # Lock old + potential new technicians in one deterministic order before bookings.
+    candidates = [body.staff_id] if body.staff_id else await list_active_staff_ids(db, tenant_id)
+    valid = set()
+    for sid in sorted(set(candidates + ([booking.staff_id] if booking.staff_id else []))):
+        if await _lock_staff_row(db, tenant_id, sid):
+            valid.add(sid)
+    if body.staff_id and body.staff_id not in valid:
+        raise HTTPException(404, "Không tìm thấy kỹ thuật viên")
+    end = start + timedelta(minutes=booking.total_duration_minutes)
+    windows = await get_schedule_windows(db, tenant, candidates, start.astimezone(TZ).date())
+    day_start, day_end = local_day_bounds(start.astimezone(TZ).date())
+    busy = await fetch_busy(db, tenant, candidates, day_start, day_end, lock=True)
+    chosen = next((sid for sid in candidates if sid in valid and _fits(windows[sid], start, end)
+                   and not _conflicts([b for b in busy[sid] if b.id != booking_id],
+                                      start, end, tenant.buffer_minutes)), None)
+    if chosen is None:
+        raise HTTPException(409, "Không còn kỹ thuật viên trống trong khung giờ này")
+    booking = await get_booking_full(db, tenant_id, booking_id, lock=True)
+    before = {"start_time": booking.start_time.isoformat(), "staff_id": str(booking.staff_id)}
+    booking.start_time, booking.end_time, booking.staff_id = start, end, chosen
+    if body.transfer_customer and customer.assigned_staff_id != chosen:
+        previous_owner = customer.assigned_staff_id
+        customer.assigned_staff_id = chosen
+        audit(db, tenant_id, actor, "CUSTOMER_ASSIGNED", "customer", customer.id,
+              {"from_staff_id": str(previous_owner) if previous_owner else None,
+               "to_staff_id": str(chosen), "source": "reschedule"})
+    audit(db, tenant_id, actor, "BOOKING_RESCHEDULED", "booking", booking.id,
+          {"before": before, "after": {"start_time": start.isoformat(), "staff_id": str(chosen)},
+           "note_changed": "note" in body.model_fields_set})
+    if "note" in body.model_fields_set:
+        booking.note = body.note
+    await db.commit()
+    await set_tenant_context(db, tenant_id)
+    return await get_booking_full(db, tenant_id, booking_id)

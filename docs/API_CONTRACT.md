@@ -63,6 +63,7 @@ Mọi endpoint dưới đây (trừ Public) cần `Authorization: Bearer <jwt>`.
 | POST | `/customers` | ADMIN, STAFF | `{ full_name, phone_number, notes?, password? }` (không có password -> sinh ngẫu nhiên) | `201` UserDetail. `409` trùng SĐT |
 | PATCH | `/customers/{id}` | ADMIN, STAFF | `{ full_name?, notes? }` | `200` UserDetail |
 | GET | `/customers/{customer_id}/packages` | ADMIN, STAFF | - | `200` `[CustomerPackage]` |
+| GET | `/customer-packages/me` | CUSTOMER | Không nhận customer_id/tenant_id từ client; lấy từ JWT | `200` `[MyCustomerPackage]`: các trường CustomerPackage + `reserved_sessions` (PENDING/CONFIRMED/IN_PROGRESS), `available_sessions` = max(0, total-used-reserved); thẻ hết hạn/không ACTIVE trả khả dụng 0 |
 | GET | `/customer-packages` | ADMIN, STAFF | query: `customer_id?`, `status?`, `limit`, `offset` | `200` `[CustomerPackage]` |
 | POST | `/customer-packages` | ADMIN, STAFF | `{ customer_id, service_id, package_name?, total_sessions?, expiry_date?(tương lai; thiếu offset hiểu là Asia/Ho_Chi_Minh, lưu UTC) }` — mặc định lấy từ service; service phải `is_package=true` và active, else `422` | `201` CustomerPackage (`used_sessions=0`, `status=ACTIVE`) |
 
@@ -98,7 +99,7 @@ Quy ước: `start_date`, `end_date` = `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh
 
 | Method | URL | Header / Quyền | Request Body / Query | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| GET | `/notifications/vapid-public-key` | Public (không cần JWT) | - | `200` `{ "public_key": "<VAPID_PUBLIC_KEY>" }`; `503` nếu chưa cấu hình public key |
+| GET | `/notifications/vapid-public-key` | Public (không cần JWT) | - | `200` `{ "public_key": "<VAPID_PUBLIC_KEY>", "enabled": true }`; `enabled=false` nếu thiếu public hoặc private key (public_key có thể rỗng) |
 | POST | `/notifications/subscribe` | Bearer: mọi role | `{ endpoint, keys: { p256dh, auth }, expirationTime? }`; user agent lấy từ header `User-Agent` | `201` `{ id, endpoint, created_at }` (serialize theo `(tenant_id, endpoint)` bằng transaction advisory lock; chuyển quyền sở hữu endpoint sang user hiện tại) |
 | DELETE | `/notifications/unsubscribe` | Bearer: mọi role | `{ endpoint }` | `200` `{ "deleted": <int> }` |
 | GET | `/notifications` | Bearer: mọi role | query: `unread_only=false`, `limit`(30, max 100), `offset`(0) | `200` `{ unread_count, items: [Notification] }` (mới nhất trước, chỉ của user hiện tại trong tenant) |
@@ -109,3 +110,110 @@ Ghi chú tự động bắn thông báo (`BackgroundTasks`, non-blocking — l�
 - Khách tạo lịch (`POST /bookings`) hoặc khách hủy lịch (`POST /bookings/{id}/cancel`) -> Tạo thông báo in-app & bắn Web Push tới toàn bộ `ADMIN` và `STAFF` đang active của Spa (KTV được giao lịch nhận tiêu đề riêng).
 - Admin/Staff cập nhật trạng thái (`PATCH /bookings/{id}/status` sang `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `NO_SHOW`) hoặc hủy lịch -> Tạo thông báo in-app & bắn Web Push tới `CUSTOMER` sở hữu lịch hẹn.
 
+
+### Web Push: điều hướng theo người nhận
+Payload push có `url`: ADMIN/STAFF → `/admin/bookings`; CUSTOMER → `/<tenant_slug>/appointments`, slug lấy từ tenant của sự kiện. Không dùng slug spa-demo mặc định.
+
+
+## Quyền khách hàng cố định và sửa lịch — 17/10/2026
+
+- UserDetail thêm assigned_staff_id (UUID hoặc null). Hồ sơ khách có KTV phụ trách cố định, độc lập với staff_id của từng booking.
+- STAFF chỉ đọc/sửa khách được giao; các danh sách customers, customer-packages, bookings được lọc tại backend. Đọc/sửa ID của khách không phụ trách trả 404. KTV không tự nhận/chuyển quyền bằng request body.
+- Khách mới do STAFF tạo được giao cho STAFF đó; khách chưa phân công được gán KTV của booking thành công đầu tiên. Các booking sau không đổi chủ hồ sơ. Hồ sơ chưa phân công chỉ Admin và chính khách truy cập.
+- PATCH /customers/{customer_id}/assignment: ADMIN; body {assigned_staff_id: UUID|null}; 200 UserDetail. KTV đích phải active và cùng tenant (không hợp lệ 404); STAFF/CUSTOMER 403. Chuyển quyền không tự đổi KTV/giờ trong lịch đã đặt.
+- PATCH /bookings/{booking_id}: ADMIN, KTV phụ trách hồ sơ, CUSTOMER sở hữu lịch. Body {start_time, staff_id?: UUID|null, note?: string|null}; null/bỏ staff_id = tự sắp xếp; bỏ note = giữ nguyên, null = xóa ghi chú. Chỉ PENDING/CONFIRMED; giờ mới phải tương lai. CUSTOMER chỉ đổi trước giờ cũ tối thiểu CANCELLATION_MIN_HOURS. Trạng thái không hợp lệ/sát giờ/trùng slot 409; thẻ hết hiệu lực ở giờ mới 422; không có quyền 404.
+- Sửa trong một transaction: giữ nguyên booking ID, items, giá/thời lượng chốt, trạng thái và số buổi giữ chỗ. Thất bại giữ nguyên lịch cũ. Không nhận customer_id/items/price trong payload sửa (422).
+- Mọi ghi dữ liệu khách/booking qua API và chuyển quyền serialize bằng advisory lock theo tenant+customer trước các row lock thẻ/KTV/booking.
+- Thông báo gửi Admin + chủ hồ sơ hiện tại (loại actor); không broadcast cho KTV khác. Thông báo in-app cũ không còn đọc được sau chuyển quyền. Push đã giao tới thiết bị trước lúc chuyển quyền không thể thu hồi.
+- Event BOOKING_RESCHEDULED cho đổi lịch; API không tạo booking mới hoặc hủy booking cũ.
+
+
+## Thu tiền thủ công & nhật ký — 17/10/2026
+
+Tất cả endpoint dưới đây chỉ dành cho ADMIN; STAFF/CUSTOMER trả 403, thiếu JWT 401. Tenant, người lập phiếu và người xác nhận lấy từ Dependency/JWT.
+
+- POST /payments/invoices → 201 Invoice. Body đúng một trong {booking_id} hoặc {customer_package_id, legacy_amount_due?}. Chỉ một phiếu cho mỗi nguồn; gọi lặp trả phiếu cũ. Giá lịch lấy total_price đã chốt; giá thẻ mới lấy purchase_price tại lúc cấp thẻ. Với thẻ cũ purchase_price=null, Admin phải xác nhận legacy_amount_due (>=0). Không dùng giá menu hiện tại để đoán giá lịch sử; không cho đổi giá đã chốt qua request.
+- GET /payments/invoices?customer_id?&limit=50&offset=0 → [Invoice], limit tối đa 200.
+- GET /payments/invoices/{id} → Invoice; không thuộc tenant trả 404.
+- GET /payments/invoices/{id}/entries?limit=100&offset=0 → [Entry], tối đa 200.
+- POST /payments/invoices/{id}/receipts → 201 Entry. Body {amount: Decimal>0, method: CASH|BANK_TRANSFER, idempotency_key: UUID, note?: string|null}. Số tiền tối đa 12 chữ số, 2 số lẻ. Chặn tổng thu vượt khoản phải thu (409). Không nhận tenant_id, actor_id hoặc thời gian xác nhận từ client.
+- POST /payments/entries/{id}/void → 201 Entry. Body {idempotency_key: UUID, reason: string không rỗng}. Ghi bút toán âm đối ứng đúng khoản thu gốc, không sửa/xóa lịch sử. Khoản thu chỉ hủy một lần; không hủy bút toán đối ứng (409).
+- GET /payments/summary?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD → {date_from,date_to,timezone,cash,bank_transfer,net_received}. Khoảng tối đa 366 ngày; biên ngày theo Asia/Ho_Chi_Minh; thu/hủy tính theo thời điểm server ghi nhận. Số tiền là chuỗi Decimal. Thực thu ròng có thể âm trong ngày có hủy khoản thu cũ.
+- GET /audit-logs?entity_id?&limit=50&offset=0 → [AuditEvent]; tối đa 200; mới nhất trước.
+
+Invoice: {id,customer_id,booking_id?,customer_package_id?,amount_due,amount_paid,balance_due,status:UNPAID|PARTIAL|PAID,created_at}. Phiếu 0đ có trạng thái PAID và không cho thu thêm.
+Entry: {id,invoice_id,amount,method,recorded_by,created_at,reversal_of?,note?}. Khoản hủy có amount âm và reversal_of trỏ khoản gốc.
+AuditEvent: {id,actor_id?,action,entity_type,entity_id,details,created_at}.
+
+Invariant:
+- Các bảng payment_invoices/payment_entries/audit_logs có tenant_id + ENABLE/FORCE RLS. Ledger và audit bị chặn UPDATE/DELETE bằng trigger.
+- Thu/hủy serialize theo mã idempotency (tenant-scoped) rồi khóa invoice FOR UPDATE; cùng mã/cùng payload trả cùng Entry, cùng mã/khác payload 409. Các mã khác nhau vẫn không thu vượt khi đồng thời.
+- Mỗi thay đổi nghiệp vụ và audit được commit trong cùng transaction. Nhật ký không sao chép nội dung ghi chú sức khỏe hay mật khẩu; chỉ ghi tên trường thay đổi và dữ liệu vận hành cần thiết.
+- Hủy lịch không tự hủy khoản thu; Admin đối chiếu và ghi hủy riêng. Bút toán hủy chỉ điều chỉnh sổ; thao tác hoàn tiền thực tế ở ngoài ứng dụng.
+- Thẻ liệu trình thu ở phiếu bán thẻ; booking dùng thẻ có giá 0 để tránh thu thêm cho cùng buổi.
+- Hiện chưa có sửa giá phiếu, giảm giá, hóa đơn thuế, tự động ngân hàng hoặc phân quyền thu ngân riêng.
+
+## Bàn giao trong thao tác dời lịch
+PATCH /bookings/{id} thêm transfer_customer?: boolean (mặc định false).
+Chỉ ADMIN được gửi true (khác vai trò → 403). Sau khi giờ/KTV mới hợp lệ, hệ thống đổi KTV lịch và người phụ trách hồ sơ sang KTV đã chọn trong cùng transaction, ghi cả BOOKING_RESCHEDULED và CUSTOMER_ASSIGNED. Nếu trùng slot hoặc lỗi bất kỳ, cả lịch và quyền hồ sơ giữ nguyên. False giữ nguyên quyền cố định, kể cả khi KTV thực hiện khác.
+
+
+## Danh sách thu tiền tự động — 17/10/2026
+- GET /payments/collections?q=&scope=outstanding&limit=50&offset=0 → 200 [Collection]. Chỉ ADMIN; thiếu JWT 401, STAFF/CUSTOMER 403. q tối đa 100 ký tự, tìm tên/SĐT theo chuỗi literal; scope=outstanding|all, limit 1–200, offset>=0.
+- Collection: {source_id,source_type:booking|package,customer_id,customer_name,phone_number,description,occurred_at,source_status,invoice_id:UUID|null,amount_due:Decimal|null,amount_paid:Decimal,balance_due:Decimal|null,status:UNPAID|PARTIAL|PAID|NEEDS_PRICE|COVERED|FREE}. Số tiền JSON dạng chuỗi; occurred_at là giờ hẹn hoặc ngày cấp thẻ. description gồm tên dịch vụ hiện tại (giá vẫn là snapshot).
+- Tự kết hợp lịch hẹn và thẻ đã cấp trong tenant, không yêu cầu tạo phiếu trước; GET chỉ đọc, không ghi invoice/audit. Một query SQL có join/aggregate và phân trang, không query theo từng khách.
+- outstanding chỉ gồm UNPAID/PARTIAL/NEEDS_PRICE; all gồm cả đã thu và miễn phí/dùng thẻ. Ưu tiên khoản chưa thu, sau đó thời gian nguồn giảm dần, loại nguồn và UUID để ổn định phân trang.
+- Nếu đã có invoice, lấy giá đã chốt tại invoice và tổng ledger (kể cả hoàn tác); nếu chưa có, dùng Booking.total_price/CustomerPackage.purchase_price. Thẻ cũ NULL giá và chưa có invoice → NEEDS_PRICE, không đoán từ menu.
+- Booking tổng 0 và tất cả items dùng thẻ → COVERED; tổng 0 còn lại → FREE. Lịch CANCELLED/NO_SHOW chưa có invoice không xuất hiện; nếu đã có invoice thì vẫn hiển thị để đối chiếu, không tự hủy khoản thu.
+- UI Admin → Thu tiền: danh sách tự có dữ liệu; chọn Xác nhận đã thu để kiểm tra số tiền/phương thức, sau đó xác nhận. Invoice được chuẩn bị nội bộ qua API hiện có, không có bước lập phiếu thủ công. Mặc định thu toàn bộ balance_due; trả một phần là tùy chọn. Retry giữ nguyên body/idempotency key. Nếu ghi thành công nhưng tải lại thất bại, khóa thu tiếp cho đến khi tải lại số tiền thành công.
+- Tổng thực thu hôm nay tải tự động theo ngày Việt Nam, cập nhật sau thu/hoàn tác. Nhật ký chung ở tab Lịch sử thao tác; lịch sử thu và hoàn tác nằm trong phần mở rộng của khoản đang chọn.
+
+
+## Tài khoản quản trị chung và chi nhánh — 17/10/2026
+
+tenant_id vẫn là mã chi nhánh nội bộ. Dữ liệu khách, quyền KTV phụ trách, lịch, dịch vụ/giá, thẻ và thu tiền giữ riêng từng chi nhánh; không đổi/xóa các ID cũ. login_accounts là danh tính xác thực cấp deployment (không có tenant_id vì dùng chung), có ENABLE/FORCE RLS theo account đã xác minh hoặc phone bootstrap. branch_memberships có tenant_id, FK kép tenant/user và FORCE RLS: đọc theo chi nhánh hiện tại hoặc account đã xác minh, ghi theo chi nhánh. Các bảng nghiệp vụ khác vẫn chỉ dùng RLS tenant, không nới policy để tổng hợp.
+
+- POST /auth/login không có X-Tenant-Slug: body {phone_number,password}; 200 TokenResponse cho ADMIN/STAFF, chọn chi nhánh active đầu tiên được cấp (thứ tự membership created_at/id). Không có quyền/sai mật khẩu 401. CUSTOMER tiếp tục dùng đường dẫn chi nhánh và header hiện hành.
+- POST /auth/login có X-Tenant-Slug: giữ tương thích API cũ/PWA; tài khoản quản trị đã liên kết kiểm tra mật khẩu chung. Tài khoản cũ chưa liên kết chỉ đăng nhập được bằng luồng cũ; không tự gộp theo số điện thoại.
+- GET /branches → [BranchAccess {tenant:TenantOut,user:UserOut,is_owner:boolean}], chỉ danh tính quản trị đã liên kết; membership/user/tenant bị khóa được loại. CUSTOMER/unlinked 403.
+- POST /branches/{branch_id}/switch → TokenResponse; thiếu quyền 404. Tenant trong JWT mới lấy từ membership được xác minh; không có quyền tự chỉ định branch_id trong các API nghiệp vụ. Token cũ không tự bị vô hiệu khi chủ spa chuyển, nhưng quyền/hoạt động được kiểm tra lại trên mỗi request.
+- POST /branches → 201 BranchAccess; body {name}, extra forbid, tên 1–255 ký tự không rỗng. Chỉ ADMIN với is_owner ở chi nhánh hiện tại; tạo tenant, hồ sơ Admin và membership cùng tài khoản trong một transaction; mã đường dẫn tự sinh. Chi nhánh mới chưa có dịch vụ/nhân sự/lịch làm việc.
+- POST /branches/{branch_id}/staff-access → 201 UserOut; body {source_staff_id}, extra forbid. Chỉ chủ hệ thống có quyền owner/Admin ở cả nguồn và đích; source_staff_id là STAFF active tại chi nhánh hiện tại. Cấp hồ sơ STAFF riêng tại đích nhưng cùng danh tính đăng nhập; gọi lại khôi phục hoạt động nếu đã có membership. Trùng hồ sơ SĐT khác danh tính 409; không tự gộp. Thu hồi bằng PATCH /staff/{id} is_active=false tại đích; token đích bị chặn ngay và đích biến mất khỏi danh sách.
+- PATCH /staff/{id}: SĐT/mật khẩu của tài khoản một chi nhánh đồng bộ login_accounts; xung đột SĐT 409. Tài khoản đã có nhiều membership không cho đổi credentials từ API một chi nhánh (409). Tên/ghi chú/hoạt động vẫn riêng từng chi nhánh. Chưa có màn hình quản trị credentials chung.
+- GET /branches/public (không JWT) → {brand_name,branches:[{id,name,slug}]}, chỉ chi nhánh ACTIVE của database deployment. Không trả người dùng, quyền hoặc thông tin tài chính. Khi deploy riêng, database phải chỉ chứa dữ liệu của đúng chủ spa; không dùng thư mục này trên database cũ chứa nhiều chủ độc lập trước khi tách dữ liệu.
+- POST /auth/register-tenant: ở ENVIRONMENT=production bị chặn 403 trừ khi ALLOW_TENANT_REGISTRATION=true. Production khởi tạo lần đầu bằng CLI operator; chi nhánh mới tạo từ /branches sau đăng nhập.
+
+### Dashboard
+GET /dashboard?day=YYYY-MM-DD&branch_id?&all_branches=false → DashboardOut; day mặc định hôm nay theo Việt Nam. ADMIN xem chi nhánh được cấp vai trò ADMIN; chủ có is_owner hiện tại mới được all_branches=true, chỉ tổng các chi nhánh có owner/Admin của chính account. Không chọn branch_id cùng all_branches (422), ngoài quyền 404, STAFF/CUSTOMER 403.
+
+DashboardOut: {date,timezone:"Asia/Ho_Chi_Minh",branches:[{branch_id,name,metrics}],totals:metrics}.
+metrics:
+- appointments: lịch có start_time trong ngày, loại CANCELLED/NO_SHOW; in_progress và completed là số lịch theo hai trạng thái tương ứng.
+- cash,bank_transfer,net_received: tổng PaymentEntry theo created_at trong ngày, gồm bút toán âm. completed_value: tổng Booking.total_price đã COMPLETED theo ngày start_time, độc lập thực thu.
+- outstanding: tổng balance_due dương của toàn bộ nguồn theo quy tắc /payments/collections (không cắt ở limit 50/200); unknown_prices: số thẻ chưa đối chiếu, chưa cộng tiền ước đoán.
+- active_packages: thẻ ACTIVE chưa hết buổi, chưa hết hạn tại thời điểm hiện tại (không phải snapshot ngày lịch sử).
+- Các số tiền là chuỗi Decimal; tổng server cộng Decimal, không cộng tiền bằng JavaScript float.
+- Backend duyệt các chi nhánh đã xác minh, gán RLS context riêng và luôn lọc tenant_id. Không dùng role bypass hay mở policy nghiệp vụ cho nhiều tenant; chi phí query tăng theo số chi nhánh.
+- Giao diện “Tất cả chi nhánh” là chế độ tổng quan. Các đường dẫn ghi dữ liệu tiếp tục dùng chi nhánh cụ thể của JWT; giao diện ghi rõ chi nhánh hiện tại khi dẫn sang lịch/thu tiền.
+
+### Chuyển đổi và giao diện
+Migration 0005_branch_accounts chỉ tạo danh tính cho SĐT quản trị duy nhất trong dữ liệu cũ; không gộp cả khi password hash giống nhau. ADMIN hiện hữu được owner cho phạm vi hiện có của mình; không tự nối các tenant có chủ độc lập. Tài khoản bỏ qua do trùng số cần operator đối chiếu bằng scripts.branch_account_audit.
+Đổi chi nhánh cấp token mới, hủy đăng ký Push của phiên chi nhánh trước, tải lại trang để xóa state cũ. Tab khác nhận storage event và tải lại; PWA customer giữ token riêng theo slug, URL cũ còn hoạt động.
+
+
+## Quản trị triển khai và cấp chủ spa — 0006_operator_portal
+
+Danh tính deployment_operators tách biệt UserRole và login_accounts nghiệp vụ. Mỗi deployment tối đa một operator (singleton database constraint); không có tenant_id vì là danh tính hạ tầng, có ENABLE/FORCE RLS theo operator_id hoặc phone bootstrap. owner_provisions có tenant_id, FK tenant/owner, operator_id, chống trùng request_id theo operator và append-only. Không nới RLS nghiệp vụ.
+
+- POST /operator/login: {phone_number,password}, extra forbid. 200 {access_token,token_type:"bearer",expires_in:1800,operator:{id,full_name,phone_number}}. JWT aud=spaos-operator, scope=operator, version; sai thông tin 401, khóa sau 5 lần sai và trong 5 phút trả 429. Không có tài khoản mặc định.
+- GET /operator/me → OperatorOut, operator JWT hợp lệ/active/version còn hiệu lực.
+- POST /operator/logout → {logged_out:true}, tăng token_version nguyên tử, thu hồi mọi phiên operator cũ.
+- GET /operator/owners?limit=50&offset=0 → [ProvisionOut], limit 1–200; chỉ lịch sử operator đã xác minh, mới nhất trước.
+- POST /operator/owners → 201 ProvisionOut. Body {request_id:UUID,branch_name,owner_full_name,phone_number,password}, extra forbid; tên không rỗng/tối đa 255, password ít nhất 8 ký tự/tối đa 72 byte UTF-8. Client không gửi role/tenant_id/operator_id.
+- ProvisionOut {id,tenant_id,owner_user_id,branch_name,owner_name,phone_number,created_at}; không trả password/hash/request_digest.
+- POST tạo tenant, User ADMIN, LoginAccount, BranchMembership is_owner=true, OwnerProvision và audit OWNER_PROVISIONED atomically. Tenant ID sinh tại server. Advisory lock serialize khởi tạo và retry; cùng request_id/nội dung trả bản cũ, khác nội dung 409 (HMAC digest chứa request nhưng không lưu plaintext password). Trùng danh tính SĐT 409/rollback, không gộp.
+- ENVIRONMENT=production: nếu database đã có tenant, tạo chủ độc lập mới bị từ chối 409; chủ hiện tại vẫn tạo thêm chi nhánh. /auth/register-tenant luôn bị chặn trên production, không còn mở bằng ALLOW_TENANT_REGISTRATION.
+- Operator API yêu cầu token riêng; ADMIN/STAFF/CUSTOMER token trả 401. Operator token bị từ chối tại API nghiệp vụ (không có tenant_id và sai audience). Operator không tự có quyền đọc hồ sơ khách/thẻ/lịch.
+- UI /operator/login và /operator dùng sessionStorage key spaos_operator_token, không ghi đè token Admin/Customer. Pending create giữ UUID/payload trong memory, khóa sửa form khi chưa rõ kết quả; retry gửi lại cùng body. Mật khẩu xóa khỏi form sau thành công.
+- OPERATOR_PHONE/NAME/PASSWORD chỉ dùng bootstrap seed cấu hình; không đưa password vào URL, log hoặc response. Seed không đổi credential/active state đã tồn tại. Demo và chủ spa không được seed mặc định.
+- Nhánh xác thực booking đã đồng bộ kiểm tra tenant active và membership/account của management user, tránh giữ quyền qua đường optional tenant context sau khi bị khóa.

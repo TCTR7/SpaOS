@@ -55,3 +55,7 @@ Thumbs.db
 *.swp
 *.swo
 *.log
+
+# Local database recovery artifacts (contain customer data)
+/backups/
+*.dump

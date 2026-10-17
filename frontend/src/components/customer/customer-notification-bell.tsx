@@ -77,7 +77,6 @@ export function CustomerNotificationBell({
           await subscribeCustomerWebPush(slug, {
             endpoint: json.endpoint,
             keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-            user_agent: navigator.userAgent,
           }).catch(() => {});
         }
       }

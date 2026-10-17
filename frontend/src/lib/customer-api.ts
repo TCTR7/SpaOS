@@ -3,7 +3,7 @@ import type {
   AvailableSlotsResponse,
   BookingCreateInput,
   BookingRecord,
-  CustomerPackageItem,
+  MyCustomerPackageItem,
   MeResponse,
   NotificationItem,
   NotificationsListResponse,
@@ -181,18 +181,10 @@ export async function cancelCustomerBooking(
   });
 }
 
-export async function fetchMyCustomerPackages(
-  slug: string,
-  customerId: string
-): Promise<CustomerPackageItem[]> {
-  try {
-    return await customerApiRequest<CustomerPackageItem[]>(
-      `/customers/${customerId}/packages`,
-      { slug, requireAuth: true }
-    );
-  } catch {
-    return [];
-  }
+export async function fetchMyCustomerPackages(slug: string): Promise<MyCustomerPackageItem[]> {
+  return customerApiRequest<MyCustomerPackageItem[]>("/customer-packages/me", {
+    slug, requireAuth: true,
+  });
 }
 
 // ------------------------- Notifications & Web Push -------------------------
@@ -210,7 +202,6 @@ export async function subscribeCustomerWebPush(
   payload: {
     endpoint: string;
     keys: { p256dh: string; auth: string };
-    user_agent?: string;
   }
 ): Promise<{ id: string; endpoint: string }> {
   return customerApiRequest<{ id: string; endpoint: string }>(
@@ -227,8 +218,8 @@ export async function subscribeCustomerWebPush(
 export async function unsubscribeCustomerWebPush(
   slug: string,
   endpoint: string
-): Promise<{ unsubscribed: boolean }> {
-  return customerApiRequest<{ unsubscribed: boolean }>(
+): Promise<{ deleted: number }> {
+  return customerApiRequest<{ deleted: number }>(
     "/notifications/unsubscribe",
     {
       method: "DELETE",
@@ -250,8 +241,8 @@ export async function fetchCustomerNotifications(
 
 export async function markAllCustomerNotificationsRead(
   slug: string
-): Promise<{ marked_read: number }> {
-  return customerApiRequest<{ marked_read: number }>(
+): Promise<{ updated: number }> {
+  return customerApiRequest<{ updated: number }>(
     "/notifications/read-all",
     {
       method: "PATCH",
@@ -273,4 +264,8 @@ export async function markCustomerNotificationRead(
       requireAuth: true,
     }
   );
+}
+
+export function rescheduleCustomerBooking(slug: string, id: string, payload: { start_time: string; staff_id: string | null; note: string | null }): Promise<BookingRecord> {
+  return customerApiRequest<BookingRecord>(`/bookings/${id}`, { method: "PATCH", slug, body: payload, requireAuth: true });
 }

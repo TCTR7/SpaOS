@@ -114,13 +114,11 @@ export async function apiRequest<T>(
 
 // ------------------------- 2.1 Auth -------------------------
 export async function loginAdmin(
-  tenantSlug: string,
   phoneNumber: string,
   password: string
 ): Promise<TokenResponse> {
   return apiRequest<TokenResponse>("/auth/login", {
     method: "POST",
-    headers: { "X-Tenant-Slug": tenantSlug.trim().toLowerCase() },
     body: { phone_number: phoneNumber.trim(), password },
     skipAuthRedirect: true,
   });
@@ -436,7 +434,6 @@ export async function fetchVapidPublicKey(): Promise<VapidPublicKeyResponse> {
 export async function subscribeWebPush(payload: {
   endpoint: string;
   keys: { p256dh: string; auth: string };
-  user_agent?: string;
 }): Promise<{ id: string; endpoint: string }> {
   return apiRequest<{ id: string; endpoint: string }>(
     "/notifications/subscribe",
@@ -449,8 +446,8 @@ export async function subscribeWebPush(payload: {
 
 export async function unsubscribeWebPush(
   endpoint: string
-): Promise<{ unsubscribed: boolean }> {
-  return apiRequest<{ unsubscribed: boolean }>("/notifications/unsubscribe", {
+): Promise<{ deleted: number }> {
+  return apiRequest<{ deleted: number }>("/notifications/unsubscribe", {
     method: "DELETE",
     body: { endpoint },
   });
@@ -472,9 +469,9 @@ export async function fetchNotifications(params?: {
 }
 
 export async function markAllNotificationsRead(): Promise<{
-  marked_read: number;
+  updated: number;
 }> {
-  return apiRequest<{ marked_read: number }>("/notifications/read-all", {
+  return apiRequest<{ updated: number }>("/notifications/read-all", {
     method: "PATCH",
   });
 }
@@ -489,3 +486,19 @@ export async function markNotificationRead(
     }
   );
 }
+
+export function rescheduleBooking(id: string, payload: { start_time: string; staff_id: string | null; note: string | null; transfer_customer?: boolean }): Promise<BookingRecord> {
+  return apiRequest<BookingRecord>(`/bookings/${id}`, { method: "PATCH", body: payload });
+}
+
+export function assignCustomer(id: string, assigned_staff_id: string | null): Promise<UserDetail> {
+  return apiRequest<UserDetail>(`/customers/${id}/assignment`, { method: "PATCH", body: { assigned_staff_id } });
+}
+
+export const fetchBranches = (): Promise<import("./types").BranchAccess[]> => apiRequest("/branches");
+export const switchBranch = (id: string): Promise<TokenResponse> => apiRequest(`/branches/${id}/switch`, { method: "POST" });
+export const createBranch = (name: string): Promise<import("./types").BranchAccess> => apiRequest("/branches", { method: "POST", body: { name } });
+export const grantBranchStaff = (branchId: string, sourceStaffId: string): Promise<import("./types").AuthUser> =>
+  apiRequest(`/branches/${branchId}/staff-access`, { method: "POST", body: { source_staff_id: sourceStaffId } });
+export const fetchBranchDashboard = (day: string, all = false): Promise<import("./types").BranchDashboard> =>
+  apiRequest(`/dashboard?day=${day}&all_branches=${all}`);

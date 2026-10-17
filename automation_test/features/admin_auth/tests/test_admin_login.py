@@ -10,25 +10,28 @@ def test_admin_login_success(unauthenticated_page: Page) -> None:
     login_page.login(
         config.tenant_slug, config.admin_phone, config.admin_password
     )
-    login_page.wait_for_url_contains("/admin/bookings")
+    assert login_page.last_login_status == 200
+    login_page.wait_for_url_contains("/admin/dashboard")
     expect(
-        unauthenticated_page.get_by_text("Lịch hẹn & Điều phối Kỹ thuật viên")
+        unauthenticated_page.get_by_role("heading", name="Tổng quan", exact=False)
     ).to_be_visible()
 
 
-def test_admin_login_wrong_password_or_slug(unauthenticated_page: Page) -> None:
+def test_admin_login_wrong_password_or_phone(unauthenticated_page: Page) -> None:
     login_page = AdminLoginPage(unauthenticated_page)
     login_page.open()
 
     # Wrong password
     login_page.login(config.tenant_slug, config.admin_phone, "WrongPass999")
-    expect(unauthenticated_page.locator("div.border-rose-300")).to_be_visible()
+    assert login_page.last_login_status == 401
+    expect(unauthenticated_page.get_by_text("Sai số điện thoại hoặc mật khẩu", exact=True)).to_be_visible()
 
-    # Non-existent tenant slug
+    # Non-existent phone number
     login_page.login(
-        "spa-khong-ton-tai-999", config.admin_phone, config.admin_password
+        config.tenant_slug, "099999999999999", config.admin_password
     )
-    expect(unauthenticated_page.locator("div.border-rose-300")).to_be_visible()
+    assert login_page.last_login_status == 401
+    expect(unauthenticated_page.get_by_text("Sai số điện thoại hoặc mật khẩu", exact=True)).to_be_visible()
 
 
 def test_unauthenticated_redirect_to_login(unauthenticated_page: Page) -> None:

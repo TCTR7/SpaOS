@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Lock, Phone, Building2 } from "lucide-react";
-import { getStoredSlug, loginAdmin, saveAuthSession } from "@/lib/api";
+import { Sparkles, Lock, Phone } from "lucide-react";
+import { loginAdmin, saveAuthSession } from "@/lib/api";
 import { useAdminAuth } from "@/components/admin/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -20,17 +19,14 @@ export default function AdminLoginPage(): React.ReactElement {
   const router = useRouter();
   const { refreshMe } = useAdminAuth();
 
-  const [tenantSlug, setTenantSlug] = React.useState<string>("spa-demo");
-  const [phoneNumber, setPhoneNumber] = React.useState<string>("0900000001");
-  const [password, setPassword] = React.useState<string>("Admin@123");
+  const [phoneNumber, setPhoneNumber] = React.useState<string>("");
+  const [password, setPassword] = React.useState<string>("");
+  const [hydrated, setHydrated] = React.useState(false);
   const [submitting, setSubmitting] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const saved = getStoredSlug();
-    if (saved) {
-      setTenantSlug(saved);
-    }
+    setHydrated(true);
   }, []);
 
   const handleSubmit = async (
@@ -40,15 +36,14 @@ export default function AdminLoginPage(): React.ReactElement {
     setError(null);
     setSubmitting(true);
     try {
-      const slug = tenantSlug.trim().toLowerCase();
-      const res = await loginAdmin(slug, phoneNumber, password);
+      const res = await loginAdmin(phoneNumber, password);
       if (res.user.role !== "ADMIN" && res.user.role !== "STAFF") {
         setError("Tài khoản này không có quyền truy cập trang Quản trị Spa.");
         return;
       }
-      saveAuthSession(res.access_token, slug);
+      saveAuthSession(res.access_token, "");
       await refreshMe();
-      router.push("/admin/bookings");
+      router.push(res.user.role === "ADMIN" ? "/admin/dashboard" : "/admin/bookings");
     } catch (err) {
       setError(
         err instanceof Error
@@ -83,29 +78,13 @@ export default function AdminLoginPage(): React.ReactElement {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="tenantSlug">Mã định danh Spa (Slug)</Label>
-              <div className="relative">
-                <Building2 className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="tenantSlug"
-                  placeholder="vd: spa-demo"
-                  value={tenantSlug}
-                  onChange={(e) => setTenantSlug(e.target.value)}
-                  className="pl-9"
-                  required
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Gửi qua header <code>X-Tenant-Slug</code> để định danh Spa.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
               <Label htmlFor="phone">Số điện thoại</Label>
               <div className="relative">
                 <Phone className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  disabled={!hydrated || submitting}
                   id="phone"
+                  autoComplete="username"
                   type="tel"
                   placeholder="0900000001"
                   value={phoneNumber}
@@ -121,7 +100,9 @@ export default function AdminLoginPage(): React.ReactElement {
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  disabled={!hydrated || submitting}
                   id="password"
+                  autoComplete="current-password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
@@ -132,27 +113,11 @@ export default function AdminLoginPage(): React.ReactElement {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button type="submit" className="w-full" disabled={!hydrated || submitting}>
               {submitting ? "Đang xác thực..." : "Đăng nhập vào Dashboard"}
             </Button>
 
-            <div className="rounded-lg bg-muted/60 p-3 text-[11px] text-muted-foreground">
-              <p className="font-semibold text-foreground">
-                Tài khoản Seed mẫu (spa-demo):
-              </p>
-              <p>• Chủ Spa (ADMIN): 0900000001 / Admin@123</p>
-              <p>• Kỹ thuật viên (STAFF): 0900000011 / Staff@123</p>
-            </div>
-
-            <div className="text-center text-xs text-muted-foreground">
-              Chưa có tài khoản Spa trên hệ thống?{" "}
-              <Link
-                href="/admin/register-tenant"
-                className="font-semibold text-primary hover:underline"
-              >
-                Đăng ký Spa mới
-              </Link>
-            </div>
+            <p className="text-center text-xs text-muted-foreground">Chưa có tài khoản? Liên hệ chủ spa để được cấp quyền.</p>
           </form>
         </CardContent>
       </Card>

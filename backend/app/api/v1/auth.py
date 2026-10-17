@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,8 @@ from app.schemas.auth import (
     UserOut,
 )
 
+from app.services.branch_service import provision_account, authenticate_management, branch_password
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -32,6 +34,8 @@ def _token_response(user: User) -> TokenResponse:
 @router.post("/register-tenant", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_tenant(body: TenantRegisterRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     """Tạo Spa mới + tài khoản ADMIN đầu tiên."""
+    if settings.ENVIRONMENT == "production":
+        raise HTTPException(403, "Đăng ký hệ thống mới đã được tắt. Liên hệ đơn vị triển khai.")
     try:
         tenant = Tenant(slug=body.tenant_slug, name=body.tenant_name)
         db.add(tenant)
@@ -45,6 +49,8 @@ async def register_tenant(body: TenantRegisterRequest, db: AsyncSession = Depend
             password_hash=hash_password(body.password),
         )
         db.add(user)
+        await db.flush()
+        await provision_account(db, user, owner=True)
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -77,19 +83,19 @@ async def register_customer(
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(
-    body: LoginRequest,
-    tenant: Tenant = Depends(get_public_tenant),
-    db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    """Đăng nhập (Admin/Staff/Customer) trong Spa xác định bởi header `X-Tenant-Slug`."""
+async def login(body: LoginRequest, x_tenant_slug: str | None = Header(None, alias="X-Tenant-Slug"),
+                db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    if x_tenant_slug is None:
+        return _token_response(await authenticate_management(db, body.phone_number, body.password))
+    tenant = (await db.execute(select(Tenant).where(Tenant.slug == x_tenant_slug.strip().lower(),
+                                                   Tenant.status == "ACTIVE"))).scalar_one_or_none()
+    if tenant is None:
+        raise HTTPException(404, "Không tìm thấy Spa")
     await set_tenant_context(db, tenant.id)
-    result = await db.execute(
-        select(User).where(User.tenant_id == tenant.id, User.phone_number == body.phone_number)
-    )
-    user = result.scalar_one_or_none()
-    if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sai số điện thoại hoặc mật khẩu")
+    user = (await db.execute(select(User).where(User.tenant_id == tenant.id,
+                                      User.phone_number == body.phone_number))).scalar_one_or_none()
+    if user is None or not user.is_active or not await branch_password(db, user, body.password):
+        raise HTTPException(401, "Sai số điện thoại hoặc mật khẩu")
     return _token_response(user)
 
 

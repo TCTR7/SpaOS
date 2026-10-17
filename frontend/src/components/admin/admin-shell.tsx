@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Wallet,
   CalendarDays,
   LogOut,
   Menu,
@@ -29,6 +30,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/admin/dashboard", label: "Tổng quan", icon: BarChart3, roles: ["ADMIN"] },
+  { href: "/admin/branches", label: "Chi nhánh", icon: Users, roles: ["ADMIN"] },
+  { href: "/admin/payments", label: "Thu tiền", icon: Wallet, roles: ["ADMIN"] },
   {
     href: "/admin/bookings",
     label: "Lịch hẹn (Calendar)",
@@ -73,8 +77,13 @@ export function AdminShell({
   children: React.ReactNode;
 }): React.ReactElement {
   const pathname = usePathname();
-  const { user, tenant, loading, logout } = useAdminAuth();
+  const { user, tenant, loading, logout, branches, changeBranch } = useAdminAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
+
+  const [branchBusy, setBranchBusy] = React.useState(false);
+  const [branchError, setBranchError] = React.useState<string | null>(null);
+  const [allScope, setAllScope] = React.useState(false);
+  React.useEffect(() => { setAllScope(pathname === "/admin/dashboard" && new URLSearchParams(window.location.search).get("scope") === "all"); }, [pathname]);
 
   const isPublicAuthRoute =
     pathname?.startsWith("/admin/login") ||
@@ -96,7 +105,7 @@ export function AdminShell({
   }
 
   const allowedNavItems = NAV_ITEMS.filter((item) =>
-    item.roles.includes(user.role)
+    item.roles.includes(user.role) && (item.href !== "/admin/branches" || branches.some((b) => b.tenant.id === tenant.id && b.is_owner))
   );
 
   return (
@@ -117,7 +126,7 @@ export function AdminShell({
               {tenant.name}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              /{tenant.slug}
+              Chi nhánh đang làm việc
             </p>
           </div>
         </div>
@@ -188,18 +197,20 @@ export function AdminShell({
                 <Menu className="h-5 w-5" />
               )}
             </button>
-            <div>
-              <span className="text-sm font-semibold text-foreground md:hidden">
-                {tenant.name}
-              </span>
-              <span className="hidden text-xs text-muted-foreground md:inline">
-                Hệ thống Quản trị Spa Multi-tenant • Mã Spa:{" "}
-                <strong className="text-foreground">{tenant.slug}</strong> •
-                Buffer:{" "}
-                <strong className="text-foreground">
-                  {tenant.buffer_minutes} phút
-                </strong>
-              </span>
+<div className="min-w-0">
+              <label className="sr-only" htmlFor="activeBranch">Chi nhánh đang làm việc</label>
+              <select id="activeBranch" className="h-9 max-w-[210px] rounded-md border bg-background px-2 text-sm" disabled={branchBusy}
+                value={allScope ? "all" : tenant.id} onChange={async (e) => {
+                  const id = e.target.value;
+                  if (id === "all") { window.location.assign("/admin/dashboard?scope=all"); return; }
+                  if (id === tenant.id && allScope) { window.location.assign("/admin/dashboard"); return; }
+                  setBranchBusy(true); setBranchError(null);
+                  try { await changeBranch(id); } catch (e) { setBranchError(e instanceof Error ? e.message : "Không chuyển được chi nhánh"); setBranchBusy(false); }
+                }}>
+                {branches.length === 0 && <option value={tenant.id}>{tenant.name}</option>}
+                {branches.map((b) => <option key={b.tenant.id} value={b.tenant.id}>{b.tenant.name}</option>)}
+                {user.role === "ADMIN" && branches.some((b) => b.tenant.id === tenant.id && b.is_owner) && <option value="all">Tất cả chi nhánh</option>}
+              </select>
             </div>
           </div>
 
@@ -257,7 +268,7 @@ export function AdminShell({
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id}>{children}</div></main>
       </div>
     </div>
   );

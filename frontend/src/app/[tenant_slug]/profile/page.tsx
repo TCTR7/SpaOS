@@ -10,7 +10,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { fetchMyCustomerPackages } from "@/lib/customer-api";
-import type { CustomerPackageItem } from "@/lib/types";
+import type { MyCustomerPackageItem } from "@/lib/types";
 import { formatDateTimeVN } from "@/lib/utils";
 import { useCustomerTenant } from "@/components/customer/customer-context";
 import { Button } from "@/components/ui/button";
@@ -19,20 +19,31 @@ import { Badge, Card, CardContent } from "@/components/ui/card";
 export default function CustomerProfilePage(): React.ReactElement | null {
   const { slug, tenant, user, authLoading, logoutCustomer } =
     useCustomerTenant();
-  const [packages, setPackages] = React.useState<CustomerPackageItem[]>([]);
+  const [packages, setPackages] = React.useState<MyCustomerPackageItem[]>([]);
   const [loadingPkgs, setLoadingPkgs] = React.useState<boolean>(false);
 
+  const [packageError, setPackageError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
+    setPackageError(null);
     if (!user) {
       setPackages([]);
       return;
     }
+    let cancelled = false;
     setLoadingPkgs(true);
+    setPackages([]);
     void (async () => {
-      const list = await fetchMyCustomerPackages(slug, user.id);
-      setPackages(list);
-      setLoadingPkgs(false);
+      try {
+        const list = await fetchMyCustomerPackages(slug);
+        if (!cancelled) setPackages(list);
+      } catch (err) {
+        if (!cancelled) setPackageError(err instanceof Error ? err.message : "Không thể tải thẻ liệu trình. Vui lòng tải lại trang.");
+      } finally {
+        if (!cancelled) setLoadingPkgs(false);
+      }
     })();
+    return () => { cancelled = true; };
   }, [slug, user]);
 
   if (!tenant) return null;
@@ -129,6 +140,8 @@ export default function CustomerProfilePage(): React.ReactElement | null {
               Đang tải thông tin thẻ liệu trình...
             </CardContent>
           </Card>
+        ) : packageError ? (
+          <p role="alert" className="text-sm text-rose-700">{packageError}</p>
         ) : packages.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center space-y-2">
@@ -154,7 +167,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
               )
             );
             const canBookWithPkg =
-              pkg.status === "ACTIVE" && pkg.remaining_sessions > 0;
+              pkg.status === "ACTIVE" && pkg.available_sessions > 0;
             return (
               <Card key={pkg.id}>
                 <CardContent className="p-4 space-y-3">
@@ -194,7 +207,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                         className="font-bold"
                         style={{ color: themeColor }}
                       >
-                        Còn lại: {pkg.remaining_sessions} buổi
+                        Khả dụng: {pkg.available_sessions} buổi
                       </span>
                     </div>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
@@ -208,6 +221,9 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                     </div>
                   </div>
 
+                  <p className="text-xs text-muted-foreground">
+                    Còn lại: {pkg.remaining_sessions} buổi • Đang giữ chỗ: {pkg.reserved_sessions} buổi
+                  </p>
                   {canBookWithPkg && (
                     <div className="flex justify-end pt-1">
                       <Link

@@ -21,7 +21,12 @@ class BookingWizardPage(BasePage):
         self.click_by_text("Tiếp tục")
 
     def step3_select_date_and_first_slot(self, date_iso: str) -> None:
-        self.fill_field(self.DATE_INPUT, date_iso)
+        with self.page.expect_response(
+            lambda response: "/bookings/available-slots?" in response.url
+            and f"date={date_iso}" in response.url
+        ) as pending:
+            self.fill_field(self.DATE_INPUT, date_iso)
+        assert pending.value.status == 200
         slot_btn = self.page.locator("button:has-text('KTV trống')").first
         slot_btn.wait_for(state="visible", timeout=10000)
         slot_btn.click()

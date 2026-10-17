@@ -109,6 +109,7 @@ class UserDetailOut(BaseModel):
     notes: Optional[str] = None
     is_active: bool
     created_at: datetime
+    assigned_staff_id: Optional[uuid.UUID] = None
 
 
 class StaffCreate(BaseModel):
@@ -142,7 +143,13 @@ class CustomerCreate(BaseModel):
     _phone = field_validator("phone_number")(_check_phone)
 
 
+class CustomerAssignment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    assigned_staff_id: Optional[uuid.UUID]
+
+
 class CustomerUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     notes: Optional[str] = None
 
@@ -209,6 +216,7 @@ class CustomerPackageOut(BaseModel):
     customer_id: uuid.UUID
     service_id: uuid.UUID
     package_name: str
+    purchase_price: Optional[Decimal] = None
     total_sessions: int
     used_sessions: int
     expiry_date: Optional[datetime] = None
@@ -219,3 +227,8 @@ class CustomerPackageOut(BaseModel):
     @property
     def remaining_sessions(self) -> int:
         return self.total_sessions - self.used_sessions
+
+
+class MyCustomerPackageOut(CustomerPackageOut):
+    reserved_sessions: int
+    available_sessions: int

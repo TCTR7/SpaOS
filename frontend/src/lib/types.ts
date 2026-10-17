@@ -57,6 +57,7 @@ export interface PublicTenantResponse {
 }
 
 export interface UserDetail {
+  assigned_staff_id?: string | null;
   id: string;
   tenant_id: string;
   role: UserRole;
@@ -79,6 +80,7 @@ export interface StaffScheduleItem {
 export type PackageStatus = "ACTIVE" | "COMPLETED" | "EXPIRED";
 
 export interface CustomerPackageItem {
+  purchase_price?: string | null;
   id: string;
   tenant_id: string;
   customer_id: string;
@@ -90,6 +92,11 @@ export interface CustomerPackageItem {
   expiry_date: string | null;
   status: PackageStatus;
   created_at: string;
+}
+
+export interface MyCustomerPackageItem extends CustomerPackageItem {
+  reserved_sessions: number;
+  available_sessions: number;
 }
 
 export type BookingStatus =
@@ -184,8 +191,6 @@ export type NotificationType =
 
 export interface NotificationItem {
   id: string;
-  tenant_id: string;
-  user_id: string;
   title: string;
   body: string;
   type: NotificationType;
@@ -202,4 +207,71 @@ export interface NotificationsListResponse {
 export interface VapidPublicKeyResponse {
   public_key: string;
   enabled: boolean;
+}
+
+export interface PaymentInvoice {
+  id: string;
+  customer_id: string;
+  booking_id: string | null;
+  customer_package_id: string | null;
+  amount_due: string;
+  amount_paid: string;
+  balance_due: string;
+  status: "UNPAID" | "PARTIAL" | "PAID";
+  created_at: string;
+}
+export interface PaymentEntry {
+  id: string;
+  invoice_id: string;
+  amount: string;
+  method: "CASH" | "BANK_TRANSFER";
+  recorded_by: string;
+  created_at: string;
+  reversal_of: string | null;
+  note: string | null;
+}
+export interface AuditEvent {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+export interface PaymentSummary {
+  date_from: string;
+  date_to: string;
+  timezone: string;
+  cash: string;
+  bank_transfer: string;
+  net_received: string;
+}
+
+export interface PaymentCollection {
+  source_id: string;
+  source_type: "booking" | "package";
+  customer_id: string;
+  customer_name: string;
+  phone_number: string;
+  description: string;
+  occurred_at: string;
+  source_status: string;
+  invoice_id: string | null;
+  amount_due: string | null;
+  amount_paid: string;
+  balance_due: string | null;
+  status: "UNPAID" | "PARTIAL" | "PAID" | "NEEDS_PRICE" | "COVERED" | "FREE";
+}
+
+export interface BranchAccess { tenant: TenantInfo; user: AuthUser; is_owner: boolean }
+export interface DashboardMetrics {
+  appointments: number; in_progress: number; completed: number;
+  cash: string; bank_transfer: string; net_received: string; completed_value: string;
+  outstanding: string; unknown_prices: number; active_packages: number;
+}
+export interface BranchDashboard {
+  date: string; timezone: string;
+  branches: { branch_id: string; name: string; metrics: DashboardMetrics }[];
+  totals: DashboardMetrics;
 }

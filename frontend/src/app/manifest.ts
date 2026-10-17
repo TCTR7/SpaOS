@@ -1,7 +1,18 @@
 import type { MetadataRoute } from "next";
 
-export default function manifest(): MetadataRoute.Manifest {
+type PwaScreenshot = {
+  src: string;
+  sizes: string;
+  type: string;
+  form_factor: "wide" | "narrow";
+  label: string;
+};
+
+export default function manifest(): MetadataRoute.Manifest & {
+  screenshots: PwaScreenshot[];
+} {
   return {
+    id: "/",
     name: "SpaOS - Đặt lịch & Quản lý Spa",
     short_name: "SpaOS",
     description:
@@ -16,6 +27,12 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icons/icon-192x192.png",
         sizes: "192x192",
         type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
         purpose: "maskable",
       },
       {
@@ -25,14 +42,26 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
-        src: "/icons/icon-192x192.svg",
-        sizes: "192x192",
-        type: "image/svg+xml",
+        src: "/icons/icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    screenshots: [
+      {
+        src: "/screenshots/desktop-wide.png",
+        sizes: "1280x720",
+        type: "image/png",
+        form_factor: "wide",
+        label: "Giao diện Quản lý & Đặt lịch SpaOS trên Desktop",
       },
       {
-        src: "/icons/icon-512x512.svg",
-        sizes: "512x512",
-        type: "image/svg+xml",
+        src: "/screenshots/mobile-narrow.png",
+        sizes: "540x720",
+        type: "image/png",
+        form_factor: "narrow",
+        label: "Giao diện Đặt lịch SpaOS trên Điện thoại",
       },
     ],
   };

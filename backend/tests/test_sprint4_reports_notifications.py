@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 from datetime import date, timedelta
 from typing import Dict, List
@@ -198,10 +199,13 @@ async def test_subscribe_unsubscribe_and_vapid_key(client, monkeypatch):
     ah, ch = ctx["ah"], ctx["ch"]
 
     monkeypatch.setattr(settings, "VAPID_PUBLIC_KEY", "")
-    assert (await client.get(f"{B}/notifications/vapid-public-key")).status_code == 503
+    monkeypatch.setattr(settings, "VAPID_PRIVATE_KEY", "")
+    assert (await client.get(f"{B}/notifications/vapid-public-key")).json() == {"public_key": "", "enabled": False}
     monkeypatch.setattr(settings, "VAPID_PUBLIC_KEY", "BPublicKeyForTests")
     r = await client.get(f"{B}/notifications/vapid-public-key")
-    assert r.status_code == 200 and r.json() == {"public_key": "BPublicKeyForTests"}
+    assert r.status_code == 200 and r.json() == {"public_key": "BPublicKeyForTests", "enabled": False}
+    monkeypatch.setattr(settings, "VAPID_PRIVATE_KEY", "private-test-key")
+    assert (await client.get(f"{B}/notifications/vapid-public-key")).json()["enabled"] is True
 
     endpoint = "https://push.example.com/send/" + uuid.uuid4().hex
     sub = {"endpoint": endpoint, "keys": {"p256dh": "key1", "auth": "auth1"}}
@@ -250,23 +254,24 @@ async def test_booking_events_create_notifications_and_push(client, monkeypatch)
     keys = {"p256dh": "k", "auth": "a"}
     assert (await client.post(f"{B}/notifications/subscribe", headers=ah, json={"endpoint": ep_admin, "keys": keys})).status_code == 201
     assert (await client.post(f"{B}/notifications/subscribe", headers=ch, json={"endpoint": ep_cust, "keys": keys})).status_code == 201
-    assert (await client.post(f"{B}/notifications/subscribe", headers=k0["h"], json={"endpoint": ep_dead, "keys": keys})).status_code == 201
+    assert (await client.post(f"{B}/notifications/subscribe", headers=k1["h"], json={"endpoint": ep_dead, "keys": keys})).status_code == 201
 
     async def notes(headers):
         return (await client.get(f"{B}/notifications", headers=headers)).json()
 
-    # 1. Khách đặt lịch (chỉ định KTV1) -> Admin + cả 2 KTV nhận thông báo; KTV được chỉ định có tiêu đề riêng
+    # 1. Khách đặt lịch (chỉ định KTV1) -> Admin + KTV phụ trách cố định nhận thông báo; KTV được chỉ định có tiêu đề riêng
     booking = await _book(client, ch, f"{day}T10:00:00+07:00", [ctx["s60"]], k1["id"])
     admin_n, k0_n, k1_n = await notes(ah), await notes(k0["h"]), await notes(k1["h"])
     assert admin_n["unread_count"] == 1 and admin_n["items"][0]["type"] == "BOOKING_CREATED"
     assert admin_n["items"][0]["booking_id"] == booking["id"] and admin_n["items"][0]["title"] == "Có lịch hẹn mới"
-    assert k0_n["unread_count"] == 1 and k1_n["items"][0]["title"] == "Lịch hẹn mới được giao cho bạn"
+    assert k0_n["unread_count"] == 0 and k1_n["items"][0]["title"] == "Lịch hẹn mới được giao cho bạn"
     assert (await notes(ch))["items"] == []  # người đặt không tự nhận thông báo
     pushed = {s["endpoint"] for s in sent}
+    assert all(json.loads(s["payload"])["url"] == "/admin/bookings" for s in sent)
     assert pushed == {ep_admin, ep_dead}  # 2 thiết bị của ADMIN/STAFF đã đăng ký; khách không bị gửi
     assert '"type": "BOOKING_CREATED"' in sent[0]["payload"]
     # Subscription trả 410 bị dọn
-    r = await client.request("DELETE", f"{B}/notifications/unsubscribe", headers=k0["h"], json={"endpoint": ep_dead})
+    r = await client.request("DELETE", f"{B}/notifications/unsubscribe", headers=k1["h"], json={"endpoint": ep_dead})
     assert r.json() == {"deleted": 0}
 
     # 2. Admin xác nhận / hoàn thành -> chỉ Customer nhận (admin tự thực hiện không nhận)
@@ -276,6 +281,7 @@ async def test_booking_events_create_notifications_and_push(client, monkeypatch)
     cust_n = await notes(ch)
     assert cust_n["unread_count"] == 1 and cust_n["items"][0]["type"] == "BOOKING_CONFIRMED"
     assert cust_n["items"][0]["title"] == "Lịch hẹn đã được xác nhận"
+    assert all(json.loads(s["payload"])["url"] == f"/{ctx['slug']}/appointments" for s in sent)
     assert {s["endpoint"] for s in sent} == {ep_cust}
     assert (await notes(ah))["unread_count"] == 1  # không tăng thêm
 

@@ -37,6 +37,7 @@ class StaffPerformanceOut(BaseModel):
 # ---------- Notifications ----------
 class VapidKeyOut(BaseModel):
     public_key: str
+    enabled: bool
 
 
 class PushKeys(BaseModel):

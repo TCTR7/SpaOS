@@ -66,3 +66,11 @@ class BookingOut(BaseModel):
 
 class BookingStatusUpdate(BaseModel):
     status: BookingStatus
+
+
+class BookingUpdate(BaseModel):
+    transfer_customer: bool = False
+    model_config = ConfigDict(extra="forbid")
+    start_time: datetime
+    staff_id: Optional[uuid.UUID] = None
+    note: Optional[str] = Field(default=None, max_length=1000)

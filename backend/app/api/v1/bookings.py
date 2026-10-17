@@ -11,12 +11,14 @@ from app.models.models import Booking, BookingStatus, User, UserRole
 from app.schemas.booking import (
     AvailableSlotsOut,
     BookingCreate,
+    BookingUpdate,
     BookingOut,
     BookingStatusUpdate,
     SlotOut,
 )
 from app.services import booking_service as svc
 from app.services.notification_service import notify_booking_event
+from app.services.customer_access import booking_access
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -96,6 +98,7 @@ async def list_bookings(
         scope=scope,
         limit=limit,
         offset=offset,
+        actor=user,
     )
 
 
@@ -106,6 +109,7 @@ async def get_booking(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> Booking:
+    await booking_access(db, tenant_id, booking_id, user)
     booking = await svc.get_booking_full(db, tenant_id, booking_id)
     if booking is None or (user.role == UserRole.CUSTOMER and booking.customer_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch hẹn")
@@ -121,7 +125,7 @@ async def update_status(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> Booking:
-    booking, changed = await svc.update_booking_status(db, tenant_id, booking_id, body.status)
+    booking, changed = await svc.update_booking_status(db, tenant_id, booking_id, body.status, actor=user)
     if changed:  # báo CUSTOMER sở hữu lịch hẹn
         background_tasks.add_task(notify_booking_event, tenant_id, booking.id, booking.status.value, user.id, False)
     return booking
@@ -140,4 +144,16 @@ async def cancel_booking(
         background_tasks.add_task(
             notify_booking_event, tenant_id, booking.id, "CANCELLED", user.id, user.role == UserRole.CUSTOMER
         )
+    return booking
+
+
+@router.patch("/{booking_id}", response_model=BookingOut)
+async def edit_booking(booking_id: uuid.UUID, body: BookingUpdate,
+                       background_tasks: BackgroundTasks,
+                       user: User = Depends(get_current_user),
+                       tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+                       db: AsyncSession = Depends(get_tenant_db)):
+    booking = await svc.reschedule_booking(db, tenant_id, user, booking_id, body)
+    background_tasks.add_task(notify_booking_event, tenant_id, booking.id, "RESCHEDULED",
+                              user.id, user.role == UserRole.CUSTOMER)
     return booking

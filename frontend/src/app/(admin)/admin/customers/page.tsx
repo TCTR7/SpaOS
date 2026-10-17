@@ -3,20 +3,25 @@
 import * as React from "react";
 import {
   Edit2,
+  Lock,
   PackagePlus,
   Plus,
   Search,
+  ShieldAlert,
   Ticket,
   User as UserIcon,
 } from "lucide-react";
 import {
   createCustomer,
+  fetchStaffList,
+  assignCustomer,
   fetchCustomerPackages,
   fetchCustomers,
   fetchServices,
   issueCustomerPackage,
   updateCustomer,
 } from "@/lib/api";
+import { useAdminAuth } from "@/components/admin/auth-context";
 import type {
   CustomerPackageItem,
   ServiceItem,
@@ -36,6 +41,10 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
 export default function AdminCustomersPage(): React.ReactElement {
+  const { user } = useAdminAuth();
+  const [owners, setOwners] = React.useState<UserDetail[]>([]);
+  const [ownerId, setOwnerId] = React.useState<string>("");
+  const [assigning, setAssigning] = React.useState(false);
   const [customers, setCustomers] = React.useState<UserDetail[]>([]);
   const [packageServices, setPackageServices] = React.useState<ServiceItem[]>(
     []
@@ -47,6 +56,8 @@ export default function AdminCustomersPage(): React.ReactElement {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [packagesLoading, setPackagesLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [otherStaffCustomerIds, setOtherStaffCustomerIds] =
+    React.useState<Set<string>>(() => new Set());
 
   // Create / Edit Customer Modal
   const [customerModalOpen, setCustomerModalOpen] =
@@ -72,10 +83,20 @@ export default function AdminCustomersPage(): React.ReactElement {
       setLoading(true);
       setError(null);
       try {
-        const list = await fetchCustomers({ q: q ?? searchQuery, limit: 100 });
-        setCustomers(list);
-        if (list.length > 0 && !selectedCustomer) {
-          setSelectedCustomer(list[0]);
+        const allowedList = await fetchCustomers({ q: q ?? searchQuery, limit: 100 });
+        const lockedIds = new Set<string>();
+
+        setOtherStaffCustomerIds(lockedIds);
+        setCustomers(allowedList);
+        if (allowedList.length > 0) {
+          if (
+            !selectedCustomer ||
+            !allowedList.some((c) => c.id === selectedCustomer.id)
+          ) {
+            setSelectedCustomer(allowedList[0]);
+          }
+        } else {
+          setSelectedCustomer(null);
         }
       } catch (err) {
         setError(
@@ -87,7 +108,7 @@ export default function AdminCustomersPage(): React.ReactElement {
         setLoading(false);
       }
     },
-    [searchQuery, selectedCustomer]
+    [searchQuery, selectedCustomer, user]
   );
 
   const loadPackageServices = React.useCallback(async (): Promise<void> => {
@@ -128,6 +149,24 @@ export default function AdminCustomersPage(): React.ReactElement {
     }
   }, [selectedCustomer, loadSelectedCustomerPackages]);
 
+  React.useEffect(() => {
+    if (user?.role === "ADMIN") void fetchStaffList().then(setOwners).catch(() => setOwners([]));
+  }, [user]);
+  React.useEffect(() => { setOwnerId(selectedCustomer?.assigned_staff_id || ""); }, [selectedCustomer]);
+
+  const handleAssign = async (): Promise<void> => {
+    if (!selectedCustomer) return;
+    setAssigning(true);
+    setError(null);
+    try {
+      const updated = await assignCustomer(selectedCustomer.id, ownerId || null);
+      setSelectedCustomer(updated);
+      setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể chuyển người phụ trách");
+    } finally { setAssigning(false); }
+  };
+
   const openAddCustomer = (): void => {
     setEditingCustomer(null);
     setFullName("");
@@ -150,6 +189,17 @@ export default function AdminCustomersPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (
+      editingCustomer &&
+      user?.role === "STAFF" &&
+      otherStaffCustomerIds.has(editingCustomer.id)
+    ) {
+      setError(
+        "Bảo mật quyền riêng tư: Bạn không có quyền chỉnh sửa hồ sơ khách hàng của Kỹ thuật viên khác."
+      );
+      return;
+    }
+
     setSavingCustomer(true);
     setError(null);
     try {
@@ -185,6 +235,16 @@ export default function AdminCustomersPage(): React.ReactElement {
   };
 
   const openIssuePackageModal = (): void => {
+    if (
+      selectedCustomer &&
+      user?.role === "STAFF" &&
+      otherStaffCustomerIds.has(selectedCustomer.id)
+    ) {
+      setError(
+        "Bảo mật quyền riêng tư: Bạn không có quyền cấp thẻ liệu trình cho khách hàng của Kỹ thuật viên khác."
+      );
+      return;
+    }
     const firstPkg = packageServices[0];
     setPkgServiceId(firstPkg?.id || "");
     setPkgName(firstPkg?.name || "");
@@ -198,6 +258,17 @@ export default function AdminCustomersPage(): React.ReactElement {
   ): Promise<void> => {
     e.preventDefault();
     if (!selectedCustomer || !pkgServiceId) return;
+
+    if (
+      user?.role === "STAFF" &&
+      otherStaffCustomerIds.has(selectedCustomer.id)
+    ) {
+      setError(
+        "Bảo mật quyền riêng tư: Bạn không có quyền cấp thẻ liệu trình cho khách hàng của Kỹ thuật viên khác."
+      );
+      return;
+    }
+
     setSavingPackage(true);
     setError(null);
     try {
@@ -243,6 +314,15 @@ export default function AdminCustomersPage(): React.ReactElement {
       {error && (
         <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
           {error}
+        </div>
+      )}
+
+      {user?.role === "STAFF" && (
+        <div className="flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-xs font-medium text-sky-800">
+          <ShieldAlert className="h-4 w-4 text-sky-600 shrink-0" />
+          <span>
+            <strong>Chế độ Bảo mật Kỹ thuật viên:</strong> Hệ thống tự động phân lập dữ liệu — bạn chỉ xem và thao tác với khách hàng được giao cho mình. Chỉ Admin được chuyển người phụ trách.
+          </span>
         </div>
       )}
 
@@ -308,17 +388,19 @@ export default function AdminCustomersPage(): React.ReactElement {
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditCustomer(c);
-                      }}
-                      title="Sửa thông tin"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {(!user || user.role === "ADMIN" || !otherStaffCustomerIds.has(c.id)) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditCustomer(c);
+                        }}
+                        title="Sửa thông tin"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 );
               })
@@ -339,35 +421,69 @@ export default function AdminCustomersPage(): React.ReactElement {
             <>
               <CardHeader className="flex flex-col gap-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-lg">
-                    {selectedCustomer.full_name}
-                  </CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-lg">
+                      {selectedCustomer.full_name}
+                    </CardTitle>
+                    {user?.role === "STAFF" && otherStaffCustomerIds.has(selectedCustomer.id) && (
+                      <Badge variant="outline" className="text-amber-700 bg-amber-50 gap-1 px-2 py-0.5 text-[11px]">
+                        <Lock className="h-3 w-3" />
+                        Thuộc KTV khác quản lý
+                      </Badge>
+                    )}
+                  </div>
                   <CardDescription>
                     SĐT: <strong>{selectedCustomer.phone_number}</strong> • Tạo
                     lúc: {formatDateTimeVN(selectedCustomer.created_at)}
                   </CardDescription>
                   <p className="mt-1.5 text-xs text-slate-700">
                     <strong>Ghi chú da / sức khỏe:</strong>{" "}
-                    {selectedCustomer.notes || "Chưa có ghi chú"}
+                    {user?.role === "STAFF" && otherStaffCustomerIds.has(selectedCustomer.id)
+                      ? "🔒 Bảo mật (Chỉ KTV phụ trách và Quản lý mới được xem)"
+                      : selectedCustomer.notes || "Chưa có ghi chú"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditCustomer(selectedCustomer)}
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                    Sửa hồ sơ
-                  </Button>
-                  <Button size="sm" onClick={openIssuePackageModal}>
-                    <PackagePlus className="h-4 w-4" />
-                    Cấp thẻ liệu trình
-                  </Button>
-                </div>
+
+                {user?.role === "STAFF" && otherStaffCustomerIds.has(selectedCustomer.id) ? (
+                  <Badge variant="outline" className="text-amber-700 bg-amber-50 gap-1 px-2.5 py-1 text-xs">
+                    <Lock className="h-3.5 w-3.5" />
+                    Chỉ xem (Không được sửa)
+                  </Badge>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditCustomer(selectedCustomer)}
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      Sửa hồ sơ
+                    </Button>
+                    <Button size="sm" onClick={openIssuePackageModal}>
+                      <PackagePlus className="h-4 w-4" />
+                      Cấp thẻ liệu trình
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
 
               <CardContent className="pt-4 space-y-3">
+                {user?.role === "ADMIN" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customerOwner">KTV phụ trách hồ sơ</Label>
+                    <select id="customerOwner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}
+                      className="h-9 w-full rounded-md border px-3 text-sm">
+                      <option value="">Chưa phân công</option>
+                      {owners.filter((staff) => staff.is_active).map((staff) => (
+                        <option key={staff.id} value={staff.id}>{staff.full_name}</option>
+                      ))}
+                    </select>
+                    <Button size="sm" disabled={assigning} onClick={() => void handleAssign()}>
+                      {assigning ? "Đang chuyển..." : "Chuyển người phụ trách"}
+                    </Button>
+                  </div>
+                )}
+
                 <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   <Ticket className="h-4 w-4 text-primary" />
                   Thẻ liệu trình đang sở hữu ({packages.length})

@@ -20,7 +20,7 @@ import {
   registerCustomer,
   saveCustomerToken,
 } from "@/lib/customer-api";
-import type { CustomerPackageItem, SlotItem } from "@/lib/types";
+import type { MyCustomerPackageItem, ServiceItem, SlotItem } from "@/lib/types";
 import {
   addDaysISO,
   cn,
@@ -48,7 +48,7 @@ function BookingWizardInner(): React.ReactElement | null {
   const [selectedLines, setSelectedLines] = React.useState<
     SelectedWizardLine[]
   >([]);
-  const [myPackages, setMyPackages] = React.useState<CustomerPackageItem[]>([]);
+  const [myPackages, setMyPackages] = React.useState<MyCustomerPackageItem[]>([]);
   const [selectedDate, setSelectedDate] = React.useState<string>(() =>
     formatDateISOInVN()
   );
@@ -92,12 +92,17 @@ function BookingWizardInner(): React.ReactElement | null {
       setMyPackages([]);
       return;
     }
+    let cancelled = false;
+    setMyPackages([]);
     void (async () => {
-      const pkgs = await fetchMyCustomerPackages(slug, user.id);
-      setMyPackages(
-        pkgs.filter((p) => p.status === "ACTIVE" && p.remaining_sessions > 0)
-      );
+      try {
+        const pkgs = await fetchMyCustomerPackages(slug);
+        if (!cancelled) setMyPackages(pkgs.filter((p) => p.available_sessions > 0));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải thẻ liệu trình.");
+      }
     })();
+    return () => { cancelled = true; };
   }, [slug, user]);
 
   // Fetch available slots when selectedLines, selectedDate, or selectedStaffId changes
@@ -109,6 +114,8 @@ function BookingWizardInner(): React.ReactElement | null {
     }
     let cancelled = false;
     setSlotsLoading(true);
+    setSelectedSlotStart("");
+    setAvailableSlots([]);
     void (async () => {
       try {
         const res = await fetchCustomerAvailableSlots(slug, {
@@ -118,14 +125,7 @@ function BookingWizardInner(): React.ReactElement | null {
         });
         if (!cancelled) {
           setAvailableSlots(res.slots);
-          if (
-            res.slots.length > 0 &&
-            !res.slots.some((s) => s.start_time === selectedSlotStart)
-          ) {
-            setSelectedSlotStart(res.slots[0].start_time);
-          } else if (res.slots.length === 0) {
-            setSelectedSlotStart("");
-          }
+          setSelectedSlotStart(res.slots[0]?.start_time || "");
         }
       } catch {
         if (!cancelled) {
@@ -139,10 +139,7 @@ function BookingWizardInner(): React.ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [tenant, slug, selectedLines, selectedDate, selectedStaffId, selectedSlotStart]);
-
-  if (!tenant) return null;
-  const themeColor = tenant.theme_color || "#be185d";
+  }, [tenant, slug, selectedLines, selectedDate, selectedStaffId]);
 
   // Discover distinct available staff IDs from current day's slots
   const discoveredStaffIds = React.useMemo(() => {
@@ -156,10 +153,10 @@ function BookingWizardInner(): React.ReactElement | null {
   }, [availableSlots]);
 
   const serviceById = React.useMemo(() => {
-    const map = new Map<string, (typeof tenant.services)[number]>();
-    for (const s of tenant.services) map.set(s.id, s);
+    const map = new Map<string, ServiceItem>();
+    for (const s of tenant?.services || []) map.set(s.id, s);
     return map;
-  }, [tenant.services]);
+  }, [tenant]);
 
   const totalDuration = React.useMemo(() => {
     return selectedLines.reduce((acc, line) => {
@@ -175,6 +172,9 @@ function BookingWizardInner(): React.ReactElement | null {
       return acc + (svc ? parseFloat(svc.price) : 0);
     }, 0);
   }, [selectedLines, serviceById]);
+
+  if (!tenant) return null;
+  const themeColor = tenant.theme_color || "#be185d";
 
   const toggleLine = (serviceId: string, packageId: string | null): void => {
     setSelectedLines((prev) => {
@@ -337,7 +337,7 @@ function BookingWizardInner(): React.ReactElement | null {
                           </p>
                           <p className="text-[11px] text-muted-foreground">
                             Đã dùng {pkg.used_sessions}/{pkg.total_sessions} •
-                            Còn <strong>{pkg.remaining_sessions} buổi</strong>
+                            Còn <strong>{pkg.available_sessions} buổi</strong>
                           </p>
                         </div>
                         <Badge variant={checked ? "success" : "outline"}>
@@ -794,7 +794,7 @@ function BookingWizardInner(): React.ReactElement | null {
               size="sm"
               disabled={
                 (step === 1 && selectedLines.length === 0) ||
-                (step === 3 && !selectedSlotStart)
+                (step === 3 && (slotsLoading || !selectedSlotStart))
               }
               style={{ backgroundColor: themeColor }}
               onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
@@ -806,7 +806,7 @@ function BookingWizardInner(): React.ReactElement | null {
             <Button
               type="button"
               size="sm"
-              disabled={submitting || !user || !selectedSlotStart}
+              disabled={submitting || slotsLoading || !user || !selectedSlotStart}
               style={{ backgroundColor: themeColor }}
               onClick={() => void handleConfirmBooking()}
             >

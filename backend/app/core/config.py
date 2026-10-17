@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +10,12 @@ class Settings(BaseSettings):
     )
 
     PROJECT_NAME: str = "SpaOS API"
+    ENVIRONMENT: str = "development"
+    ALLOW_TENANT_REGISTRATION: bool = False
+    BRAND_NAME: str = "SpaOS"
+    OPERATOR_PHONE: str = ""
+    OPERATOR_NAME: str = "Quản trị triển khai"
+    OPERATOR_PASSWORD: SecretStr = SecretStr("")
     API_V1_PREFIX: str = "/api/v1"
 
     DATABASE_URL: str = (

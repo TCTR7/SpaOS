@@ -5,15 +5,20 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   clearAuthSession,
   fetchMe,
+  fetchBranches,
+  switchBranch,
+  saveAuthSession,
   getStoredToken,
   unsubscribeWebPush,
 } from "@/lib/api";
-import type { AuthUser, TenantInfo } from "@/lib/types";
+import type { AuthUser, TenantInfo, BranchAccess } from "@/lib/types";
 
 interface AdminAuthContextValue {
   user: AuthUser | null;
   tenant: TenantInfo | null;
   loading: boolean;
+  branches: BranchAccess[];
+  changeBranch: (id: string) => Promise<void>;
   refreshMe: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -22,6 +27,8 @@ const AdminAuthContext = React.createContext<AdminAuthContextValue>({
   user: null,
   tenant: null,
   loading: true,
+  branches: [],
+  changeBranch: async () => {},
   refreshMe: async () => {},
   logout: async () => {},
 });
@@ -35,6 +42,7 @@ export function AdminAuthProvider({
   const pathname = usePathname();
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [tenant, setTenant] = React.useState<TenantInfo | null>(null);
+  const [branches, setBranches] = React.useState<BranchAccess[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
 
   const isPublicAuthRoute =
@@ -66,6 +74,8 @@ export function AdminAuthProvider({
       }
       setUser(me.user);
       setTenant(me.tenant);
+      saveAuthSession(token, me.tenant.slug);
+      setBranches(await fetchBranches().catch(() => []));
     } catch {
       clearAuthSession();
       setUser(null);
@@ -102,9 +112,27 @@ export function AdminAuthProvider({
     }
   }, [router]);
 
+  const changeBranch = async (id: string): Promise<void> => {
+    const result = await switchBranch(id);
+    if ("serviceWorker" in navigator) {
+      const sub = await (await navigator.serviceWorker.getRegistration())?.pushManager.getSubscription();
+      if (sub) { await unsubscribeWebPush(sub.endpoint); await sub.unsubscribe(); }
+    }
+    const target = branches.find((branch) => branch.tenant.id === id);
+    saveAuthSession(result.access_token, target?.tenant.slug || "");
+    window.location.assign(result.user.role === "ADMIN" ? "/admin/dashboard" : "/admin/bookings");
+  };
+  React.useEffect(() => {
+    const changed = (event: StorageEvent): void => {
+      if (event.key === "spaos_admin_token") window.location.replace("/admin");
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, []);
+
   return (
     <AdminAuthContext.Provider
-      value={{ user, tenant, loading, refreshMe, logout }}
+      value={{ user, tenant, loading, branches, changeBranch, refreshMe, logout }}
     >
       {children}
     </AdminAuthContext.Provider>
