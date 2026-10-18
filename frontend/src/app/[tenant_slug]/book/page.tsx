@@ -174,7 +174,7 @@ function BookingWizardInner(): React.ReactElement | null {
   }, [selectedLines, serviceById]);
 
   if (!tenant) return null;
-  const themeColor = tenant.theme_color || "#be185d";
+  const themeColor = "var(--brand-color)";
 
   const toggleLine = (serviceId: string, packageId: string | null): void => {
     setSelectedLines((prev) => {
@@ -287,7 +287,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       ? "text-emerald-700 font-semibold"
                       : "text-muted-foreground"
                 )}
-                style={isCurrent ? { backgroundColor: themeColor } : undefined}
+                style={isCurrent ? { backgroundColor: themeColor, color: "var(--brand-foreground)" } : undefined}
               >
                 {isDone && <Check className="h-3.5 w-3.5" />}
                 <span>{s.label}</span>
@@ -389,7 +389,7 @@ function BookingWizardInner(): React.ReactElement | null {
                     )}
                     <p className="text-xs font-medium text-slate-600">
                       ⏱ {svc.duration_minutes} phút •{" "}
-                      <strong style={{ color: themeColor }}>
+                      <strong style={{ color: "var(--brand-text)" }}>
                         {formatCurrency(svc.price)}
                       </strong>
                     </p>
@@ -402,7 +402,7 @@ function BookingWizardInner(): React.ReactElement | null {
                         : "border-slate-300 text-transparent"
                     )}
                     style={
-                      checked ? { backgroundColor: themeColor } : undefined
+                      checked ? { backgroundColor: themeColor, color: "var(--brand-foreground)" } : undefined
                     }
                   >
                     ✓
@@ -437,7 +437,7 @@ function BookingWizardInner(): React.ReactElement | null {
             <div className="flex items-center gap-3">
               <div
                 className="flex h-10 w-10 items-center justify-center rounded-full text-white"
-                style={{ backgroundColor: themeColor }}
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 <Sparkles className="h-5 w-5" />
               </div>
@@ -577,7 +577,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       )}
                       style={
                         isSelected
-                          ? { backgroundColor: themeColor }
+                          ? { backgroundColor: themeColor, color: "var(--brand-foreground)" }
                           : undefined
                       }
                     >
@@ -670,7 +670,7 @@ function BookingWizardInner(): React.ReactElement | null {
                 <span className="font-bold">Tổng thanh toán dự kiến:</span>
                 <span
                   className="text-base font-extrabold"
-                  style={{ color: themeColor }}
+                  style={{ color: "var(--brand-text)" }}
                 >
                   {formatCurrency(totalPrice)}
                 </span>
@@ -704,7 +704,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       setAuthMode(authMode === "login" ? "register" : "login")
                     }
                     className="text-xs font-semibold underline"
-                    style={{ color: themeColor }}
+                    style={{ color: "var(--brand-text)" }}
                   >
                     {authMode === "login"
                       ? "Chưa có TK? Đăng ký"
@@ -742,7 +742,7 @@ function BookingWizardInner(): React.ReactElement | null {
                     type="submit"
                     size="sm"
                     className="w-full"
-                    style={{ backgroundColor: themeColor }}
+                    style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
                     disabled={authBusy}
                   >
                     {authBusy
@@ -767,7 +767,7 @@ function BookingWizardInner(): React.ReactElement | null {
           </span>
           <span className="font-bold text-foreground">
             Tạm tính:{" "}
-            <strong className="text-sm" style={{ color: themeColor }}>
+            <strong className="text-sm" style={{ color: "var(--brand-text)" }}>
               {formatCurrency(totalPrice)}
             </strong>
           </span>
@@ -796,7 +796,7 @@ function BookingWizardInner(): React.ReactElement | null {
                 (step === 1 && selectedLines.length === 0) ||
                 (step === 3 && (slotsLoading || !selectedSlotStart))
               }
-              style={{ backgroundColor: themeColor }}
+              style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
             >
               Tiếp tục
@@ -807,7 +807,7 @@ function BookingWizardInner(): React.ReactElement | null {
               type="button"
               size="sm"
               disabled={submitting || slotsLoading || !user || !selectedSlotStart}
-              style={{ backgroundColor: themeColor }}
+              style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               onClick={() => void handleConfirmBooking()}
             >
               {submitting ? "Đang gửi lịch hẹn..." : "Xác nhận Đặt lịch"}

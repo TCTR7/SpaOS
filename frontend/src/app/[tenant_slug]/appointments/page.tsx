@@ -143,7 +143,7 @@ function AppointmentsInner(): React.ReactElement | null {
   }, [tenant]);
 
   if (!tenant) return null;
-  const themeColor = tenant.theme_color || "#be185d";
+  const themeColor = "var(--brand-color)";
 
   const handleCancel = async (bookingId: string): Promise<void> => {
     setCancellingId(bookingId);
@@ -212,7 +212,7 @@ function AppointmentsInner(): React.ReactElement | null {
         <CardContent className="p-6 text-center space-y-3">
           <CalendarCheck
             className="mx-auto h-10 w-10"
-            style={{ color: themeColor }}
+            style={{ color: "var(--brand-text)" }}
           />
           <h2 className="text-base font-bold text-foreground">
             Đăng nhập để xem Lịch hẹn của bạn
@@ -224,7 +224,7 @@ function AppointmentsInner(): React.ReactElement | null {
           <Link
             href={`/${slug}/login`}
             className="inline-flex h-9 items-center justify-center rounded-xl px-5 text-xs font-bold text-white shadow"
-            style={{ backgroundColor: themeColor }}
+            style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
           >
             Đăng nhập ngay
           </Link>
@@ -318,7 +318,7 @@ function AppointmentsInner(): React.ReactElement | null {
               <Link
                 href={`/${slug}/book`}
                 className="inline-flex h-8 items-center justify-center rounded-lg px-4 text-xs font-semibold text-white"
-                style={{ backgroundColor: themeColor }}
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 + Đặt lịch mới
               </Link>
@@ -526,7 +526,7 @@ function AppointmentsInner(): React.ReactElement | null {
                             : "border-border bg-card text-foreground hover:bg-muted/60"
                         )}
                         style={
-                          active ? { backgroundColor: themeColor } : undefined
+                          active ? { backgroundColor: themeColor, color: "var(--brand-foreground)" } : undefined
                         }
                       >
                         <span>{formatTimeVN(slot.start_time)}</span>
@@ -566,7 +566,7 @@ function AppointmentsInner(): React.ReactElement | null {
               <Button
                 type="submit"
                 disabled={rescheduleSubmitting || rescheduleSlotsLoading || !rescheduleSlotStart}
-                style={{ backgroundColor: themeColor }}
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 {rescheduleSubmitting
                   ? "Đang dời lịch..."

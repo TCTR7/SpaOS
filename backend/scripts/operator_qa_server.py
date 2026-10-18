@@ -32,6 +32,8 @@ def main():
                OPERATOR_PASSWORD="OperatorOnlyForQa@2026")
     for args in (["alembic", "upgrade", "head"], [sys.executable, "-m", "app.seed"]):
         subprocess.run(args, env=env, check=True)
+    if os.environ.get("SPAOS_QA_SEED_DEMO") == "1":
+        subprocess.run([sys.executable, "-m", "app.seed_demo"], env=env, check=True)
     raise SystemExit(subprocess.call([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"], env=env))
 
 if __name__ == "__main__":

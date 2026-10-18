@@ -26,7 +26,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
   const [error, setError] = React.useState<string | null>(null);
 
   if (!tenant) return null;
-  const themeColor = tenant.theme_color || "#be185d";
+  const themeColor = "var(--brand-color)";
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>
@@ -111,7 +111,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
             <Button
               type="submit"
               className="w-full"
-              style={{ backgroundColor: themeColor }}
+              style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               disabled={submitting}
             >
               {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
@@ -130,7 +130,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
               <Link
                 href={`/${slug}/register`}
                 className="font-semibold hover:underline"
-                style={{ color: themeColor }}
+                style={{ color: "var(--brand-text)" }}
               >
                 Đăng ký tài khoản mới
               </Link>

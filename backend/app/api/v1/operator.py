@@ -12,11 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import bearer_scheme
 from app.core.config import settings
 from app.core.database import get_db, set_tenant_context
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password, verify_password, JWT_CLOCK_SKEW_SECONDS
 from app.models.models import DeploymentOperator, OwnerProvision, Tenant, User, UserRole
 from app.schemas.operator import OperatorLogin, OperatorOut, OperatorToken, OwnerCreate, ProvisionOut
 from app.services.branch_service import provision_account
 from app.services.audit_service import audit
+
+from app.schemas.branding import BrandingOut, BrandingUpdate
+from app.services.branding_service import get_branding, save_branding
 
 router = APIRouter(prefix="/operator", tags=["operator"])
 AUDIENCE = "spaos-operator"
@@ -30,7 +33,7 @@ async def get_operator(credentials=Depends(bearer_scheme), db: AsyncSession = De
         raise HTTPException(401, "Cần đăng nhập quản trị triển khai")
     try:
         claims = jwt.decode(credentials.credentials, settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM], audience=AUDIENCE, options={"require": ["sub", "exp", "version", "scope"]})
+            algorithms=[settings.JWT_ALGORITHM], audience=AUDIENCE, leeway=JWT_CLOCK_SKEW_SECONDS, options={"require": ["sub", "exp", "version", "scope"]})
         if claims["scope"] != "operator":
             raise ValueError()
         operator_id = uuid.UUID(claims["sub"])
@@ -85,7 +88,9 @@ async def owners(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge
         .order_by(OwnerProvision.created_at.desc(), OwnerProvision.id).limit(limit).offset(offset))).scalars().all())
 
 def request_digest(body):
-    payload = body.model_dump(mode="json", exclude={"password"})
+    payload = body.model_dump(mode="json", exclude={"password", "theme_color"})
+    if body.theme_color is not None:
+        payload["theme_color"] = body.theme_color
     payload["password"] = body.password.get_secret_value()
     return hmac.new(settings.JWT_SECRET_KEY.encode(), json.dumps(payload, ensure_ascii=False,
                    sort_keys=True).encode("utf-8"), hashlib.sha256).hexdigest()
@@ -119,9 +124,21 @@ async def create_owner(body: OwnerCreate, operator=Depends(get_operator), db: As
         db.add(record)
         await db.flush()
         audit(db, tenant.id, None, "OWNER_PROVISIONED", "user", owner.id, {"operator_id": str(operator.id)})
+        if body.theme_color is not None:
+            await save_branding(db, operator.id, body.theme_color)
         result = ProvisionOut.model_validate(record)
         await db.commit()
         return result
     except IntegrityError:
         await db.rollback()
         raise HTTPException(409, "Không thể tạo tài khoản trùng. Vui lòng đối chiếu lại thông tin.")
+
+@router.get("/branding", response_model=BrandingOut)
+async def read_branding(operator=Depends(get_operator), db: AsyncSession = Depends(get_db)):
+    return await get_branding(db)
+
+@router.post("/branding", response_model=BrandingOut)
+async def update_branding(body: BrandingUpdate, operator=Depends(get_operator), db: AsyncSession = Depends(get_db)):
+    result = await save_branding(db, operator.id, body.theme_color)
+    await db.commit()
+    return result

@@ -28,12 +28,14 @@ async def get_public_tenant_info(slug: str, db: AsyncSession = Depends(get_db)) 
             .order_by(Service.is_package, Service.name)
         )
     ).scalars().all()
+    from app.services.branding_service import get_branding
+    branding = await get_branding(db)
     return PublicTenantOut(
         id=tenant.id,
         slug=tenant.slug,
         name=tenant.name,
         logo_url=tenant.logo_url,
-        theme_color=tenant.theme_color,
+        theme_color=branding.theme_color if branding.configured else tenant.theme_color,
         open_time=tenant.open_time,
         close_time=tenant.close_time,
         buffer_minutes=tenant.buffer_minutes,

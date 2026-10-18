@@ -65,7 +65,8 @@ def test_customer_token_cannot_open_admin(scenario):
     page.goto(s["url"].split("/" + s["slug"])[0] + "/admin/reports")
     expect(page).to_have_url(re.compile(r"/admin/login$"))
     assert page.evaluate("localStorage.getItem('spaos_admin_token')") is None
-    response = page.request.get(s["url"].split("/" + s["slug"])[0] + "/api/v1/customers",
+    from common_setup.config import config
+    response = page.request.get(config.api_v1_url + "/customers",
                                 headers={"Authorization": "Bearer " + s["token"]})
     assert response.status == 403
 

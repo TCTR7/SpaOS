@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useBranding } from "@/components/brand-provider";
 import { Save, Settings as SettingsIcon } from "lucide-react";
 import { fetchTenantSettings, updateTenantSettings } from "@/lib/api";
 import { useAdminAuth } from "@/components/admin/auth-context";
@@ -15,6 +16,7 @@ import {
 import { Input, Label } from "@/components/ui/input";
 
 export default function AdminSettingsPage(): React.ReactElement {
+  const {branding} = useBranding();
   const { refreshMe } = useAdminAuth();
 
   const [slug, setSlug] = React.useState<string>("");
@@ -63,7 +65,7 @@ export default function AdminSettingsPage(): React.ReactElement {
       await updateTenantSettings({
         name: name.trim(),
         logo_url: logoUrl.trim() || null,
-        theme_color: themeColor.trim() || null,
+        ...(branding.configured ? {} : {theme_color: themeColor.trim() || null}),
         open_time: openTime.length === 5 ? `${openTime}:00` : openTime,
         close_time: closeTime.length === 5 ? `${closeTime}:00` : closeTime,
         buffer_minutes: bufferMinutes,
@@ -145,16 +147,17 @@ export default function AdminSettingsPage(): React.ReactElement {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="themeColor">Màu chủ đạo (Theme Color)</Label>
+                  {branding.configured && <p className="text-xs text-muted-foreground">Màu thương hiệu chung {branding.theme_color} do đơn vị triển khai quản lý.</p>}
                   <div className="flex items-center gap-2">
                     <input
-                      type="color"
-                      value={themeColor}
+                      type="color" disabled={branding.configured}
+                      value={branding.configured ? branding.theme_color : themeColor}
                       onChange={(e) => setThemeColor(e.target.value)}
                       className="h-9 w-12 cursor-pointer rounded border border-input bg-background p-0.5"
                     />
                     <Input
-                      id="themeColor"
-                      value={themeColor}
+                      id="themeColor" disabled={branding.configured}
+                      value={branding.configured ? branding.theme_color : themeColor}
                       onChange={(e) => setThemeColor(e.target.value)}
                       placeholder="#be185d"
                     />

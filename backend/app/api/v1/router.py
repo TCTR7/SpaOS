@@ -22,3 +22,6 @@ api_router.include_router(branches.router)
 
 from app.api.v1 import operator
 api_router.include_router(operator.router)
+
+from app.api.v1 import branding
+api_router.include_router(branding.router)

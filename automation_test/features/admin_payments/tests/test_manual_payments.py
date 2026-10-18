@@ -44,11 +44,11 @@ def test_retry_after_lost_response_does_not_duplicate_payment(scenario):
     def lose_first_response(route):
         calls.append(route.request.post_data_json)
         if len(calls) == 1:
-            result = route.fetch()
+            result = route.fetch(url=config.api_v1_url + route.request.url.split("/api/v1", 1)[1])
             assert result.status == 201
             route.abort("failed")
         else:
-            route.continue_()
+            route.fallback()
     page.route(path, lose_first_response)
     page.get_by_role("checkbox", name="Nhập số tiền khác").check()
     page.locator("#receiptAmount").fill("12345.67")

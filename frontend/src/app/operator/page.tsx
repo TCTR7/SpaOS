@@ -1,5 +1,8 @@
 "use client";
 import * as React from "react";
+import { BrandColorPicker } from "@/components/brand-color-picker";
+import { OperatorBranding } from "@/components/operator-branding";
+import { useBranding, announceBranding } from "@/components/brand-provider";
 import { clearOperatorToken, operatorRequest, OperatorError } from "@/lib/operator-api";
 import type { OperatorIdentity, OwnerCreate, OwnerProvision } from "@/lib/operator-api";
 import { Button } from "@/components/ui/button";
@@ -7,6 +10,8 @@ import { Input, Label } from "@/components/ui/input";
 import { formatDateTimeVN } from "@/lib/utils";
 
 export default function OperatorPage(): React.ReactElement {
+  const {branding,refresh} = useBranding();
+  const [ownerColor,setOwnerColor] = React.useState<string | null>(null);
   const [operator, setOperator] = React.useState<OperatorIdentity | null>(null);
   const [rows, setRows] = React.useState<OwnerProvision[]>([]);
   const [offset, setOffset] = React.useState(0);
@@ -32,11 +37,12 @@ export default function OperatorPage(): React.ReactElement {
   const create = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault(); if (busy) return;
     if (!attempt && password !== confirm) { setError("Mật khẩu nhập lại không khớp."); return; }
-    const body = attempt || {request_id: crypto.randomUUID(), branch_name: branch.trim(), owner_full_name: name.trim(), phone_number: phone.trim(), password};
+    const body = attempt || {request_id: crypto.randomUUID(), branch_name: branch.trim(), owner_full_name: name.trim(), phone_number: phone.trim(), password, theme_color: ownerColor || branding.theme_color};
     setAttempt(body); setBusy(true); setError(null); setSuccess(null); setMessage("");
     try {
       const record = await operatorRequest<OwnerProvision>("/owners", body);
       setAttempt(null); setPassword(""); setConfirm(""); setBranch(""); setName(""); setPhone("");
+      await refresh(); announceBranding();
       setSuccess(record); setMessage("Đã tạo tài khoản chủ spa và chi nhánh đầu tiên.");
       try { await load(0); setOffset(0); } catch { setError("Tài khoản đã được tạo. Tải lại trang để xem danh sách mới."); }
     } catch (e) {
@@ -59,6 +65,7 @@ export default function OperatorPage(): React.ReactElement {
       <p><strong>{success.owner_name}</strong> • {success.phone_number}</p><p>Chi nhánh: {success.branch_name}</p>
       <p>Bàn giao SĐT và mật khẩu đã đặt qua kênh riêng. Chủ spa đăng nhập tại <a className="underline" href="/admin/login">/admin/login</a>.</p>
     </div>}
+    {operator && <OperatorBranding disabled={locked} />}
     {operator && <form onSubmit={(e) => void create(e)} className="grid gap-3 rounded-xl border bg-card p-5 sm:grid-cols-2">
       <h2 className="font-bold sm:col-span-2">Tạo chủ spa</h2>
       <div><Label htmlFor="ownerName">Họ tên chủ spa</Label><Input id="ownerName" required maxLength={255} value={name} disabled={locked} onChange={(e) => setName(e.target.value)} /></div>
@@ -66,6 +73,7 @@ export default function OperatorPage(): React.ReactElement {
       <div className="sm:col-span-2"><Label htmlFor="firstBranch">Tên chi nhánh đầu tiên</Label><Input id="firstBranch" required maxLength={255} value={branch} disabled={locked} onChange={(e) => setBranch(e.target.value)} /></div>
       <div><Label htmlFor="ownerPassword">Mật khẩu bàn giao</Label><Input id="ownerPassword" type="password" autoComplete="new-password" minLength={8} required value={password} disabled={locked} onChange={(e) => setPassword(e.target.value)} /></div>
       <div><Label htmlFor="ownerConfirm">Nhập lại mật khẩu</Label><Input id="ownerConfirm" type="password" autoComplete="new-password" required value={confirm} disabled={locked} onChange={(e) => setConfirm(e.target.value)} /></div>
+      <div className="sm:col-span-2"><BrandColorPicker id="ownerThemeColor" value={ownerColor || branding.theme_color} onChange={setOwnerColor} disabled={locked} /></div>
       {attempt && !busy && <p className="text-sm sm:col-span-2">Kết quả lần trước chưa rõ. Thử lại cùng yêu cầu để đối chiếu.</p>}
       <Button type="submit" disabled={busy}>{busy ? "Đang tạo..." : attempt ? "Thử lại tạo tài khoản" : "Tạo tài khoản chủ spa"}</Button>
     </form>}

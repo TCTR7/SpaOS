@@ -91,7 +91,7 @@ def main():
                     "booking_items", "push_subscriptions", "notifications",
                     "payment_invoices", "payment_entries", "audit_logs", "branch_memberships", "owner_provisions"]
         assert all(any(r["table"] == t and r["rls"] == "t" and r["force_rls"] == "t"
-                       for r in restored) for t in business + ["login_accounts", "deployment_operators"])
+                       for r in restored) for t in business + ["login_accounts", "deployment_operators", "deployment_branding"])
         restored_sql("CREATE ROLE restore_probe NOLOGIN NOSUPERUSER NOBYPASSRLS; "
                      "GRANT USAGE ON SCHEMA public TO restore_probe; "
                      "GRANT SELECT ON ALL TABLES IN SCHEMA public TO restore_probe;")
@@ -105,6 +105,9 @@ def main():
         visible = restored_sql(f"SET ROLE restore_probe; SET app.current_tenant_id='{tenant}'; " +
                                "; ".join(f"SELECT count(*) FROM {t}" for t in business) + ";")
         assert expected == visible, "RLS visible rows differ from selected tenant"
+        expected_branding = restored_sql("SELECT count(*) FROM deployment_branding;")
+        public_branding = restored_sql("SET ROLE restore_probe; SELECT count(*) FROM deployment_branding;")
+        assert expected_branding == public_branding, "Public branding visibility differs after restore"
         account = restored_sql("SELECT id FROM login_accounts ORDER BY id LIMIT 1;").strip()
         if account:
             uuid.UUID(account)

@@ -304,3 +304,15 @@ class OwnerProvision(TimestampMixin, TenantOwnedMixin, Base):
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
     branch_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class DeploymentBranding(TimestampMixin, Base):
+    """Public deployment appearance; contains no tenant business data."""
+    __tablename__ = "deployment_branding"
+    __table_args__ = (
+        CheckConstraint("slot = 1", name="ck_branding_singleton"),
+        CheckConstraint("theme_color ~ '^#[0-9a-f]{6}$'", name="ck_branding_color"),
+    )
+    slot: Mapped[int] = mapped_column(Integer, nullable=False, default=1, unique=True)
+    theme_color: Mapped[str] = mapped_column(String(7), nullable=False)
+    updated_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("deployment_operators.id"), nullable=False)

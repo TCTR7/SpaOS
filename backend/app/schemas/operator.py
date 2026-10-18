@@ -9,8 +9,12 @@ class OperatorLogin(BaseModel):
     password: SecretStr
     _phone = field_validator("phone_number")(_check_phone)
 
+from app.schemas.branding import color
+
 class OwnerCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    theme_color: str | None = None
+    _theme = field_validator("theme_color")(lambda v: color(v) if v is not None else None)
     request_id: uuid.UUID
     branch_name: str = Field(min_length=1, max_length=255)
     owner_full_name: str = Field(min_length=1, max_length=255)

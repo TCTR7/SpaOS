@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useBrandColor } from "@/components/brand-provider";
+import { brandStyle } from "@/lib/brand-theme";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -78,6 +80,7 @@ export function AdminShell({
 }): React.ReactElement {
   const pathname = usePathname();
   const { user, tenant, loading, logout, branches, changeBranch } = useAdminAuth();
+  const brandColor = useBrandColor(tenant?.theme_color);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
 
   const [branchBusy, setBranchBusy] = React.useState(false);
@@ -109,14 +112,14 @@ export function AdminShell({
   );
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-background text-foreground" style={brandStyle(brandColor)}>
       {/* Sidebar Desktop */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
         <div className="flex h-16 items-center gap-3 border-b border-border px-5">
           <div
             className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm"
             style={{
-              backgroundColor: tenant.theme_color || "#be185d",
+              backgroundColor: brandColor, color: "var(--brand-foreground)",
             }}
           >
             {tenant.name.slice(0, 1).toUpperCase()}

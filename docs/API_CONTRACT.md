@@ -217,3 +217,16 @@ Danh tính deployment_operators tách biệt UserRole và login_accounts nghiệ
 - UI /operator/login và /operator dùng sessionStorage key spaos_operator_token, không ghi đè token Admin/Customer. Pending create giữ UUID/payload trong memory, khóa sửa form khi chưa rõ kết quả; retry gửi lại cùng body. Mật khẩu xóa khỏi form sau thành công.
 - OPERATOR_PHONE/NAME/PASSWORD chỉ dùng bootstrap seed cấu hình; không đưa password vào URL, log hoặc response. Seed không đổi credential/active state đã tồn tại. Demo và chủ spa không được seed mặc định.
 - Nhánh xác thực booking đã đồng bộ kiểm tra tenant active và membership/account của management user, tránh giữ quyền qua đường optional tenant context sau khi bị khóa.
+
+
+## Màu thương hiệu cấp deployment — 0007_branding
+- GET /branding (public, Cache-Control: no-store) → {theme_color:"#rrggbb",configured:boolean}. Chỉ công khai màu; không trả operator, khách hàng hoặc tài chính. Chưa cấu hình trả #be185d/configured=false.
+- GET /operator/branding → cùng DTO; POST /operator/branding body {theme_color:"#rrggbb"} → 200 cùng DTO. Yêu cầu JWT Operator hợp lệ; thiếu/sai loại token 401. Chỉ nhận HEX đủ 6 ký tự, chuẩn hóa chữ thường; trường lạ/mã màu sai 422. Lưu bằng transaction và advisory lock; không nhận tenant_id từ client.
+- POST /operator/owners thêm theme_color?:string|null. Có màu thì lưu cùng transaction tạo chủ/chi nhánh, xung đột rollback cả hai. Retry giữ cùng UUID/payload; màu tham gia digest khi được gửi, request cũ bỏ màu vẫn tương thích.
+- deployment_branding là cấu hình giao diện singleton cấp deployment, không phải dữ liệu nghiệp vụ theo tenant. ENABLE/FORCE RLS: public chỉ đọc cấu hình màu, ghi yêu cầu operator active đã xác minh. Không nới policy bảng nghiệp vụ.
+- Một chủ spa/deployment: màu chung mọi chi nhánh. GET /public/tenants/{slug} trả màu deployment nếu đã cấu hình; nếu chưa thì giữ màu chi nhánh cũ. Admin không sửa màu chung qua cài đặt chi nhánh; trường màu cũ chỉ còn phục vụ tương thích trước khi Operator cấu hình.
+- Frontend áp dụng CSS variables cho đăng nhập/Admin/khách; nền giữ màu đã chọn, chữ nút tự chọn đen/trắng và chữ nhấn được làm đậm để dễ đọc. Metadata và manifest lấy màu từ backend nội bộ khi render; tab đang mở đồng bộ khi focus/storage event. Lỗi mạng giữ màu đã biết/default.
+
+
+### Dung sai đồng hồ JWT
+Token nghiệp vụ và Operator dùng leeway cố định 2 giây cho kiểm tra thời gian (iat/nbf/exp), nhằm chịu được hiệu chỉnh đồng hồ nhỏ. Vẫn xác minh chữ ký, audience, scope, version và quyền dữ liệu; token phát trước thời gian quá 2 giây hoặc hết hạn ngoài khoảng này bị từ chối. Không thay đổi thời lượng phiên.

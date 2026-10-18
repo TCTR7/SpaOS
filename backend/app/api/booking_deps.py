@@ -7,7 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import _UNAUTHORIZED, bearer_scheme
+from app.api.deps import _UNAUTHORIZED, bearer_scheme, logger
 from app.core.database import AsyncSessionLocal, set_tenant_context
 from app.core.security import decode_access_token
 from app.models.models import Tenant, User, UserRole
@@ -35,13 +35,15 @@ async def get_optional_tenant_ctx(
                 payload = decode_access_token(credentials.credentials)
                 tenant_id = uuid.UUID(payload["tenant_id"])
                 user_id = uuid.UUID(payload["sub"])
-            except (jwt.PyJWTError, KeyError, ValueError):
+            except (jwt.PyJWTError, KeyError, ValueError) as exc:
+                logger.warning("Booking authentication token rejected (%s)", type(exc).__name__)
                 raise _UNAUTHORIZED
             await set_tenant_context(session, tenant_id)
             user = (
                 await session.execute(select(User).where(User.id == user_id, User.tenant_id == tenant_id))
             ).scalar_one_or_none()
             if user is None or not user.is_active:
+                logger.warning("Booking authentication user missing or inactive within tenant context")
                 raise _UNAUTHORIZED
             if user.role in (UserRole.ADMIN, UserRole.STAFF):
                 from app.services.branch_service import membership_for, account_for

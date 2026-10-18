@@ -161,4 +161,19 @@ docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
 
 Công cụ tạo database spaos_qa_<UUID>, chạy toàn bộ migration và pytest, rồi xóa CHỈ database vừa tạo. Cần migration role có quyền tạo database trong môi trường QA; không chạy suite trên production.
 
-Feature E2E operator_portal tự mở API container/DB spaos_e2e_<UUID> trên loopback port tạm, dùng operator QA riêng. Browser chuyển các API request của feature đó sang API thật tạm; kiểm tra Unicode, chủ spa đăng nhập thật và retry sau response bị mất. Teardown đợi request xong rồi dọn container/database; không seed operator QA vào hệ thống người dùng.
+Toàn bộ E2E tự mở API container/DB spaos_e2e_<UUID> trên loopback port tạm, seed demo và operator QA riêng. Browser và ApiHelper dùng API thật tạm; feature operator kiểm tra Unicode, chủ spa đăng nhập thật và retry sau response bị mất. Teardown dọn container/database; không seed QA vào hệ thống người dùng.
+
+
+## Tùy chỉnh màu thương hiệu
+1. Chạy migration tới 0007_branding và triển khai frontend/backend cùng phiên bản.
+2. Đăng nhập /operator/login → Màu thương hiệu của spa → chọn màu hoặc nhập HEX, xem trước → Lưu màu thương hiệu. Có thể chọn màu ngay trong form cấp chủ spa.
+3. Màu dùng chung cho chi nhánh/Admin/trang đặt lịch của deployment này. Spa trên deployment khác có cấu hình độc lập. Chủ spa vẫn đăng nhập /admin/login như cũ.
+4. BACKEND_INTERNAL_URL của frontend phải trỏ đúng backend cùng deployment để màu render đầu/manifest đúng; API lỗi sẽ dùng màu mặc định. PWA đã cài có thể cần trình duyệt cập nhật manifest để đổi màu thanh hệ thống.
+
+### E2E cô lập toàn bộ backend
+Chạy pytest trong automation_test như hiện tại. Harness tự tạo container API và database spaos_e2e_<UUID>, migrate rồi seed demo/Operator QA CHỈ trong database tạm. Mọi API của browser và ApiHelper đi vào backend tạm; credentials demo trong fixture không lấy tài khoản thật. Teardown dọn đúng container/database được tạo. Cần Docker Compose và migration role có quyền CREATE DATABASE trong QA. Không chạy trên production.
+Frontend vẫn dùng FRONTEND_URL (nên chọn server thử riêng); SSR metadata dùng BACKEND_INTERNAL_URL của frontend, nên kiểm tra metadata/manifest thật tại deployment đúng cấu hình bên cạnh E2E client. Không seed spa-demo vào database ứng dụng để chạy lại bộ test.
+
+
+### Đồng bộ đồng hồ và lỗi 401
+Regression đã ghi nhận ImmatureSignatureError khi token mới bị coi là phát trong tương lai. Backend chấp nhận clock skew tối đa 2 giây cho cả token nghiệp vụ/Operator; vẫn cần đồng bộ NTP cho host/container. Log chỉ ghi loại lỗi xác thực, không ghi token/password. Token sai chữ ký/audience/scope/version hoặc vượt dung sai vẫn bị chặn.

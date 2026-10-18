@@ -47,7 +47,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
   }, [slug, user]);
 
   if (!tenant) return null;
-  const themeColor = tenant.theme_color || "#be185d";
+  const themeColor = "var(--brand-color)";
 
   if (!user && !authLoading) {
     return (
@@ -55,7 +55,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
         <CardContent className="p-6 text-center space-y-3">
           <Ticket
             className="mx-auto h-10 w-10"
-            style={{ color: themeColor }}
+            style={{ color: "var(--brand-text)" }}
           />
           <h2 className="text-base font-bold text-foreground">
             Quản lý Thẻ liệu trình & Hồ sơ cá nhân
@@ -68,7 +68,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
             <Link
               href={`/${slug}/login`}
               className="inline-flex h-9 items-center justify-center rounded-xl px-5 text-xs font-bold text-white shadow"
-              style={{ backgroundColor: themeColor }}
+              style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
             >
               Đăng nhập
             </Link>
@@ -94,7 +94,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
           <div className="flex items-center gap-3">
             <div
               className="flex h-12 w-12 items-center justify-center rounded-full text-white font-bold text-base shadow-xs"
-              style={{ backgroundColor: themeColor }}
+              style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
             >
               {user.full_name.slice(0, 1).toUpperCase()}
             </div>
@@ -129,7 +129,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-            <Ticket className="h-4 w-4" style={{ color: themeColor }} />
+            <Ticket className="h-4 w-4" style={{ color: "var(--brand-text)" }} />
             Thẻ liệu trình đang sở hữu ({packages.length})
           </h2>
         </div>
@@ -152,7 +152,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
               <Link
                 href={`/${slug}/book`}
                 className="inline-flex h-8 items-center justify-center rounded-lg px-4 text-xs font-semibold text-white"
-                style={{ backgroundColor: themeColor }}
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 Khám phá Gói liệu trình
               </Link>
@@ -205,7 +205,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                       </span>
                       <span
                         className="font-bold"
-                        style={{ color: themeColor }}
+                        style={{ color: "var(--brand-text)" }}
                       >
                         Khả dụng: {pkg.available_sessions} buổi
                       </span>
@@ -215,7 +215,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                         className="h-full transition-all"
                         style={{
                           width: `${pct}%`,
-                          backgroundColor: themeColor,
+                          backgroundColor: themeColor, color: "var(--brand-foreground)",
                         }}
                       />
                     </div>
@@ -229,7 +229,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                       <Link
                         href={`/${slug}/book?service_id=${pkg.service_id}&package_id=${pkg.id}`}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold text-white shadow-xs"
-                        style={{ backgroundColor: themeColor }}
+                        style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
                       >
                         <CalendarPlus className="h-3.5 w-3.5" />
                         Đặt lịch dùng thẻ này (0₫)

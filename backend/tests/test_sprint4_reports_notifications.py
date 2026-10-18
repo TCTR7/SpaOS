@@ -33,18 +33,22 @@ async def _setup(client, staff_count: int = 2) -> Dict:
     assert r.status_code == 201, r.text
     ah = _h(r.json()["access_token"])
     admin_id = r.json()["user"]["id"]
-    await client.patch(f"{B}/tenants/me", headers=ah, json={"open_time": "09:00:00", "close_time": "20:00:00", "buffer_minutes": 10})
+    r = await client.patch(f"{B}/tenants/me", headers=ah, json={"open_time": "09:00:00", "close_time": "20:00:00", "buffer_minutes": 10})
+    assert r.status_code == 200, r.text
 
     staff = []
     for i in range(staff_count):
         phone = unique_phone()
         r = await client.post(f"{B}/staff", headers=ah, json={"full_name": f"KTV {i}", "phone_number": phone, "password": "secret123"})
+        assert r.status_code == 201, r.text
         sid = r.json()["id"]
-        await client.put(
+        schedules = await client.put(
             f"{B}/staff/{sid}/schedules", headers=ah,
             json={"schedules": [{"day_of_week": d, "start_time": "09:00:00", "end_time": "20:00:00"} for d in range(7)]},
         )
+        assert schedules.status_code == 200, schedules.text
         login = await client.post(f"{B}/auth/login", headers={"X-Tenant-Slug": slug}, json={"phone_number": phone, "password": "secret123"})
+        assert login.status_code == 200, login.text
         staff.append({"id": sid, "h": _h(login.json()["access_token"])})
 
     async def svc(name, minutes, price, **extra):
@@ -56,6 +60,7 @@ async def _setup(client, staff_count: int = 2) -> Dict:
         f"{B}/auth/register", headers={"X-Tenant-Slug": slug},
         json={"full_name": "Khach", "phone_number": unique_phone(), "password": "secret123"},
     )
+    assert r.status_code == 201, r.text
     return {
         "slug": slug, "ah": ah, "admin_id": admin_id, "staff": staff,
         "s60": await svc("Massage", 60, "300000"),

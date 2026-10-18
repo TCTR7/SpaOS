@@ -61,3 +61,46 @@ def test_operator_retry_preserves_request_after_lost_response(operator_ui):
     expect(page.get_by_test_id("owner-created")).to_be_visible()
     assert len(calls) == 2 and calls[0] == calls[1]
     expect(page.get_by_test_id("provision-row").filter(has_text=phone)).to_have_count(1)
+
+
+def test_operator_updates_branding_across_login_customer_and_light_palette(operator_ui):
+    page_for, backend = operator_ui
+    page = page_for()
+    ui = OperatorPage(page)
+    ui.login()
+    page.locator("#deploymentColor").fill("#2563eb")
+    with page.expect_response(lambda r: r.url.endswith("/operator/branding") and r.request.method == "POST") as saved:
+        page.get_by_role("button", name="Lưu màu thương hiệu", exact=True).click()
+    assert saved.value.status == 200
+    expect(page.get_by_role("status").filter(has_text="Đã lưu màu thương hiệu")).to_be_visible()
+    expect(page.get_by_test_id("preview-deploymentColor").locator(".bg-primary")).to_have_css("background-color","rgb(37, 99, 235)")
+    owner_phone = ui.fill_owner()
+    page.locator("#ownerThemeColor").fill("#2563eb")
+    ui.submit()
+    expect(page.get_by_test_id("owner-created")).to_be_visible()
+    owner = page_for()
+    owner.goto(config.frontend_url + "/admin/login")
+    expect(owner.get_by_role("button",name="Đăng nhập vào Dashboard")).to_have_css("background-color","rgb(37, 99, 235)")
+    owner.locator("#phone").fill(owner_phone)
+    owner.locator("#password").fill("OwnerQa@123")
+    owner.get_by_role("button", name="Đăng nhập vào Dashboard",exact=True).click()
+    expect(owner.get_by_test_id("branch-dashboard")).to_be_visible()
+    token = owner.evaluate("localStorage.getItem('spaos_admin_token')")
+    me = owner.request.get(backend+"/api/v1/auth/me", headers={"Authorization":"Bearer "+token}).json()
+    customer = page_for()
+    customer.goto(config.frontend_url+"/"+me["tenant"]["slug"])
+    sign_in = customer.get_by_role("link",name="Đăng nhập",exact=True)
+    expect(sign_in).to_have_css("background-color","rgb(37, 99, 235)")
+    page.locator("#deploymentColor").fill("#ffff00")
+    expect(page.get_by_test_id("preview-deploymentColor").locator(".bg-primary")).to_have_css("color","rgb(0, 0, 0)")
+    with page.expect_response(lambda r: r.url.endswith("/operator/branding") and r.request.method == "POST") as updated:
+        page.get_by_role("button",name="Lưu màu thương hiệu",exact=True).click()
+    assert updated.value.status == 200
+    expect(page.get_by_role("status").filter(has_text="Đã lưu màu thương hiệu")).to_be_visible()
+    customer.reload()
+    expect(sign_in).to_have_css("background-color","rgb(255, 255, 0)")
+    expect(sign_in).to_have_css("color","rgb(0, 0, 0)")
+    owner.reload()
+    expect(owner.get_by_test_id("branch-dashboard")).to_be_visible()
+    expect(owner.locator("html")).to_have_css("--brand-color","#ffff00")
+    assert customer.locator('meta[name="theme-color"]').first.get_attribute("content") == "#ffff00"

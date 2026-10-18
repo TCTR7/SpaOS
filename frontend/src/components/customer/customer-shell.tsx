@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useBrandColor } from "@/components/brand-provider";
+import { brandStyle } from "@/lib/brand-theme";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -24,6 +26,7 @@ export function CustomerShell({
   const { slug, tenant, tenantLoading, tenantNotFound, user } =
     useCustomerTenant();
 
+  const brandColor = useBrandColor(tenant?.theme_color);
   if (tenantLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -60,7 +63,7 @@ export function CustomerShell({
     );
   }
 
-  const themeColor = tenant.theme_color || "#be185d";
+  const themeColor = "var(--brand-color)";
   const baseHref = `/${tenant.slug}`;
 
   const navItems = [
@@ -93,7 +96,7 @@ export function CustomerShell({
   return (
     <div
       className="min-h-screen bg-slate-100/80 flex justify-center"
-      style={{ "--spa-brand": themeColor } as React.CSSProperties}
+      style={brandStyle(brandColor)}
     >
       {/* Mobile-first container */}
       <div className="relative flex min-h-screen w-full max-w-md flex-col bg-background shadow-xl border-x border-border/60">
@@ -113,7 +116,7 @@ export function CustomerShell({
             ) : (
               <div
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-xs"
-                style={{ backgroundColor: themeColor }}
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 {tenant.name.slice(0, 1).toUpperCase()}
               </div>
@@ -140,7 +143,7 @@ export function CustomerShell({
                   href={`${baseHref}/profile`}
                   className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-foreground"
                 >
-                  <UserIcon className="h-3.5 w-3.5" style={{ color: themeColor }} />
+                  <UserIcon className="h-3.5 w-3.5" style={{ color: "var(--brand-text)" }} />
                   <span className="max-w-[90px] truncate">
                     {user.full_name}
                   </span>
@@ -150,7 +153,7 @@ export function CustomerShell({
               <Link
                 href={`${baseHref}/login`}
                 className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-xs font-semibold text-white shadow-xs transition hover:opacity-90"
-                style={{ backgroundColor: themeColor }}
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 Đăng nhập
               </Link>
@@ -177,7 +180,7 @@ export function CustomerShell({
                   "flex flex-col items-center gap-0.5 rounded-lg px-3 py-1 text-[11px] font-medium transition",
                   active ? "font-bold" : "text-muted-foreground"
                 )}
-                style={active ? { color: themeColor } : undefined}
+                style={active ? { color: "var(--brand-text)" } : undefined}
               >
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>

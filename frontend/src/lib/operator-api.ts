@@ -4,7 +4,7 @@ export interface OwnerProvision {
   owner_name: string; phone_number: string; created_at: string;
 }
 export interface OwnerCreate {
-  request_id: string; branch_name: string; owner_full_name: string; phone_number: string; password: string;
+  request_id: string; branch_name: string; owner_full_name: string; phone_number: string; password: string; theme_color?: string;
 }
 const KEY = "spaos_operator_token";
 const BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";

@@ -275,3 +275,7 @@ Xem [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) về deployment riêng 
 
 ## Cấp tài khoản chủ spa theo PO — 17/10/2026
 Đơn vị triển khai có danh tính quản trị riêng, seed từ secrets cấu hình; màn hình /operator tạo chủ spa và chi nhánh đầu tiên bằng form web Unicode. Chủ spa/nhân viên không đăng nhập cổng này, tiếp tục /admin/login. Seed mặc định không tạo dữ liệu demo; không dùng mật khẩu mặc định cho operator. Production một chủ spa/deployment, thêm chi nhánh qua quyền chủ như hiện hành.
+
+
+### Bổ sung sau Sprint: thương hiệu theo deployment
+Operator chọn/xem trước/lưu màu chủ đạo; áp dụng trang Admin, đăng nhập, PWA khách và các chi nhánh cùng chủ. Mỗi deployment độc lập; Admin chi nhánh không đổi màu chung. Chưa cấu hình giữ tương thích màu chi nhánh cũ.

@@ -1,3 +1,4 @@
+import { getServerBranding } from "@/lib/server-branding";
 import type { MetadataRoute } from "next";
 
 type PwaScreenshot = {
@@ -8,9 +9,10 @@ type PwaScreenshot = {
   label: string;
 };
 
-export default function manifest(): MetadataRoute.Manifest & {
+export default async function manifest(): Promise<MetadataRoute.Manifest & {
   screenshots: PwaScreenshot[];
-} {
+}> {
+  const branding = await getServerBranding();
   return {
     id: "/",
     name: "SpaOS - Đặt lịch & Quản lý Spa",
@@ -20,7 +22,7 @@ export default function manifest(): MetadataRoute.Manifest & {
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: "#e11d48",
+    theme_color: branding.theme_color,
     orientation: "portrait",
     icons: [
       {
