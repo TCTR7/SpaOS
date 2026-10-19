@@ -22,8 +22,8 @@ def test_customer_uses_own_package_and_sees_reservation(browser_instance, api_he
     try:
         page.goto(config.frontend_url + "/" + config.tenant_slug + "/profile")
         expect(page.get_by_text(name, exact=True)).to_be_visible()
-        expect(page.get_by_text("Khả dụng: 3 buổi", exact=True)).to_be_visible()
-        page.get_by_role("link", name="Đặt lịch dùng thẻ này (0₫)").click()
+        expect(page.get_by_text("Có thể đặt thêm: 3 buổi", exact=True)).to_be_visible()
+        page.get_by_role("link", name="Dùng 1 buổi trong thẻ").click()
         wizard = BookingWizardPage(page)
         page.get_by_role("button", name="Tiếp tục", exact=True).click()
         wizard.step2_choose_auto_assign_staff()
@@ -36,8 +36,8 @@ def test_customer_uses_own_package_and_sees_reservation(browser_instance, api_he
         assert booking["items"][0]["customer_package_id"] == package["id"]
         assert float(booking["total_price"]) == 0
         page.goto(config.frontend_url + "/" + config.tenant_slug + "/profile")
-        expect(page.get_by_text("Khả dụng: 2 buổi", exact=True)).to_be_visible()
-        expect(page.get_by_text("Còn lại: 3 buổi • Đang giữ chỗ: 1 buổi", exact=True)).to_be_visible()
+        expect(page.get_by_text("Có thể đặt thêm: 2 buổi", exact=True)).to_be_visible()
+        expect(page.get_by_text("Chưa dùng: 3 buổi • Đã đặt lịch: 1 buổi", exact=True)).to_be_visible()
     finally:
         if booking_id:
             response = api_helper.client.post("/bookings/" + booking_id + "/cancel", headers={"Authorization": "Bearer " + token})

@@ -1,0 +1,989 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 844
+  },
+  "documentWidth": 1024,
+  "documentHeight": 15574,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-10f80d21-d18a-47ca-8441-1a3c59a4b564",
+      "bounds": {
+        "left": 280,
+        "top": 404,
+        "right": 1000,
+        "bottom": 644.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 1,
+      "testId": "booking-card-1f92f0ba-3d03-416e-9530-d2a6a0d0019a",
+      "bounds": {
+        "left": 280,
+        "top": 656.5,
+        "right": 1000,
+        "bottom": 897,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 2,
+      "testId": "booking-card-24bd7bcf-936f-4bf5-aab2-8c82c7c459d0",
+      "bounds": {
+        "left": 280,
+        "top": 909,
+        "right": 1000,
+        "bottom": 1149.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 3,
+      "testId": "booking-card-2fefb4de-a619-47a6-aefb-9316a3166088",
+      "bounds": {
+        "left": 280,
+        "top": 1161.5,
+        "right": 1000,
+        "bottom": 1402,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 4,
+      "testId": "booking-card-3021d61b-2a09-40d4-a614-697915dee87f",
+      "bounds": {
+        "left": 280,
+        "top": 1414,
+        "right": 1000,
+        "bottom": 1614.5,
+        "width": 720,
+        "height": 200.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 5,
+      "testId": "booking-card-5402e1e1-4a5e-4fa7-97d3-2b99d21ff920",
+      "bounds": {
+        "left": 280,
+        "top": 1626.5,
+        "right": 1000,
+        "bottom": 1915,
+        "width": 720,
+        "height": 288.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 6,
+      "testId": "booking-card-849bb98a-5abf-4b3e-a49b-bb3ae071833f",
+      "bounds": {
+        "left": 280,
+        "top": 1927,
+        "right": 1000,
+        "bottom": 2167.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 7,
+      "testId": "booking-card-ca207206-ac67-4739-980e-5d15ca0ad134",
+      "bounds": {
+        "left": 280,
+        "top": 2179.5,
+        "right": 1000,
+        "bottom": 2420,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 8,
+      "testId": "booking-card-d7e19c74-ca66-458d-b7a8-fa2ea32445ed",
+      "bounds": {
+        "left": 280,
+        "top": 2432,
+        "right": 1000,
+        "bottom": 2672.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 9,
+      "testId": "booking-card-dc93b308-d236-4349-85fc-3d14f2902c1e",
+      "bounds": {
+        "left": 280,
+        "top": 2684.5,
+        "right": 1000,
+        "bottom": 2925,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 10,
+      "testId": "booking-card-1830f12e-0de4-4fcf-a92c-d37b67a05950",
+      "bounds": {
+        "left": 280,
+        "top": 2937,
+        "right": 1000,
+        "bottom": 3177.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 11,
+      "testId": "booking-card-3557ffd0-6d1a-40c1-9c91-34638b55b711",
+      "bounds": {
+        "left": 280,
+        "top": 3189.5,
+        "right": 1000,
+        "bottom": 3430,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 12,
+      "testId": "booking-card-3f465528-49f3-4c71-b27a-b4ea60412b2d",
+      "bounds": {
+        "left": 280,
+        "top": 3442,
+        "right": 1000,
+        "bottom": 3682.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 13,
+      "testId": "booking-card-42a84082-3526-4bd3-9ec6-6f1b1a211841",
+      "bounds": {
+        "left": 280,
+        "top": 3694.5,
+        "right": 1000,
+        "bottom": 3935,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 14,
+      "testId": "booking-card-58d0a216-489e-43ed-9ca0-e92262947487",
+      "bounds": {
+        "left": 280,
+        "top": 3947,
+        "right": 1000,
+        "bottom": 4187.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 15,
+      "testId": "booking-card-6db8b5fb-5a75-4542-b1da-f168aab5e449",
+      "bounds": {
+        "left": 280,
+        "top": 4199.5,
+        "right": 1000,
+        "bottom": 4440,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 16,
+      "testId": "booking-card-7ee66456-7b79-4acb-b49a-8f2d7b2d0bc6",
+      "bounds": {
+        "left": 280,
+        "top": 4452,
+        "right": 1000,
+        "bottom": 4692.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 17,
+      "testId": "booking-card-91118d69-5124-4795-984d-a69edbdf8dbf",
+      "bounds": {
+        "left": 280,
+        "top": 4704.5,
+        "right": 1000,
+        "bottom": 4945,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 18,
+      "testId": "booking-card-a435bc27-e10a-48b1-a899-90475f200417",
+      "bounds": {
+        "left": 280,
+        "top": 4957,
+        "right": 1000,
+        "bottom": 5197.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 19,
+      "testId": "booking-card-be23a9b8-49a8-4b67-8075-6f4dfb14b9ac",
+      "bounds": {
+        "left": 280,
+        "top": 5209.5,
+        "right": 1000,
+        "bottom": 5450,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 20,
+      "testId": "booking-card-15ee7b97-ca94-41de-9964-529dc3b2aae3",
+      "bounds": {
+        "left": 280,
+        "top": 5462,
+        "right": 1000,
+        "bottom": 5702.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 21,
+      "testId": "booking-card-27bc9362-bde4-4ca8-8054-2356b014167a",
+      "bounds": {
+        "left": 280,
+        "top": 5714.5,
+        "right": 1000,
+        "bottom": 5955,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 22,
+      "testId": "booking-card-68dd601e-7186-4eb5-b36b-35e436c35b53",
+      "bounds": {
+        "left": 280,
+        "top": 5967,
+        "right": 1000,
+        "bottom": 6207.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 23,
+      "testId": "booking-card-7ea23114-69f7-470c-9985-f8b6dce136a7",
+      "bounds": {
+        "left": 280,
+        "top": 6219.5,
+        "right": 1000,
+        "bottom": 6460,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 24,
+      "testId": "booking-card-8d077e75-571d-4a6a-9047-34e2d31502a9",
+      "bounds": {
+        "left": 280,
+        "top": 6472,
+        "right": 1000,
+        "bottom": 6712.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 25,
+      "testId": "booking-card-a99a3d86-2227-4f38-98ec-dd656dea09fd",
+      "bounds": {
+        "left": 280,
+        "top": 6724.5,
+        "right": 1000,
+        "bottom": 6965,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 26,
+      "testId": "booking-card-b3d7a5b6-c5e8-4f61-9204-4d17cc1efc33",
+      "bounds": {
+        "left": 280,
+        "top": 6977,
+        "right": 1000,
+        "bottom": 7217.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 27,
+      "testId": "booking-card-d048fcdb-b5bf-4f27-a408-b8e9ccab770a",
+      "bounds": {
+        "left": 280,
+        "top": 7229.5,
+        "right": 1000,
+        "bottom": 7470,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 28,
+      "testId": "booking-card-e1eca4a2-81e1-4da4-9bef-a97492460caa",
+      "bounds": {
+        "left": 280,
+        "top": 7482,
+        "right": 1000,
+        "bottom": 7722.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 29,
+      "testId": "booking-card-fb0b1f38-3d0d-47b2-a461-8bc77dcafeb1",
+      "bounds": {
+        "left": 280,
+        "top": 7734.5,
+        "right": 1000,
+        "bottom": 7975,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 30,
+      "testId": "booking-card-48efbc79-17d2-4aab-8df1-86d979937dfe",
+      "bounds": {
+        "left": 280,
+        "top": 7987,
+        "right": 1000,
+        "bottom": 8227.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 31,
+      "testId": "booking-card-64a16a7f-08cf-486e-bc1e-564a29529ab0",
+      "bounds": {
+        "left": 280,
+        "top": 8239.5,
+        "right": 1000,
+        "bottom": 8480,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 32,
+      "testId": "booking-card-68bd0be3-f008-4017-8a02-857b892b238a",
+      "bounds": {
+        "left": 280,
+        "top": 8492,
+        "right": 1000,
+        "bottom": 8732.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 33,
+      "testId": "booking-card-695b678c-0f14-494f-8e52-e6bf4a5a2665",
+      "bounds": {
+        "left": 280,
+        "top": 8744.5,
+        "right": 1000,
+        "bottom": 8985,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 34,
+      "testId": "booking-card-6e3a7459-9cc7-475b-82e0-67a8c2ce5038",
+      "bounds": {
+        "left": 280,
+        "top": 8997,
+        "right": 1000,
+        "bottom": 9237.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 35,
+      "testId": "booking-card-6fa977ee-28ea-4587-b5d4-911e6e4366ba",
+      "bounds": {
+        "left": 280,
+        "top": 9249.5,
+        "right": 1000,
+        "bottom": 9490,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 36,
+      "testId": "booking-card-7fecc054-9c5e-4e39-ab1e-3413e6c4efc1",
+      "bounds": {
+        "left": 280,
+        "top": 9502,
+        "right": 1000,
+        "bottom": 9742.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 37,
+      "testId": "booking-card-8da4dd03-92ec-45d6-814d-92da57fe394b",
+      "bounds": {
+        "left": 280,
+        "top": 9754.5,
+        "right": 1000,
+        "bottom": 9995,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 38,
+      "testId": "booking-card-979e8f76-cb72-4726-b1eb-2eff2e1035c3",
+      "bounds": {
+        "left": 280,
+        "top": 10007,
+        "right": 1000,
+        "bottom": 10247.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 39,
+      "testId": "booking-card-9bd20eac-6cbe-411a-b4d4-9b8ad6c56642",
+      "bounds": {
+        "left": 280,
+        "top": 10259.5,
+        "right": 1000,
+        "bottom": 10500,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 40,
+      "testId": "booking-card-1ecb09fd-75c0-492e-ad61-6fda82d522c0",
+      "bounds": {
+        "left": 280,
+        "top": 10512,
+        "right": 1000,
+        "bottom": 10752.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 41,
+      "testId": "booking-card-3e1fa251-378b-4a33-9b85-34deb2973f75",
+      "bounds": {
+        "left": 280,
+        "top": 10764.5,
+        "right": 1000,
+        "bottom": 11005,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 42,
+      "testId": "booking-card-3fe2c932-13bc-440a-b609-1fb253f86547",
+      "bounds": {
+        "left": 280,
+        "top": 11017,
+        "right": 1000,
+        "bottom": 11257.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 43,
+      "testId": "booking-card-40cffcb4-bb97-45f9-b97f-cd385d86ce43",
+      "bounds": {
+        "left": 280,
+        "top": 11269.5,
+        "right": 1000,
+        "bottom": 11510,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 44,
+      "testId": "booking-card-48f413a8-a60b-440a-951c-2e9b7688f344",
+      "bounds": {
+        "left": 280,
+        "top": 11522,
+        "right": 1000,
+        "bottom": 11762.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 45,
+      "testId": "booking-card-63726bfc-c96d-4876-bf68-99b686f62694",
+      "bounds": {
+        "left": 280,
+        "top": 11774.5,
+        "right": 1000,
+        "bottom": 12015,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 46,
+      "testId": "booking-card-6a3089dd-571b-43b9-8a11-6a9398138883",
+      "bounds": {
+        "left": 280,
+        "top": 12027,
+        "right": 1000,
+        "bottom": 12267.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 47,
+      "testId": "booking-card-bf6d7f1c-523d-4588-8a24-3827c9f3f727",
+      "bounds": {
+        "left": 280,
+        "top": 12279.5,
+        "right": 1000,
+        "bottom": 12520,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 48,
+      "testId": "booking-card-c3ae9d32-58e0-4b93-a181-b510eefec674",
+      "bounds": {
+        "left": 280,
+        "top": 12532,
+        "right": 1000,
+        "bottom": 12772.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 49,
+      "testId": "booking-card-de8b3c18-2f13-41cc-ad49-78e397f642f7",
+      "bounds": {
+        "left": 280,
+        "top": 12784.5,
+        "right": 1000,
+        "bottom": 13025,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 50,
+      "testId": "booking-card-0b9c28af-cd5a-458d-80b0-99fdcafc9dc2",
+      "bounds": {
+        "left": 280,
+        "top": 13037,
+        "right": 1000,
+        "bottom": 13277.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 51,
+      "testId": "booking-card-0fc1ac08-1a95-4fe7-bb8d-7b78d6f7a3be",
+      "bounds": {
+        "left": 280,
+        "top": 13289.5,
+        "right": 1000,
+        "bottom": 13530,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 52,
+      "testId": "booking-card-29b8bc78-d4ee-43da-806b-350782db7f9d",
+      "bounds": {
+        "left": 280,
+        "top": 13542,
+        "right": 1000,
+        "bottom": 13782.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 53,
+      "testId": "booking-card-3c41792d-c496-43ca-a937-3046a36bd18d",
+      "bounds": {
+        "left": 280,
+        "top": 13794.5,
+        "right": 1000,
+        "bottom": 14035,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 54,
+      "testId": "booking-card-3e3a45cb-1560-4c35-98b3-e7439bdb9797",
+      "bounds": {
+        "left": 280,
+        "top": 14047,
+        "right": 1000,
+        "bottom": 14287.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 55,
+      "testId": "booking-card-5042136c-7191-40ae-b606-337e131b95d0",
+      "bounds": {
+        "left": 280,
+        "top": 14299.5,
+        "right": 1000,
+        "bottom": 14540,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 56,
+      "testId": "booking-card-5192289f-dbbb-4c11-ae32-d9bb9a9c530f",
+      "bounds": {
+        "left": 280,
+        "top": 14552,
+        "right": 1000,
+        "bottom": 14792.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 57,
+      "testId": "booking-card-7042157c-283e-4b2a-917b-80bb24b61bef",
+      "bounds": {
+        "left": 280,
+        "top": 14804.5,
+        "right": 1000,
+        "bottom": 15045,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 58,
+      "testId": "booking-card-92dc5589-f8e3-40c4-9b2f-4dc4d4f643b4",
+      "bounds": {
+        "left": 280,
+        "top": 15057,
+        "right": 1000,
+        "bottom": 15297.5,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "index": 59,
+      "testId": "booking-card-cc67d93e-91cb-41af-bdfb-576341484b32",
+      "bounds": {
+        "left": 280,
+        "top": 15309.5,
+        "right": 1000,
+        "bottom": 15550,
+        "width": 720,
+        "height": 240.5
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "task": "T00c-stress",
+  "label": "calendar-day",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "staff": 10,
+    "customers": 210,
+    "bookings": 240,
+    "bookingsPerDay": 60,
+    "nameLength": 80,
+    "noteLength": 280
+  },
+  "screenshot": "1024x844-calendar-day.png",
+  "collectionIsUiPass": false
+}

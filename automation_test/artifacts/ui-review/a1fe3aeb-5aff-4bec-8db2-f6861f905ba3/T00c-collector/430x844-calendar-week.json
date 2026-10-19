@@ -1,0 +1,43 @@
+{
+  "viewport": {
+    "width": 430,
+    "height": 844
+  },
+  "documentWidth": 430,
+  "documentHeight": 1132,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-da356433-9e41-4477-ba30-689d98fe68fb",
+      "bounds": {
+        "left": 27,
+        "top": 824,
+        "right": 403,
+        "bottom": 992.5,
+        "width": 376,
+        "height": 168.5
+      },
+      "scrollWidth": 374,
+      "clientWidth": 374,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "calendar-week",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "430x844-calendar-week.png",
+  "collectionIsUiPass": false
+}

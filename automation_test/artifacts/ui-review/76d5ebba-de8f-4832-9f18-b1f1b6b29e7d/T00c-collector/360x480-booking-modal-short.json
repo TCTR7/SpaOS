@@ -1,0 +1,114 @@
+{
+  "viewport": {
+    "width": 360,
+    "height": 480
+  },
+  "documentWidth": 360,
+  "documentHeight": 1180,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": null,
+      "bounds": {
+        "left": 16,
+        "top": 34,
+        "right": 344,
+        "bottom": 466,
+        "width": 328,
+        "height": 432
+      },
+      "scrollWidth": 326,
+      "clientWidth": 326,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"modal\"]",
+  "measurementStatus": "measured",
+  "dialogs": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": "dialog",
+      "bounds": {
+        "left": 0,
+        "top": 20,
+        "right": 360,
+        "bottom": 480,
+        "width": 360,
+        "height": 460
+      },
+      "scrollHeight": 460,
+      "clientHeight": 460,
+      "focusInside": false,
+      "scrollRegions": [
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 16,
+            "top": 34,
+            "right": 344,
+            "bottom": 466,
+            "width": 328,
+            "height": 432
+          },
+          "scrollHeight": 984,
+          "clientHeight": 430
+        },
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 511,
+            "right": 319,
+            "bottom": 585,
+            "width": 278,
+            "height": 74
+          },
+          "scrollHeight": 72,
+          "clientHeight": 72
+        },
+        {
+          "tag": "textarea",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 855,
+            "right": 319,
+            "bottom": 927,
+            "width": 278,
+            "height": 72
+          },
+          "scrollHeight": 70,
+          "clientHeight": 70
+        }
+      ]
+    }
+  ],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "intentionalVerticalScrollSelectors": [
+    "[data-layout-card=\"modal\"]"
+  ],
+  "task": "T00c-collector",
+  "label": "booking-modal-short",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "360x480-booking-modal-short.png",
+  "collectionIsUiPass": false
+}

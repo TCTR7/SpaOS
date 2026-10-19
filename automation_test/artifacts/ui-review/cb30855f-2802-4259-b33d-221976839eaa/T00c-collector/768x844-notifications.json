@@ -1,0 +1,47 @@
+{
+  "viewport": {
+    "width": 768,
+    "height": 844
+  },
+  "documentWidth": 768,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": null,
+      "bounds": {
+        "left": 247.15625,
+        "top": 57.5,
+        "right": 631.15625,
+        "bottom": 266.5,
+        "width": 384,
+        "height": 209
+      },
+      "scrollWidth": 382,
+      "clientWidth": 382,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"notifications\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "notifications",
+  "role": "ADMIN",
+  "route": "/admin/payments",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "768x844-notifications.png",
+  "collectionIsUiPass": false
+}

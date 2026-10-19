@@ -42,6 +42,7 @@ export function Modal({
       aria-modal="true"
     >
       <div
+        data-layout-card="modal"
         className={cn(
           "relative max-h-[90vh] w-full overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-xl",
           maxWidthClass

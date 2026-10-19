@@ -87,11 +87,43 @@ export default function AdminBookingsPage(): React.ReactElement {
     ""
   );
 
-  const [bookings, setBookings] = React.useState<BookingRecord[]>([]);
-  const [services, setServices] = React.useState<ServiceItem[]>([]);
-  const [customers, setCustomers] = React.useState<UserDetail[]>([]);
-  const [staffList, setStaffList] = React.useState<UserDetail[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(true);
+  const scopeKey = JSON.stringify([user?.tenant_id, user?.id, user?.role,
+    viewMode, selectedDate, filterStaffId, filterStatus]);
+  const referenceScope = JSON.stringify([user?.tenant_id, user?.id, user?.role]);
+  const scopeRef = React.useRef(scopeKey);
+  const referenceScopeRef = React.useRef(referenceScope);
+  scopeRef.current = scopeKey;
+  referenceScopeRef.current = referenceScope;
+  const bookingRequest = React.useRef(0);
+  const referenceRequest = React.useRef(0);
+  const mounted = React.useRef(true);
+  const [bookingState, setBookingState] = React.useState<{
+    scope: string; rows: BookingRecord[]; loading: boolean; error: string | null;
+  }>({ scope: "", rows: [], loading: true, error: null });
+  const [referenceData, setReferenceData] = React.useState<{
+    scope: string; services: ServiceItem[]; customers: UserDetail[]; staff: UserDetail[];
+    loading: boolean; errors: string[]; servicesReady: boolean; customersReady: boolean; staffReady: boolean;
+  }>({ scope: "", services: [], customers: [], staff: [], loading: true, errors: [],
+    servicesReady: false, customersReady: false, staffReady: false });
+  const bookings = bookingState.scope === scopeKey ? bookingState.rows : [];
+  const loading = bookingState.scope !== scopeKey || bookingState.loading;
+  const bookingLoadError = bookingState.scope === scopeKey ? bookingState.error : null;
+  const services = referenceData.scope === referenceScope ? referenceData.services : [];
+  const customers = referenceData.scope === referenceScope ? referenceData.customers : [];
+  const staffList = referenceData.scope === referenceScope ? referenceData.staff : [];
+  const referencesReady = referenceData.scope === referenceScope && !referenceData.loading
+    && referenceData.servicesReady && referenceData.customersReady && referenceData.staffReady;
+  const canReschedule = referenceData.scope === referenceScope && !referenceData.loading
+    && referenceData.servicesReady && referenceData.staffReady;
+  const weekScroller = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      bookingRequest.current += 1;
+      referenceRequest.current += 1;
+    };
+  }, []);
   const [error, setError] = React.useState<string | null>(null);
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null);
 
@@ -189,38 +221,41 @@ export default function AdminBookingsPage(): React.ReactElement {
   const hasMultiSessionSelection = maxCourseSessions > 1;
 
   const loadReferenceData = React.useCallback(async (): Promise<void> => {
-    try {
-      const [svcData, custData] = await Promise.all([
-        fetchServices(),
-        fetchCustomers({ limit: 200 }),
-      ]);
-      setServices(svcData);
-      setCustomers(custData);
-
-      if (user?.role === "ADMIN") {
-        const stData = await fetchStaffList();
-        setStaffList(stData);
-      } else if (user) {
-        setStaffList([
-          {
-            id: user.id,
-            tenant_id: user.tenant_id,
-            role: user.role,
-            full_name: user.full_name,
-            phone_number: user.phone_number,
-            notes: null,
-            is_active: user.is_active,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-      }
-    } catch {
-      // ignore initial reference error
-    }
-  }, [user]);
+    if (!user || !mounted.current || referenceScopeRef.current !== referenceScope) return;
+    const request = ++referenceRequest.current;
+    setReferenceData((previous) => ({ ...previous, scope: referenceScope,
+      services: previous.scope === referenceScope ? previous.services : [],
+      customers: previous.scope === referenceScope ? previous.customers : [],
+      staff: previous.scope === referenceScope ? previous.staff : [],
+      loading: true, errors: [], servicesReady: false, customersReady: false, staffReady: false }));
+    const staffTask = user.role === "ADMIN" ? fetchStaffList() : Promise.resolve<UserDetail[]>([{
+      id: user.id, tenant_id: user.tenant_id, role: user.role, full_name: user.full_name,
+      phone_number: user.phone_number, notes: null, is_active: user.is_active,
+      created_at: new Date().toISOString(),
+    }]);
+    const [svc, cust, staff] = await Promise.allSettled([
+      fetchServices(), fetchCustomers({ limit: 200 }), staffTask,
+    ]);
+    if (!mounted.current || request !== referenceRequest.current
+        || referenceScopeRef.current !== referenceScope) return;
+    const errors: string[] = [];
+    if (svc.status === "rejected") errors.push("Danh mục dịch vụ");
+    if (cust.status === "rejected") errors.push("Tên khách hàng");
+    if (staff.status === "rejected") errors.push("Danh sách KTV");
+    setReferenceData({ scope: referenceScope, loading: false, errors,
+      services: svc.status === "fulfilled" ? svc.value : [],
+      customers: cust.status === "fulfilled" ? cust.value : [],
+      staff: staff.status === "fulfilled" ? staff.value : [],
+      servicesReady: svc.status === "fulfilled", customersReady: cust.status === "fulfilled",
+      staffReady: staff.status === "fulfilled" });
+  }, [user, referenceScope]);
 
   const loadBookings = React.useCallback(async (): Promise<void> => {
-    setLoading(true);
+    // A mutation may finish after the user changed filters. Its old callback
+    // must not start a request for that previous scope.
+    if (!mounted.current || scopeRef.current !== scopeKey) return;
+    const request = ++bookingRequest.current;
+    setBookingState({ scope: scopeKey, rows: [], loading: true, error: null });
     setError(null);
     try {
       const dateFrom = viewMode === "day" ? selectedDate : weekDays[0];
@@ -232,20 +267,29 @@ export default function AdminBookingsPage(): React.ReactElement {
         status: filterStatus || undefined,
         limit: 200,
       });
-      const scopedData = data;
-      const sorted = [...scopedData].sort(
+      const sorted = [...data].sort(
         (a, b) =>
           new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       );
-      setBookings(sorted);
+      if (!mounted.current || request !== bookingRequest.current || scopeRef.current !== scopeKey) return;
+      setBookingState({ scope: scopeKey, rows: sorted, loading: false, error: null });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Không thể tải danh sách lịch hẹn"
-      );
-    } finally {
-      setLoading(false);
+      if (!mounted.current || request !== bookingRequest.current || scopeRef.current !== scopeKey) return;
+      setBookingState({ scope: scopeKey, rows: [], loading: false,
+        error: err instanceof Error ? err.message : "Không thể tải danh sách lịch hẹn" });
     }
-  }, [viewMode, selectedDate, weekDays, filterStaffId, filterStatus, user]);
+  }, [scopeKey, viewMode, selectedDate, weekDays, filterStaffId, filterStatus]);
+
+  // A write belongs to its original identity, but invalidates the currently
+  // displayed filters. Never replay the old filter callback after a commit.
+  const latestLoadBookings = React.useRef(loadBookings);
+  React.useLayoutEffect(() => {
+    latestLoadBookings.current = loadBookings;
+  }, [loadBookings]);
+  const refreshAfterMutation = React.useCallback(async (): Promise<void> => {
+    if (!mounted.current || referenceScopeRef.current !== referenceScope) return;
+    await latestLoadBookings.current();
+  }, [referenceScope]);
 
   React.useEffect(() => {
     void loadReferenceData();
@@ -254,6 +298,13 @@ export default function AdminBookingsPage(): React.ReactElement {
   React.useEffect(() => {
     void loadBookings();
   }, [loadBookings]);
+
+  React.useEffect(() => {
+    const region = weekScroller.current;
+    if (!region || loading || viewMode !== "week" || !window.matchMedia("(min-width: 1024px)").matches) return;
+    const selectedDay = region.querySelector<HTMLElement>(`[data-day="${selectedDate}"]`);
+    if (selectedDay) region.scrollLeft += selectedDay.getBoundingClientRect().left - region.getBoundingClientRect().left;
+  }, [loading, viewMode, selectedDate]);
 
   // Load customer's active packages when selecting a customer in Manual Booking modal
   React.useEffect(() => {
@@ -409,6 +460,7 @@ export default function AdminBookingsPage(): React.ReactElement {
   }, [rescheduleTarget, rescheduleDate, rescheduleStaffId]);
 
   const openRescheduleModal = (booking: BookingRecord): void => {
+    if (!canReschedule) return;
     setTransferCustomer(false);
     setRescheduleError(null);
     setRescheduleTarget(booking);
@@ -437,14 +489,14 @@ export default function AdminBookingsPage(): React.ReactElement {
       });
 
       setRescheduleTarget(null);
-      await loadBookings();
+      await refreshAfterMutation();
     } catch (err) {
       setRescheduleError(
         err instanceof Error
           ? err.message
           : "Không thể dời lịch hẹn. Vui lòng thử lại hoặc chọn khung giờ khác."
       );
-      await loadBookings();
+      await refreshAfterMutation();
     } finally {
       setRescheduleSaving(false);
     }
@@ -457,22 +509,24 @@ export default function AdminBookingsPage(): React.ReactElement {
     setStatusBusyId(bookingId);
     setError(null);
     try {
-      const updated = await updateBookingStatus(bookingId, nextStatus);
-      setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? updated : b))
-      );
+      await updateBookingStatus(bookingId, nextStatus);
+      await refreshAfterMutation();
     } catch (err) {
-      setError(
+      // A failed response may still follow a committed write. Reconcile the
+      // current list first, then keep the failure visible in this identity.
+      await refreshAfterMutation();
+      if (mounted.current && referenceScopeRef.current === referenceScope) setError(
         err instanceof Error
           ? err.message
           : "Không thể cập nhật trạng thái lịch hẹn"
       );
     } finally {
-      setStatusBusyId(null);
+      setStatusBusyId((busyId) => busyId === bookingId ? null : busyId);
     }
   };
 
   const openCreateModal = (): void => {
+    if (!referencesReady) return;
     setModalError(null);
     setQuickNewCustomer(false);
     setModalCustomerId(customers[0]?.id || "");
@@ -566,6 +620,11 @@ export default function AdminBookingsPage(): React.ReactElement {
     e.preventDefault();
     setModalError(null);
 
+    if (!referencesReady) {
+      setModalError("Chưa tải đủ thông tin khách, dịch vụ hoặc KTV. Vui lòng thử tải lại thông tin.");
+      return;
+    }
+
     if (selectedLines.length === 0) {
       setModalError("Vui lòng chọn ít nhất 1 dịch vụ hoặc thẻ liệu trình.");
       return;
@@ -614,7 +673,10 @@ export default function AdminBookingsPage(): React.ReactElement {
           phone_number: newCustomerPhone.trim(),
           notes: newCustomerNotes.trim() || null,
         });
-        setCustomers((prev) => [createdCust, ...prev]);
+        if (mounted.current && referenceScopeRef.current === referenceScope) {
+          setReferenceData((previous) => previous.scope === referenceScope
+            ? { ...previous, customers: [createdCust, ...previous.customers] } : previous);
+        }
         customerId = createdCust.id;
       }
 
@@ -671,8 +733,9 @@ export default function AdminBookingsPage(): React.ReactElement {
       }
 
       setModalOpen(false);
-      await loadBookings();
+      await refreshAfterMutation();
     } catch (err) {
+      await refreshAfterMutation();
       setModalError(
         err instanceof Error ? err.message : "Tạo lịch hẹn thất bại"
       );
@@ -686,36 +749,39 @@ export default function AdminBookingsPage(): React.ReactElement {
     [services]
   );
 
-  const renderBookingCard = (booking: BookingRecord): React.ReactElement => {
+  const renderBookingCard = (booking: BookingRecord, compact = false): React.ReactElement => {
     const meta = BOOKING_STATUS_META[booking.status];
     const customer = customerMap.get(booking.customer_id);
     const staff = booking.staff_id ? staffMap.get(booking.staff_id) : undefined;
     const hasPackageItem = booking.items.some(
       (i) => i.customer_package_id !== null
     );
+    const DetailContainer = compact ? "details" : "div";
 
     return (
       <div
         key={booking.id}
+        data-testid={`booking-card-${booking.id}`}
+        data-layout-card="booking"
         className={cn(
-          "rounded-lg border border-border p-3.5 shadow-xs transition hover:shadow-md",
+          "min-w-0 max-w-full rounded-lg border border-border p-3.5 shadow-xs transition hover:shadow-md [overflow-wrap:anywhere]",
           meta.cardClass
         )}
       >
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-900">
-                <Clock className="h-3.5 w-3.5 text-primary" />
+        <div className={cn("flex gap-2", compact ? "flex-col" : "flex-wrap items-start justify-between")}>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold text-slate-900">
+                <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
                 {formatTimeVN(booking.start_time)} –{" "}
                 {formatTimeVN(booking.end_time)}
               </span>
-              <span className="text-[11px] text-muted-foreground">
+              {!compact && <span className="text-[11px] text-muted-foreground">
                 ({booking.total_duration_minutes} phút)
-              </span>
-              {hasPackageItem && (
-                <Badge variant="default" className="gap-1">
-                  <Ticket className="h-3 w-3" />
+              </span>}
+              {!compact && hasPackageItem && (
+                <Badge variant="default" className="max-w-full gap-1 whitespace-normal">
+                  <Ticket className="h-3 w-3 shrink-0" />
                   Trừ thẻ liệu trình
                 </Badge>
               )}
@@ -723,11 +789,11 @@ export default function AdminBookingsPage(): React.ReactElement {
             <p className="mt-1 text-sm font-semibold text-foreground">
               Khách:{" "}
               {customer
-                ? `${customer.full_name} (${customer.phone_number})`
-                : booking.customer_id.slice(0, 8)}
+                ? compact ? customer.full_name : `${customer.full_name} (${customer.phone_number})`
+                : referenceData.customersReady ? "Chưa có tên khách trong danh sách tải về" : "Đang thiếu tên khách"}
             </p>
             <p className="text-xs text-slate-600">
-              KTV phụ trách:{" "}
+              KTV thực hiện:{" "}
               <strong>
                 {staff
                   ? staff.full_name
@@ -738,10 +804,10 @@ export default function AdminBookingsPage(): React.ReactElement {
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-1">
+          <div className={cn("flex max-w-full gap-1", compact ? "w-full flex-wrap items-center justify-between" : "flex-col items-end")}>
             <span
               className={cn(
-                "rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                "max-w-full rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
                 meta.badgeClass
               )}
             >
@@ -753,17 +819,24 @@ export default function AdminBookingsPage(): React.ReactElement {
           </div>
         </div>
 
+        <DetailContainer>
+        {compact && <summary className="mt-2 min-h-11 cursor-pointer rounded-md py-3 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          Chi tiết và thao tác
+        </summary>}
+        {compact && <p className="mt-2 text-xs text-muted-foreground">
+          {booking.total_duration_minutes} phút{customer ? ` • SĐT: ${customer.phone_number}` : ""}
+        </p>}
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {booking.items.map((item) => {
             const svc = serviceMap.get(item.service_id);
             return (
               <span
                 key={item.id}
-                className="inline-flex items-center gap-1 rounded bg-white/80 px-2 py-0.5 text-[11px] text-slate-700 border border-border"
+                className="inline-block max-w-full whitespace-normal rounded bg-white/80 px-2 py-0.5 text-[11px] text-slate-700 border border-border [overflow-wrap:anywhere]"
               >
-                {svc ? svc.name : "Dịch vụ"} ({item.duration_minutes}p •{" "}
+                {svc ? svc.name : referenceData.servicesReady ? "Dịch vụ" : "Chưa tải danh mục"} ({item.duration_minutes}p •{" "}
                 {item.customer_package_id
-                  ? "Thẻ 0₫"
+                  ? "Dùng 1 buổi trong thẻ"
                   : formatCurrency(item.price)}
                 )
               </span>
@@ -772,7 +845,7 @@ export default function AdminBookingsPage(): React.ReactElement {
         </div>
 
         {booking.note && (
-          <p className="mt-2 rounded bg-white/60 px-2.5 py-1 text-xs italic text-slate-600">
+          <p className="mt-2 whitespace-pre-wrap rounded bg-white/60 px-2.5 py-1 text-xs italic text-slate-600 [overflow-wrap:anywhere]">
             Ghi chú: {booking.note}
           </p>
         )}
@@ -806,6 +879,7 @@ export default function AdminBookingsPage(): React.ReactElement {
               (booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                 <button
                   type="button"
+                  disabled={!canReschedule}
                   onClick={() => openRescheduleModal(booking)}
                   className="inline-flex items-center gap-1 rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100"
                   title="Dời lịch sang ngày/giờ khác hoặc đổi KTV"
@@ -816,12 +890,13 @@ export default function AdminBookingsPage(): React.ReactElement {
               )}
           </div>
         )}
+        </DetailContainer>
       </div>
     );
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 max-w-full space-y-5">
       {/* Header & Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -842,7 +917,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             Làm mới
           </Button>
-          <Button size="sm" onClick={openCreateModal}>
+          <Button size="sm" onClick={openCreateModal} disabled={!referencesReady}>
             <Plus className="h-4 w-4" />
             Tạo lịch hẹn thủ công
           </Button>
@@ -858,7 +933,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 type="button"
                 onClick={() => setViewMode("day")}
                 className={cn(
-                  "rounded-md px-3 py-1 text-xs font-semibold transition",
+                  "min-h-11 rounded-md px-3 py-1 text-sm font-semibold transition sm:min-h-0 sm:text-xs",
                   viewMode === "day"
                     ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -870,7 +945,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 type="button"
                 onClick={() => setViewMode("week")}
                 className={cn(
-                  "rounded-md px-3 py-1 text-xs font-semibold transition",
+                  "min-h-11 rounded-md px-3 py-1 text-sm font-semibold transition sm:min-h-0 sm:text-xs",
                   viewMode === "week"
                     ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -880,7 +955,7 @@ export default function AdminBookingsPage(): React.ReactElement {
               </button>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
@@ -896,7 +971,7 @@ export default function AdminBookingsPage(): React.ReactElement {
               <Input
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => { if (e.target.value) setSelectedDate(e.target.value); }}
                 className="w-40"
               />
               <Button
@@ -921,11 +996,12 @@ export default function AdminBookingsPage(): React.ReactElement {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-2 xl:w-auto">
             <select
+              aria-label="Lọc KTV"
               value={filterStaffId}
               onChange={(e) => setFilterStaffId(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium"
+              className="h-11 w-full max-w-full min-w-0 rounded-md border border-input bg-background px-3 text-base font-medium sm:h-9 sm:w-auto sm:text-xs"
             >
               <option value="">Tất cả Kỹ thuật viên</option>
               {staffList.map((st) => (
@@ -936,11 +1012,12 @@ export default function AdminBookingsPage(): React.ReactElement {
             </select>
 
             <select
+              aria-label="Lọc trạng thái lịch"
               value={filterStatus}
               onChange={(e) =>
                 setFilterStatus(e.target.value as BookingStatus | "")
               }
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium"
+              className="h-11 w-full max-w-full min-w-0 rounded-md border border-input bg-background px-3 text-base font-medium sm:h-9 sm:w-auto sm:text-xs"
             >
               <option value="">Mọi trạng thái</option>
               {(Object.keys(BOOKING_STATUS_META) as BookingStatus[]).map(
@@ -955,9 +1032,16 @@ export default function AdminBookingsPage(): React.ReactElement {
         </CardContent>
       </Card>
 
-      {error && (
-        <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
-          {error}
+      {(error || bookingLoadError) && (
+        <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+          {error || bookingLoadError}
+          {bookingLoadError && <Button className="ml-2" variant="outline" size="sm" onClick={() => void loadBookings()}>Thử tải lại lịch</Button>}
+        </div>
+      )}
+      {referenceData.scope === referenceScope && referenceData.errors.length > 0 && (
+        <div role="alert" data-testid="calendar-reference-error" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          Chưa tải được: {referenceData.errors.join(", ")}. Lịch đã tải vẫn có thể xem; thao tác cần thông tin này tạm khóa.
+          <Button className="mt-2" variant="outline" size="sm" disabled={referenceData.loading} onClick={() => void loadReferenceData()}>Thử tải lại thông tin</Button>
         </div>
       )}
 
@@ -983,6 +1067,8 @@ export default function AdminBookingsPage(): React.ReactElement {
             Đang tải lịch hẹn...
           </CardContent>
         </Card>
+      ) : bookingLoadError ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">Chưa tải được lịch của ngày hoặc bộ lọc đã chọn.</p>
       ) : viewMode === "day" ? (
         <div className="space-y-3">
           {bookings.length === 0 ? (
@@ -999,13 +1085,17 @@ export default function AdminBookingsPage(): React.ReactElement {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid min-w-0 gap-3 xl:grid-cols-2">
               {bookings.map((b) => renderBookingCard(b))}
             </div>
           )}
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-7">
+        <section aria-label="Lịch tuần" className="min-w-0 max-w-full">
+        <p className="mb-2 hidden text-xs text-muted-foreground lg:block">Cuộn ngang để xem đủ 7 ngày; cuộn trong từng ngày để xem thêm lịch.</p>
+        <div ref={weekScroller} data-calendar-scroll role="region" aria-label="Các ngày trong tuần" tabIndex={0}
+          className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:overflow-x-auto lg:pb-3">
+        <div data-testid="calendar-container" className="grid min-w-0 gap-3 lg:min-w-[1680px] lg:grid-cols-7 lg:items-start">
           {weekDays.map((dayISO) => {
             const dayBookings = bookings.filter(
               (b) => formatDateISOInVN(new Date(b.start_time)) === dayISO
@@ -1014,14 +1104,15 @@ export default function AdminBookingsPage(): React.ReactElement {
             return (
               <div
                 key={dayISO}
+                data-day={dayISO}
                 className={cn(
-                  "flex flex-col rounded-xl border border-border bg-card p-2.5 min-h-[260px]",
+                  "flex min-w-0 flex-col rounded-xl border border-border bg-card p-2.5",
                   isToday && "ring-2 ring-primary/40"
                 )}
               >
-                <div className="mb-2 flex items-center justify-between border-b border-border pb-1.5">
+                <div className={cn("flex items-center justify-between gap-2", dayBookings.length > 0 && "mb-2 border-b border-border pb-1.5")}>
                   <span className="text-xs font-bold text-foreground">
-                    {dayISO.slice(5)}
+                    {dayISO.slice(8, 10)}/{dayISO.slice(5, 7)}
                   </span>
                   <Badge
                     variant={dayBookings.length > 0 ? "default" : "outline"}
@@ -1029,19 +1120,16 @@ export default function AdminBookingsPage(): React.ReactElement {
                     {dayBookings.length} lịch
                   </Badge>
                 </div>
-                <div className="space-y-2 flex-1">
-                  {dayBookings.length === 0 ? (
-                    <p className="py-6 text-center text-[11px] text-muted-foreground">
-                      Trống
-                    </p>
-                  ) : (
-                    dayBookings.map((b) => renderBookingCard(b))
-                  )}
-                </div>
+                {dayBookings.length > 0 && <div role="region" aria-label={`Lịch ngày ${dayISO}`} tabIndex={0}
+                  className="min-w-0 space-y-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:max-h-[65vh] lg:overflow-y-auto lg:pr-1">
+                  {dayBookings.map((b) => renderBookingCard(b, true))}
+                </div>}
               </div>
             );
           })}
         </div>
+        </div>
+        </section>
       )}
 
       {/* Manual Booking Modal */}
@@ -1475,7 +1563,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             <Button
               type="submit"
               disabled={
-                creatingBooking ||
+                creatingBooking || !referencesReady ||
                 selectedLines.length === 0 ||
                 sessionRows.some((r) => !r.selectedSlotStart)
               }
@@ -1632,7 +1720,7 @@ export default function AdminBookingsPage(): React.ReactElement {
               </Button>
               <Button
                 type="submit"
-                disabled={rescheduleSaving || rescheduleSlotsLoading || !rescheduleSlotStart}
+                disabled={rescheduleSaving || rescheduleSlotsLoading || !rescheduleSlotStart || !canReschedule}
               >
                 {rescheduleSaving ? "Đang lưu..." : "Xác nhận đổi lịch"}
               </Button>

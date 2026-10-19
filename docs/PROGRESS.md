@@ -156,3 +156,110 @@
 
 
 - [x] Đã tắt server Next thử do Codex mở ở 3001 (PID 29108, xác minh command start -p 3001); listener 3000 của người dùng vẫn chạy (PID 36348).
+
+
+## Review UI/UX trước pilot — 18/10/2026
+- Theo PO: lưu nhận xét và tiếp tục review bố cục lịch/thẻ/tràn nội dung, ưu tiên trải nghiệm PC và điện thoại. Backlog, mức ưu tiên và tiêu chí nghiệm thu tại [UI_UX_REVIEW.md](UI_UX_REVIEW.md).
+- Đang thu bằng chứng Chromium ở 360/390/768/1024/1366px qua automation_test/reviews/layout_probe.py, API/database QA tạm. Chưa thay đổi UI; không coi test nghiệp vụ PASS là visual/accessibility PASS.
+
+- [x] Review bố cục trực tiếp: 31 ảnh/DOM ở 5 viewport, collector hoàn tất 58.80s. Xác nhận lịch tuần bị cắt/tràn nội dung trên 768px và 1366px; ghi chú dài kéo trang 390px thành 1821px. Thu tiền mobile chật, thẻ còn ACTIVE và diễn đạt buổi giữ chỗ cần cải thiện. Bằng chứng/link ảnh trong UI_UX_REVIEW.md.
+- [ ] Chưa vá UI trong lượt review; chưa kiểm chứng Safari/iOS/Android thật, bàn phím ảo, zoom và dữ liệu 10 KTV/nhiều lịch. Collector PASS không phải UI PASS.
+
+## Review sâu mobile và hướng thiết kế — 18/10/2026
+- [x] Theo PO tiếp tục review/design ưu tiên phone: bổ sung UX-13 đến UX-20 trong UI_UX_REVIEW.md (KTV bằng mã, lỗi mạng/auth, tự chọn giờ/nhảy bước, lookup 200 khách, nhãn KTV thực hiện, dashboard, đổi chi nhánh, chữ phụ trên theme sáng). Đây là review source, chưa runtime-test các lỗi mạng hoặc dữ liệu >200 trong lượt này.
+- [x] Lưu thiết kế tác vụ theo vai trò và từng màn hình tại [MOBILE_UX_DESIGN.md](MOBILE_UX_DESIGN.md), gồm điều hướng, lịch agenda, thu tiền, CRM/thẻ, wizard, phục hồi lỗi, accessibility, tiêu chí nghiệm thu và trình tự triển khai.
+- [ ] Chưa sửa UI hoặc API, chưa chạy test/build mới; bằng chứng hình ảnh hiện có vẫn là 31 mẫu ở lượt review trước. Bước tiếp theo là triển khai các lỗi P1 và nghiệm thu theo tài liệu thiết kế, không coi đề xuất đã được triển khai.
+
+## Kế hoạch bàn giao review UI/UX cho model nhỏ — 18/10/2026
+- [x] Review bổ sung UX-21–24: tạo nhiều buổi thành công một phần, response lịch cũ, ý định dời lịch/giữ KTV và dữ liệu tham chiếu lỗi bị bỏ qua. Mới xác nhận cấu trúc source/rủi ro, chưa chạy fault-injection để kết luận dữ liệu trùng.
+- [x] Lập [UI_UX_EXECUTION_PLAN.md](UI_UX_EXECUTION_PLAN.md): T00–T12, dependency/file/acceptance/tests, prompt bàn giao mặc định KIỂM TRA, invariant và mốc cần reviewer chuyên sâu. Model nhỏ có thể bắt đầu kiểm tra T00 rồi T03/T04; không mặc định được sửa giao dịch/API từ task layout.
+- [ ] Chưa triển khai UI theo plan, không có build/test/ảnh mới trong lượt lập kế hoạch; các số test trước là kết quả lịch sử.
+
+
+## Chốt lại review và plan UI/UX trước bàn giao — 18/10/2026
+
+- [x] Rà source/fixture và sửa [UI_UX_EXECUTION_PLAN.md](UI_UX_EXECUTION_PLAN.md) bản 2: chia task lá, thứ tự dependency, điều kiện đầu vào/đầu ra, phạm vi file và phần cần chốt API/giao dịch.
+- [x] Bổ sung UX-25/26 trong [UI_UX_REVIEW.md](UI_UX_REVIEW.md): mất phiên Admin khi lỗi mạng và báo nhầm Spa không tồn tại khi public tenant lỗi. Đây là source review, chưa fault-injection runtime.
+- [x] Ghi QA-01–03: fixture fallback mở 3000 dù FRONTEND_URL khác; route browser không bao phủ SSR; collector ghi đè artifact và chưa có assertions clipping. Đưa T00a/T00b/T00c lên đầu.
+- [x] Đồng bộ thiết kế/plan, bổ sung coverage login/chọn chi nhánh/settings/Operator và sửa mô tả register-tenant production cũ trong API_CONTRACT để khớp code hiện hành; không đổi endpoint.
+- [ ] Chưa sửa code ứng dụng hoặc test harness. Không chạy build/test/collector mới, không mở/tắt server. Kết quả test/31 ảnh trước đó vẫn là bằng chứng lịch sử.
+- [ ] Có thể giao model nhỏ KIỂM TRA hoặc TRIỂN KHAI riêng T00a. T00b/T00c là điều kiện trước QA runtime; T01a/T08a/T09b cần reviewer chốt quyết định, T07/T11b cần review phiên/quyền. Không giao toàn bộ plan để model nhỏ tự suy diễn.
+
+
+## T00a — Chặn harness mở nhầm frontend — 18/10/2026
+
+- [x] Theo PO triển khai riêng T00a: thay ensure_frontend_server bằng preflight chỉ đọc, bỏ hoàn toàn npm/subprocess/kill frontend. isolated_backend chỉ setup sau preflight.
+- [x] Thêm common_setup/frontend_preflight.py: kiểm tra HTTP loopback/port riêng khác 3000, 200 text/html tại /admin/login và X-SpaOS-QA-Run-ID khớp SPAOS_QA_RUN_ID. Không redirect/proxy, không fallback server khác; thông báo không lộ URL chứa credential/query hay response body. Default frontend 127.0.0.1:3001; không đổi .env/.env.test.
+- [x] Thêm 12 unittest độc lập tại automation_test/harness_tests, chạy bằng python -B -m unittest discover -s automation_test/harness_tests -v. Baseline fixture cũ: đúng 3 regression FAIL, lệnh start bị mock chặn. Sau vá: 12/12 PASS trên Python 3.9 của môi trường automation. Không mở server/browser/database.
+- [x] Cập nhật trạng thái plan/review và contract nối T00b. Không đổi endpoint nghiệp vụ hoặc UI.
+- [ ] Tiếp theo T00b: runner tạo frontend QA với marker cùng UUID, output riêng và backend SSR/rewrite/browser cùng QA. Cho đến khi hoàn tất, preflight chủ động chặn E2E không có marker; không bỏ kiểm tra để dùng server 3000. T00c và các UX task khác chưa triển khai.
+
+## Nhóm A — Nền QA và UI cơ bản — 18/10/2026
+
+- [x] PO đã cho phép gộp task liên quan để triển khai cùng đợt. Hoàn tất T00b/T00c/T04a/T04b; cộng T00a là 5/29 task, còn 24. Thứ tự nhóm tiếp theo được lưu trong UI_UX_EXECUTION_PLAN.
+- [x] T00b: thêm run_ui_qa.py và common_setup/qa_frontend.py, một backend/database QA dùng chung; frontend output/tsconfig/build-info riêng, marker cùng run UUID. Bỏ universal browser/API forwarding để dùng rewrite thật; HTTP kiểm chứng tenant QA duy nhất qua API rewrite và title SSR. Production build PASS, fingerprint tsconfig/next-env không đổi do runner, cấu hình thường không bật QA header/output override.
+- [x] Unit harness 23/23 PASS: không tự dùng cổng 3000; cổng bị chiếm không bị kill/reuse; cleanup build/start/preflight/interrupt/test lỗi; giữ exit code. Server QA chỉ quản lý PID do runner tạo.
+- [x] T00c: collector 44 mẫu tại 320/360/390/430/768/1024/1366, thêm modal cao 480px và note dài; stress 14 mẫu với 10 KTV, 210 khách, 240 lịch (60/ngày). Bounds viewport/card/text clipping/control overlap lưu theo run UUID; baseline trước giữ nguyên. Tuần hiện cap 200/240 được ghi rõ cho T08. Ba strict xfail tái hiện UX-01/02; collector hoàn tất không phải UI PASS.
+- [x] T04a/b: shared button/input mobile 44–48px/16px, desktop giữ kích thước; toolbar lịch wrap màn nhỏ; focus offset và icon login căn giữa. Xóa credentials mẫu wizard/login khách; trạng thái thẻ tiếng Việt, phân biệt chưa dùng/đã đặt/có thể đặt thêm; dùng một buổi không ghi 0đ. Chỉnh nhãn KTV thực hiện và selected subtitle theo foreground. POM/assertion copy đồng bộ, kiểm tra số buổi/ID/quyền/tiền giữ nguyên. Sáu ca mobile controls/theme/320px mới PASS; thiết bị thật chưa kiểm chứng.
+- [x] Sửa race phát hiện khi chạy regression CRM: khởi tạo ownerId cùng selectedCustomer, bỏ effect có thể ghi đè lựa chọn mới sau render. Test chuyển người phụ trách và thu hồi quyền nhân viên cũ đã PASS trong production run. Không đổi API/quyền; phần bố cục CRM vẫn chờ T10a.
+- [ ] Full E2E CHƯA XANH: lượt production có 42 PASS/2 setup ERROR (188.65s), backend ghi ImmatureSignatureError ở bước tạo dữ liệu. Lượt focused cuối 7 PASS/3 XFAIL/1 setup ERROR (20.20s); lỗi setup này còn tái diễn. Không tăng JWT leeway, không retry/sleep để che. Cần điều tra claim iat/đồng hồ runtime; gắn blocker QA-04 trước T12. Các test invalid-token chủ ý có DecodeError riêng, không nhầm với lỗi setup.
+- Bằng chứng: artifacts/qa/d0bfa806-135e-428f-9c67-1f15daaacfd1 (production full + stress); artifacts/qa/3794bd1b-784d-4939-9036-014cc6c0190d (production focused); artifacts/ui-review/13122f4c-4663-4dac-a654-e65ef5556fa4 (collector 44 mẫu + known regressions). Không thay cấu hình secrets hoặc dữ liệu DB người dùng; không mở/tắt cổng 3000.
+
+## Nhóm B — Dữ liệu và bố cục lịch — 18/10/2026
+
+- [x] T02: scope theo tenant/user/role/ngày/view/KTV/status và request ID; data/loading/error chỉ cập nhật bởi request mới nhất, invalidate khi unmount. Snapshot hiển thị gắn scope ngay lúc render, không hiện lịch A dưới ngày B. Reload sau đổi trạng thái dùng cùng guard, old read không ghi đè kết quả mutation.
+- [x] Reference data dùng allSettled, giữ riêng trạng thái dịch vụ/khách/KTV; lỗi hiển thị đúng phần và có Thử lại. Chặn mở/submit tạo lịch hoặc dời lịch khi thiếu dữ liệu cần thiết; vẫn xem lịch hoặc đổi trạng thái độc lập. Không lấy thêm dữ liệu ngoài quyền, không đổi query contract, transaction hay quyền backend.
+- [x] T03a: min-width/wrap cho nội dung dài; thẻ tuần gọn với native details, mở đủ thông tin và thao tác. Mobile/tablet agenda; ngày trống một dòng. PC giữ 7 cột đủ rộng, scroll cục bộ và tự đưa ngày đang chọn vào vùng nhìn; danh sách nhiều lịch scroll trong ngày. Bộ lọc tên KTV dài không kéo rộng trang. Chưa thực hiện thiết kế hành động/focus T03b.
+- [x] Thêm 7 E2E race/reference thực sự giữ/release response (ngày cũ thành công/lỗi, ngày mới lỗi/retry, đổi KTV/status, mutation chồng read, reference lỗi). Cả 7 PASS ở dev run b1fa70d6. Lượt production cuối 6 PASS/1 setup ERROR trước khi test chạy do JWT ImmatureSignatureError; giữ blocker QA-04.
+- [x] Bỏ 3 strict xfail UX-01/02: test thường PASS, gồm thẻ tuần đóng/mở ở 768/1366 và note 280 ký tự ở 390. Nâng detector: bỏ qua nội dung details đóng không được paint, nhưng vẫn đo khi mở và bắt text/control chồng nhau trong cùng card; 2 ca hiệu chuẩn PASS, không loại trừ toàn card trong vùng scroll.
+- [x] Production build PASS. Run a1fe3aeb-5aff-4bec-8db2-f6861f905ba3: 18 PASS/1 setup ERROR (144.74s), không xfail/skip. Gồm legacy status/trừ thẻ, 4 ownership/reschedule, các ca race, layout/calibration, collector và stress. 23 unit harness PASS ở đầu nhóm; không chạy lại backend suite vì không đổi backend.
+- [x] 44 mẫu thường + 14 mẫu stress tại 320/360/390/430/768/1024/1366: documentWidth = viewport, card violations=0. Stress: 60 lịch/ngày, 10 KTV, 210 khách, 240 lịch; vẫn cap 200 lịch/tuần (UX-16/T08 chưa sửa). Đã xem ảnh phone và PC expanded; chưa kiểm chứng thiết bị thật/screen reader.
+- Bằng chứng cuối: automation_test/artifacts/qa/a1fe3aeb-5aff-4bec-8db2-f6861f905ba3/ và automation_test/artifacts/ui-review/a1fe3aeb-5aff-4bec-8db2-f6861f905ba3/. Baseline lịch sử giữ nguyên. QA server/container được runner dọn; không mở/tắt 3000, không seed DB ứng dụng.
+- Tiến độ UI/UX: 7/29 task, còn 22. Nhóm tiếp theo C: T05a/T05b/T03b/T06. Full E2E/release gate chưa PASS vì QA-04 và công việc còn lại.
+
+Lệnh kiểm chứng nhóm B (PowerShell tại root; tự tạo/dọn backend, DB và frontend QA riêng):
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_bookings automation_test/features/customer_regressions/tests/test_ownership_reschedule.py automation_test/reviews/test_layout_regressions.py automation_test/reviews/test_layout_measurements.py automation_test/reviews/layout_probe.py automation_test/reviews/layout_stress.py -q -s --tb=short
+```
+
+## Review lại 7 task UI/UX đã triển khai — 18/10/2026
+
+- Theo PO review T00a/T00b/T00c/T04a/T04b/T02/T03a; đọc code/tiêu chí, chạy lại QA cô lập và bổ sung reproducer. Không thay mã ứng dụng hoặc API/backend. Không phát hiện CRITICAL mới trong phạm vi, ghi 4 WARNING ở [UI_UX_REVIEW.md](UI_UX_REVIEW.md), mục R7-01–04.
+- R7-01 (T02, P1): PATCH xác nhận lịch bị giữ; đổi lọc PENDING rồi cho commit. Server CONFIRMED nhưng UI vẫn Chờ xác nhận vì callback loadBookings scope cũ bị guard bỏ qua, scope mới không invalidate. Reproducer runtime FAIL đúng assertion.
+- R7-02 (T00c, P2): gate không kiểm tra viewportOutsideCount; calibration nút fixed ngoài màn hình được chấp nhận. Collector payments/notifications/customer-package dùng selector booking, cards=[]; số 0 violations không đủ kết luận card các màn này đạt. Mở lại task để sửa gate/selector và tiêu chí coverage.
+- R7-03 (T04b, P2): test màu cũ đổi biến ở html nhưng CustomerShell override, cả vàng/xanh đậm thực tế vẫn hồng rgb(190,24,93). Hai ca kiểm tra premise FAIL. Test bổ sung dùng response branding qua provider thực tế PASS cả vàng/gần trắng/xanh đậm/đen; phần selected subtitle hoạt động, cần sửa fixture test chính.
+- R7-04 (T04b, P2): wizard vẫn “Giá 0₫”/“Dùng thẻ (0₫)”/“Trừ thẻ (0 ₫)”; test UI xác nhận copy còn sót. Cần đồng bộ theo buổi thẻ, giữ giá/payload/ledger server.
+- Unit harness: 23/23 PASS (0.507s). Production build PASS. Production run `010d1f34-5f0a-424b-8815-07bfaabe5171`: 19 PASS/4 FAIL (48.67s), các ca cũ đều PASS, ca mới xác nhận R7-01/02/03; có log Target closed từ Playwright ở teardown sau assertion R7-01, không phải bằng chứng crash ứng dụng. Dev run `1ad3e8e9-c939-4d3f-82b7-60176936e8bb`: 4 PASS/1 FAIL/4 deselected (25.60s), màu thật PASS và copy FAIL.
+- Không xfail/retry/sleep để che lỗi. Reproducer lưu `automation_test/reviews/seven_task_recheck.py`, chạy tường minh (ngoài default discovery); khi vá cần đưa regression tương ứng vào suite thường. Không chạy lại full E2E/backend suite/stress 240 lịch trong lượt này; chưa xác nhận thiết bị thật. QA-04 không tái hiện ở hai lượt mới nhưng vẫn mở do chưa có bản sửa/nguyên nhân.
+- Artifacts: `automation_test/artifacts/qa/010d1f34-5f0a-424b-8815-07bfaabe5171/`, `automation_test/artifacts/qa/1ad3e8e9-c939-4d3f-82b7-60176936e8bb/`; ảnh stale status tại `automation_test/artifacts/ui-review/010d1f34-5f0a-424b-8815-07bfaabe5171/seven-task-review/390x844-status-filter-after-commit.png`. Cả hai runner dùng API rewrite/SSR đúng DB QA và dọn process/container; không mở/tắt 3000 hoặc seed DB ứng dụng.
+- **Điều chỉnh nghiệm thu:** đã triển khai 7 task nhưng chỉ 4 đạt phạm vi (T00a/T00b/T04a/T03a); mở lại T00c/T02/T04b. Tổng: 4/29 đã nghiệm thu, còn 25 (3 sửa lại + 22 chưa triển khai). Ưu tiên đóng R7-01–04 trước nhóm C. Đã đồng bộ checkbox và hướng bàn giao trong UI_UX_EXECUTION_PLAN/MOBILE_UX_DESIGN.
+
+Lệnh thực tế tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m unittest discover -s automation_test/harness_tests -v
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_bookings automation_test/reviews/test_mobile_controls.py automation_test/reviews/test_layout_regressions.py automation_test/reviews/test_layout_measurements.py automation_test/reviews/seven_task_recheck.py -q -s --tb=short
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa --mode dev -- automation_test/reviews/seven_task_recheck.py -k 'branding_response or session_copy' -q -s --tb=short
+```
+
+Lưu ý: lệnh production khi chạy lại file reproducer hiện tại sẽ gồm thêm 5 ca đã được bổ sung cho lượt dev sau đó (bản tại thời điểm run production chỉ có 4 ca mới).
+
+## Sửa và kiểm tra lại T02/T00c/T04b — 19/10/2026
+
+- [x] PO yêu cầu sửa ba task mở lại; đã đóng R7-01–04. T02 dùng latest callback cho scope đang xem sau mutation, kiểm tra mounted/danh tính/chi nhánh gốc; status/create/reschedule cùng dùng. Lỗi response cũng tải lại server trước khi báo lỗi. Không replay mutation hoặc đổi payload/transaction.
+- [x] 9 regression mới giữ PATCH rồi đổi bộ lọc/tuần/ngày, kiểm tra cả thành công, từ chối và response lỗi sau commit. Cộng 7 ca đọc/ref trước đó thành 16 ca calendar loading PASS. Có kiểm tra trạng thái API và GET scope hiện tại.
+- [x] T00c: gate kiểm tra viewportOutsideCount và target rỗng; JSON có cardCount/cardSelector/measurementStatus. Hooks/selector đo đúng collection, notification, customer package, modal. Cuộn dọc modal được khai báo riêng, vẫn bắt tràn ngang/clipper con; 6 calibration PASS. Regression UI được đưa vào default features qua features/ui_quality/tests/test_ui_quality.py; entry point seven_task_recheck giữ tương thích, không xfail/skip lỗi.
+- [x] T04b: màu qua branding provider, assert nền/foreground thật ở 4 màu; wizard chuyển nhãn 0đ sang dùng buổi thẻ, tổng có thẻ ghi số tiền thu thêm ngoài thẻ, wrap nhãn dài. Ca thẻ riêng/thẻ + dịch vụ lẻ PASS (0/125.000); E2E đặt thẻ xác minh package ID, total_price=0 và số buổi giữ chỗ. Không đổi API/giá/quyền.
+- [x] Unit harness 23/23 PASS (1.002s). Dev run `cb30855f-2802-4259-b33d-221976839eaa`: 40/40 PASS (151.31s). Sau hiệu chuẩn thêm cuộn dọc, production build PASS và run `76d5ebba-de8f-4832-9f18-b1f1b6b29e7d`: **55/55 PASS (220.91s), không xfail/skip/setup error**. Phạm vi: admin_bookings, ui_quality, customer_regressions, client_pwa_booking, collector và stress. Không chạy full backend suite/toàn bộ E2E.
+- [x] 44 mẫu thường đều có target thực; 14 mẫu stress 10 KTV/210 khách/240 lịch qua gate ở 320/360/390/430/768/1024/1366. 60 lịch/ngày, tuần vẫn cap 200/240 (T08). Stress không có tràn viewport/card. Mẫu modal cuộn dọc không bị báo lỗi giả; không coi collector hoàn tất là tất cả UI PASS.
+- [ ] UX-07/T11c: popup Admin 320px vượt trái viewport, 5 phần tử bị detector mới bắt; documentWidth vẫn 320. Đã xem ảnh và đưa vào task T11c, chưa sửa popup trong nhóm công cụ đo. 360px trở lên không tái hiện với mẫu đã chạy. Các task modal/accessibility/phone thật còn mở.
+- QA-04 không tái hiện nhưng chưa đóng nguyên nhân; DecodeError cuối run là ca invalid-token chủ ý. Không tăng leeway/retry để làm xanh. Không đổi RLS/backend/credentials, không seed DB ứng dụng, không mở/tắt port 3000. Runner đã dọn QA process/container.
+- Bằng chứng cuối tại `automation_test/artifacts/qa/76d5ebba-de8f-4832-9f18-b1f1b6b29e7d/` và `automation_test/artifacts/ui-review/76d5ebba-de8f-4832-9f18-b1f1b6b29e7d/`. Các mốc 4/7 và test FAIL ở mục review trước là lịch sử, đã được thay bằng kết quả này.
+- **Tiến độ nghiệm thu: 7/7 task đã triển khai đạt phạm vi; tổng 7/29, còn 22.** Đồng bộ UI_UX_REVIEW/UI_UX_EXECUTION_PLAN/MOBILE_UX_DESIGN. Nhóm tiếp theo C: T05a → T05b → T03b/T06. Chưa kết luận production release hoặc toàn bộ phone UI đạt.
+
+Lệnh kiểm chứng production tại root (QA riêng, tự cleanup):
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_bookings automation_test/features/ui_quality automation_test/features/customer_regressions automation_test/features/client_pwa_booking automation_test/reviews/layout_probe.py automation_test/reviews/layout_stress.py -q -s --tb=short
+```

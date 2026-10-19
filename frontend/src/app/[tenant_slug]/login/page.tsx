@@ -20,8 +20,8 @@ export default function CustomerLoginPage(): React.ReactElement | null {
   const router = useRouter();
   const { slug, tenant, refreshCustomer } = useCustomerTenant();
 
-  const [phoneNumber, setPhoneNumber] = React.useState<string>("0900000101");
-  const [password, setPassword] = React.useState<string>("Customer@123");
+  const [phoneNumber, setPhoneNumber] = React.useState<string>("");
+  const [password, setPassword] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -76,13 +76,13 @@ export default function CustomerLoginPage(): React.ReactElement | null {
             <div className="space-y-1.5">
               <Label htmlFor="custPhone">Số điện thoại</Label>
               <div className="relative">
-                <Phone className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="custPhone"
                   type="tel"
                   inputMode="tel"
                   autoComplete="username"
-                  placeholder="0900000101"
+                  placeholder="Nhập số điện thoại"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   className="pl-9"
@@ -94,7 +94,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
             <div className="space-y-1.5">
               <Label htmlFor="custPassword">Mật khẩu</Label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="custPassword"
                   type="password"
@@ -116,14 +116,6 @@ export default function CustomerLoginPage(): React.ReactElement | null {
             >
               {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
-
-            {slug === "spa-demo" && (
-              <div className="rounded-lg bg-muted/60 p-2.5 text-[11px] text-muted-foreground">
-                Tài khoản Khách mẫu (spa-demo):{" "}
-                <strong>0900000101 / Customer@123</strong> (có sẵn 1 thẻ liệu
-                trình 10 buổi).
-              </div>
-            )}
 
             <div className="text-center text-xs text-muted-foreground">
               Lần đầu đến {tenant.name}?{" "}

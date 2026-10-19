@@ -30,6 +30,9 @@ build/
 # Node.js / Next.js Frontend
 node_modules/
 .next/
+/frontend/.next-qa/
+/frontend/.qa/
+/automation_test/artifacts/qa/
 out/
 .vercel/
 .turbo/

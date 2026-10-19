@@ -1,0 +1,26 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 390,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "customer-package",
+  "role": "CUSTOMER",
+  "route": "/qa-868725-905/profile",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "390x844-customer-package.png",
+  "collectionIsUiPass": false
+}

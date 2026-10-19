@@ -8,8 +8,8 @@ def test_cancel_releases_reserved_session(scenario):
     booking = s["book"]()
     page = s["page"]()
     page.goto(s["url"] + "/profile")
-    expect(page.get_by_text("Khả dụng: 0 buổi", exact=True)).to_be_visible()
-    expect(page.get_by_role("link", name="Đặt lịch dùng thẻ này (0₫)")).to_have_count(0)
+    expect(page.get_by_text("Có thể đặt thêm: 0 buổi", exact=True)).to_be_visible()
+    expect(page.get_by_role("link", name="Dùng 1 buổi trong thẻ")).to_have_count(0)
     page.goto(s["url"] + "/appointments")
     with page.expect_response(lambda r: r.url.endswith("/" + booking["id"] + "/cancel")) as response:
         page.get_by_role("button", name="Hủy lịch", exact=True).click()
@@ -18,8 +18,8 @@ def test_cancel_releases_reserved_session(scenario):
     page.get_by_role("button", name="Lịch sử", exact=True).click()
     expect(page.get_by_text("QA Treatment (30p)", exact=True)).to_be_visible()
     page.goto(s["url"] + "/profile")
-    expect(page.get_by_text("Khả dụng: 1 buổi", exact=True)).to_be_visible()
-    expect(page.get_by_role("link", name="Đặt lịch dùng thẻ này (0₫)")).to_be_visible()
+    expect(page.get_by_text("Có thể đặt thêm: 1 buổi", exact=True)).to_be_visible()
+    expect(page.get_by_role("link", name="Dùng 1 buổi trong thẻ")).to_be_visible()
 
 
 def test_cannot_cancel_within_two_hours(scenario):
@@ -40,9 +40,9 @@ def test_last_session_completed_is_not_bookable(scenario):
     page = s["page"]()
     page.goto(s["url"] + "/profile")
     expect(page.get_by_text("1/1 buổi", exact=True)).to_be_visible()
-    expect(page.get_by_text("COMPLETED", exact=True)).to_be_visible()
-    expect(page.get_by_text("Khả dụng: 0 buổi", exact=True)).to_be_visible()
-    expect(page.get_by_role("link", name="Đặt lịch dùng thẻ này (0₫)")).to_have_count(0)
+    expect(page.get_by_text("Đã dùng hết", exact=True)).to_be_visible()
+    expect(page.get_by_text("Có thể đặt thêm: 0 buổi", exact=True)).to_be_visible()
+    expect(page.get_by_role("link", name="Dùng 1 buổi trong thẻ")).to_have_count(0)
 
 
 def test_package_load_error_is_visible_and_recovers(scenario):

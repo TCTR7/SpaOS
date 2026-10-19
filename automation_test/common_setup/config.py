@@ -10,7 +10,8 @@ load_dotenv(BASE_DIR / ".env.test")
 
 @dataclass(frozen=True)
 class TestConfig:
-    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    frontend_url: str = os.getenv("FRONTEND_URL", "http://127.0.0.1:3001").rstrip("/")
+    frontend_run_id: str = os.getenv("SPAOS_QA_RUN_ID", "")
     backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8001").rstrip("/")
     tenant_slug: str = os.getenv("TENANT_SLUG", "spa-demo")
 

@@ -1,0 +1,107 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 390,
+  "documentHeight": 1383,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-b4788299-b228-4083-a2ef-02a3a597daa2",
+      "bounds": {
+        "left": 27,
+        "top": 1028,
+        "right": 363,
+        "bottom": 1166,
+        "width": 336,
+        "height": 138
+      },
+      "scrollWidth": 334,
+      "clientWidth": 334,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": "dialog",
+      "bounds": {
+        "left": 0,
+        "top": 20,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 824
+      },
+      "scrollHeight": 824,
+      "clientHeight": 824,
+      "focusInside": false,
+      "scrollRegions": [
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 16,
+            "top": 52.203125,
+            "right": 374,
+            "bottom": 811.796875,
+            "width": 358,
+            "height": 759.59375
+          },
+          "scrollHeight": 940,
+          "clientHeight": 758
+        },
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 485.203125,
+            "right": 349,
+            "bottom": 559.203125,
+            "width": 308,
+            "height": 74
+          },
+          "scrollHeight": 72,
+          "clientHeight": 72
+        },
+        {
+          "tag": "textarea",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 829.203125,
+            "right": 349,
+            "bottom": 901.203125,
+            "width": 308,
+            "height": 72
+          },
+          "scrollHeight": 70,
+          "clientHeight": 70
+        }
+      ]
+    }
+  ],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "booking-modal",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "390x844-booking-modal.png",
+  "collectionIsUiPass": false
+}

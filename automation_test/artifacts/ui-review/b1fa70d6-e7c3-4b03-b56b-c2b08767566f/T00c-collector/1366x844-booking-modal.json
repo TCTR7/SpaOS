@@ -1,0 +1,276 @@
+{
+  "viewport": {
+    "width": 1366,
+    "height": 844
+  },
+  "documentWidth": 1366,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": "calendar-container",
+      "role": null,
+      "bounds": {
+        "left": -338,
+        "top": 308,
+        "right": 1342,
+        "bottom": 541,
+        "width": 1680,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -338,
+        "top": 308,
+        "right": -108.296875,
+        "bottom": 541,
+        "width": 229.703125,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 319,
+        "right": -119.296875,
+        "bottom": 348,
+        "width": 207.703125,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 322,
+        "right": -294.046875,
+        "bottom": 338,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -170.171875,
+        "top": 319,
+        "right": -119.296875,
+        "bottom": 341,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 356,
+        "right": -119.296875,
+        "bottom": 530,
+        "width": 207.703125,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 356,
+        "right": -119.296875,
+        "bottom": 380,
+        "width": 207.703125,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -96.296875,
+        "top": 308,
+        "right": 133.421875,
+        "bottom": 541,
+        "width": 229.71875,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 319,
+        "right": 122.421875,
+        "bottom": 348,
+        "width": 207.71875,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 322,
+        "right": -52.34375,
+        "bottom": 338,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 356,
+        "right": 122.421875,
+        "bottom": 530,
+        "width": 207.71875,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 356,
+        "right": 122.421875,
+        "bottom": 380,
+        "width": 207.71875,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-b4788299-b228-4083-a2ef-02a3a597daa2",
+      "bounds": {
+        "left": 639.84375,
+        "top": 356,
+        "right": 847.5625,
+        "bottom": 530,
+        "width": 207.71875,
+        "height": 174
+      },
+      "scrollWidth": 206,
+      "clientWidth": 206,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": "dialog",
+      "bounds": {
+        "left": 0,
+        "top": 20,
+        "right": 1366,
+        "bottom": 844,
+        "width": 1366,
+        "height": 824
+      },
+      "scrollHeight": 824,
+      "clientHeight": 824,
+      "focusInside": false,
+      "scrollRegions": [
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 299,
+            "top": 52.203125,
+            "right": 1067,
+            "bottom": 811.796875,
+            "width": 768,
+            "height": 759.59375
+          },
+          "scrollHeight": 836,
+          "clientHeight": 758
+        },
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 324,
+            "top": 421.203125,
+            "right": 1042,
+            "bottom": 495.203125,
+            "width": 718,
+            "height": 74
+          },
+          "scrollHeight": 72,
+          "clientHeight": 72
+        },
+        {
+          "tag": "textarea",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 324,
+            "top": 733.203125,
+            "right": 1042,
+            "bottom": 805.203125,
+            "width": 718,
+            "height": 72
+          },
+          "scrollHeight": 70,
+          "clientHeight": 70
+        }
+      ]
+    }
+  ],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "booking-modal",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1366x844-booking-modal.png",
+  "collectionIsUiPass": false
+}

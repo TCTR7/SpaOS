@@ -151,7 +151,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
               </p>
               <Link
                 href={`/${slug}/book`}
-                className="inline-flex h-8 items-center justify-center rounded-lg px-4 text-xs font-semibold text-white"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-xs font-semibold text-white"
                 style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 Khám phá Gói liệu trình
@@ -169,9 +169,9 @@ export default function CustomerProfilePage(): React.ReactElement | null {
             const canBookWithPkg =
               pkg.status === "ACTIVE" && pkg.available_sessions > 0;
             return (
-              <Card key={pkg.id}>
+              <Card key={pkg.id} data-layout-card="customer-package">
                 <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-bold text-foreground">
                         {pkg.package_name}
@@ -191,12 +191,12 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                             : "danger"
                       }
                     >
-                      {pkg.status}
+                      {{ ACTIVE: "Đang sử dụng", COMPLETED: "Đã dùng hết", EXPIRED: "Đã hết hạn" }[pkg.status]}
                     </Badge>
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span>
                         Đã dùng:{" "}
                         <strong>
@@ -207,7 +207,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                         className="font-bold"
                         style={{ color: "var(--brand-text)" }}
                       >
-                        Khả dụng: {pkg.available_sessions} buổi
+                        Có thể đặt thêm: {pkg.available_sessions} buổi
                       </span>
                     </div>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
@@ -222,17 +222,20 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                   </div>
 
                   <p className="text-xs text-muted-foreground">
-                    Còn lại: {pkg.remaining_sessions} buổi • Đang giữ chỗ: {pkg.reserved_sessions} buổi
+                    Chưa dùng: {pkg.remaining_sessions} buổi • Đã đặt lịch: {pkg.reserved_sessions} buổi
                   </p>
+                  {pkg.status === "ACTIVE" && pkg.available_sessions === 0 && pkg.reserved_sessions > 0 && (
+                    <p className="text-xs text-muted-foreground">Các buổi còn lại đã được đặt lịch. Xem mục Lịch hẹn để kiểm tra hoặc thay đổi.</p>
+                  )}
                   {canBookWithPkg && (
                     <div className="flex justify-end pt-1">
                       <Link
                         href={`/${slug}/book?service_id=${pkg.service_id}&package_id=${pkg.id}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold text-white shadow-xs"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold text-white shadow-xs"
                         style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
                       >
                         <CalendarPlus className="h-3.5 w-3.5" />
-                        Đặt lịch dùng thẻ này (0₫)
+                        Dùng 1 buổi trong thẻ
                       </Link>
                     </div>
                   )}

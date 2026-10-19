@@ -52,6 +52,12 @@ export default function AdminCustomersPage(): React.ReactElement {
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<UserDetail | null>(null);
+  const selectCustomer = React.useCallback((customer: UserDetail | null): void => {
+    // Initialize the owner in the same render as the selected profile. A later
+    // effect could overwrite a selection the user has already made.
+    setSelectedCustomer(customer);
+    setOwnerId(customer?.assigned_staff_id || "");
+  }, []);
   const [packages, setPackages] = React.useState<CustomerPackageItem[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [packagesLoading, setPackagesLoading] = React.useState<boolean>(false);
@@ -93,10 +99,10 @@ export default function AdminCustomersPage(): React.ReactElement {
             !selectedCustomer ||
             !allowedList.some((c) => c.id === selectedCustomer.id)
           ) {
-            setSelectedCustomer(allowedList[0]);
+            selectCustomer(allowedList[0]);
           }
         } else {
-          setSelectedCustomer(null);
+          selectCustomer(null);
         }
       } catch (err) {
         setError(
@@ -108,7 +114,7 @@ export default function AdminCustomersPage(): React.ReactElement {
         setLoading(false);
       }
     },
-    [searchQuery, selectedCustomer, user]
+    [searchQuery, selectedCustomer, user, selectCustomer]
   );
 
   const loadPackageServices = React.useCallback(async (): Promise<void> => {
@@ -152,7 +158,6 @@ export default function AdminCustomersPage(): React.ReactElement {
   React.useEffect(() => {
     if (user?.role === "ADMIN") void fetchStaffList().then(setOwners).catch(() => setOwners([]));
   }, [user]);
-  React.useEffect(() => { setOwnerId(selectedCustomer?.assigned_staff_id || ""); }, [selectedCustomer]);
 
   const handleAssign = async (): Promise<void> => {
     if (!selectedCustomer) return;
@@ -160,7 +165,7 @@ export default function AdminCustomersPage(): React.ReactElement {
     setError(null);
     try {
       const updated = await assignCustomer(selectedCustomer.id, ownerId || null);
-      setSelectedCustomer(updated);
+      selectCustomer(updated);
       setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể chuyển người phụ trách");
@@ -212,7 +217,7 @@ export default function AdminCustomersPage(): React.ReactElement {
           prev.map((c) => (c.id === updated.id ? updated : c))
         );
         if (selectedCustomer?.id === updated.id) {
-          setSelectedCustomer(updated);
+          selectCustomer(updated);
         }
       } else {
         const created = await createCustomer({
@@ -222,7 +227,7 @@ export default function AdminCustomersPage(): React.ReactElement {
           password: password.trim() || undefined,
         });
         setCustomers((prev) => [created, ...prev]);
-        setSelectedCustomer(created);
+        selectCustomer(created);
       }
       setCustomerModalOpen(false);
     } catch (err) {
@@ -367,7 +372,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                 return (
                   <div
                     key={c.id}
-                    onClick={() => setSelectedCustomer(c)}
+                    onClick={() => selectCustomer(c)}
                     className={cn(
                       "flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-3 transition",
                       isSelected
@@ -533,7 +538,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                                     : "danger"
                               }
                             >
-                              {pkg.status}
+                              {{ ACTIVE: "Đang sử dụng", COMPLETED: "Đã dùng hết", EXPIRED: "Đã hết hạn" }[pkg.status]}
                             </Badge>
                           </div>
 

@@ -1,0 +1,231 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 844
+  },
+  "documentWidth": 1024,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [
+    {
+      "tag": "div",
+      "testId": "calendar-container",
+      "role": null,
+      "bounds": {
+        "left": -680,
+        "top": 384,
+        "right": 1000,
+        "bottom": 611.5,
+        "width": 1680,
+        "height": 227.5
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -680,
+        "top": 384,
+        "right": -450.296875,
+        "bottom": 428,
+        "width": 229.703125,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 395,
+        "right": -461.296875,
+        "bottom": 417,
+        "width": 207.703125,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 398,
+        "right": -636.046875,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -512.171875,
+        "top": 395,
+        "right": -461.296875,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -438.296875,
+        "top": 384,
+        "right": -208.578125,
+        "bottom": 428,
+        "width": 229.71875,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 395,
+        "right": -219.578125,
+        "bottom": 417,
+        "width": 207.71875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 398,
+        "right": -394.34375,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -270.453125,
+        "top": 395,
+        "right": -219.578125,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -196.578125,
+        "top": 384,
+        "right": 33.140625,
+        "bottom": 428,
+        "width": 229.71875,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 395,
+        "right": 22.140625,
+        "bottom": 417,
+        "width": 207.71875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 398,
+        "right": -152.625,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -28.734375,
+        "top": 395,
+        "right": 22.140625,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-5e0e15c5-adab-4a5f-9096-cf17c6b85e5f",
+      "bounds": {
+        "left": 539.5625,
+        "top": 432,
+        "right": 743.28125,
+        "bottom": 600.5,
+        "width": 203.71875,
+        "height": 168.5
+      },
+      "scrollWidth": 202,
+      "clientWidth": 202,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"booking\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "intentionalVerticalScrollSelectors": [],
+  "task": "T00c-collector",
+  "label": "calendar-week",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1024x844-calendar-week.png",
+  "collectionIsUiPass": false
+}

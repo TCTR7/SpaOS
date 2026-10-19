@@ -33,6 +33,6 @@ class BookingWizardPage(BasePage):
         self.click_by_text("Tiếp tục")
 
     def step4_confirm_booking(self, note: str) -> None:
-        self.wait_for_text("Tóm tắt Phiếu Đặt lịch")
+        self.wait_for_text("Xác nhận lịch hẹn")
         self.fill_field(self.NOTE_INPUT, note)
         self.click_by_text("Xác nhận Đặt lịch")

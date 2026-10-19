@@ -1,0 +1,47 @@
+{
+  "viewport": {
+    "width": 1366,
+    "height": 844
+  },
+  "documentWidth": 1366,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": null,
+      "bounds": {
+        "left": 476,
+        "top": 219.5,
+        "right": 890,
+        "bottom": 404,
+        "width": 414,
+        "height": 184.5
+      },
+      "scrollWidth": 412,
+      "clientWidth": 412,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"customer-package\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "customer-package",
+  "role": "CUSTOMER",
+  "route": "/qa-844622-751/profile",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1366x844-customer-package.png",
+  "collectionIsUiPass": false
+}

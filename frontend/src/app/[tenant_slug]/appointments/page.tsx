@@ -518,9 +518,10 @@ function AppointmentsInner(): React.ReactElement | null {
                       <button
                         key={slot.start_time}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => setRescheduleSlotStart(slot.start_time)}
                         className={cn(
-                          "flex flex-col items-center rounded-lg border py-2 px-1.5 text-xs font-semibold transition",
+                          "flex min-h-11 flex-col items-center rounded-lg border py-2 px-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           active
                             ? "border-transparent text-white shadow-xs"
                             : "border-border bg-card text-foreground hover:bg-muted/60"
@@ -533,7 +534,7 @@ function AppointmentsInner(): React.ReactElement | null {
                         <span
                           className={cn(
                             "text-[10px]",
-                            active ? "text-white/80" : "text-muted-foreground"
+                            active ? "text-inherit" : "text-muted-foreground"
                           )}
                         >
                           {slot.available_staff_ids.length} KTV trống

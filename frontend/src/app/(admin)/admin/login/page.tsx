@@ -80,7 +80,7 @@ export default function AdminLoginPage(): React.ReactElement {
             <div className="space-y-1.5">
               <Label htmlFor="phone">Số điện thoại</Label>
               <div className="relative">
-                <Phone className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   disabled={!hydrated || submitting}
                   id="phone"
@@ -98,7 +98,7 @@ export default function AdminLoginPage(): React.ReactElement {
             <div className="space-y-1.5">
               <Label htmlFor="password">Mật khẩu</Label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   disabled={!hydrated || submitting}
                   id="password"

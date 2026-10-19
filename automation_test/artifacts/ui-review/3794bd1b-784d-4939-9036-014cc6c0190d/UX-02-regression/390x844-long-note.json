@@ -1,0 +1,224 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 1821,
+  "documentHeight": 844,
+  "viewportOutsideCount": 13,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": "booking-card-e4922100-24f6-4c28-b72a-c4f289c4fb0c",
+      "role": null,
+      "bounds": {
+        "left": 16,
+        "top": 600,
+        "right": 1821.265625,
+        "bottom": 822,
+        "width": 1805.265625,
+        "height": 222
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 31,
+        "top": 615,
+        "right": 1806.265625,
+        "bottom": 677,
+        "width": 1775.265625,
+        "height": 62
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1716.84375,
+        "top": 615,
+        "right": 1806.265625,
+        "bottom": 657.5,
+        "width": 89.421875,
+        "height": 42.5
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1716.84375,
+        "top": 615,
+        "right": 1806.265625,
+        "bottom": 637.5,
+        "width": 89.421875,
+        "height": 22.5
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1788.28125,
+        "top": 641.5,
+        "right": 1806.265625,
+        "bottom": 657.5,
+        "width": 17.984375,
+        "height": 16
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 31,
+        "top": 687,
+        "right": 1806.265625,
+        "bottom": 709.5,
+        "width": 1775.265625,
+        "height": 22.5
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 31,
+        "top": 717.5,
+        "right": 1806.265625,
+        "bottom": 757.5,
+        "width": 1775.265625,
+        "height": 40
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 31,
+        "top": 769.5,
+        "right": 1806.265625,
+        "bottom": 807,
+        "width": 1775.265625,
+        "height": 37.5
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "button",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1663.984375,
+        "top": 780.5,
+        "right": 1806.265625,
+        "bottom": 807,
+        "width": 142.28125,
+        "height": 26.5
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "svg",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1674.984375,
+        "top": 786.75,
+        "right": 1688.984375,
+        "bottom": 800.75,
+        "width": 14,
+        "height": 14
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "path",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1676.734375,
+        "top": 789.0833129882812,
+        "right": 1687.234375,
+        "bottom": 799.5833129882812,
+        "width": 10.5,
+        "height": 10.5
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "path",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1684.3177490234375,
+        "top": 794.9166870117188,
+        "right": 1685.1927490234375,
+        "bottom": 796.9583129882812,
+        "width": 0.875,
+        "height": 2.0416259765625
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "circle",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 1680.8177490234375,
+        "top": 792.5833129882812,
+        "right": 1687.8177490234375,
+        "bottom": 799.5833129882812,
+        "width": 7,
+        "height": 7
+      },
+      "excludedBy": null
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-e4922100-24f6-4c28-b72a-c4f289c4fb0c",
+      "bounds": {
+        "left": 16,
+        "top": 600,
+        "right": 1821.265625,
+        "bottom": 822,
+        "width": 1805.265625,
+        "height": 222
+      },
+      "scrollWidth": 1803,
+      "clientWidth": 1803,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "task": "UX-02-regression",
+  "label": "long-note",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "noteLength": 280
+  },
+  "screenshot": "390x844-long-note.png",
+  "collectionIsUiPass": false
+}

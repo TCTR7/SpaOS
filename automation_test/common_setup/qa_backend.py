@@ -34,7 +34,7 @@ def qa_backend():
         yield url
     finally:
         if started:
-            logs = command(["docker", "logs", "--tail", "1000", name], check=False)
+            logs = command(["docker", "logs", "--tail", "10000", name], check=False)
             for line in (logs.stdout + logs.stderr).splitlines():
                 if "authentication" in line.lower():
                     print(line)

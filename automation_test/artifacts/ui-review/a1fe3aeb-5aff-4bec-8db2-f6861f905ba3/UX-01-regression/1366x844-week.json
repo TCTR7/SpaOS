@@ -1,0 +1,155 @@
+{
+  "viewport": {
+    "width": 1366,
+    "height": 844
+  },
+  "documentWidth": 1366,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": "calendar-container",
+      "role": null,
+      "bounds": {
+        "left": -338,
+        "top": 308,
+        "right": 1342,
+        "bottom": 535.5,
+        "width": 1680,
+        "height": 227.5
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -338,
+        "top": 308,
+        "right": -108.296875,
+        "bottom": 352,
+        "width": 229.703125,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 319,
+        "right": -119.296875,
+        "bottom": 341,
+        "width": 207.703125,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 322,
+        "right": -294.046875,
+        "bottom": 338,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -170.171875,
+        "top": 319,
+        "right": -119.296875,
+        "bottom": 341,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -96.296875,
+        "top": 308,
+        "right": 133.421875,
+        "bottom": 352,
+        "width": 229.71875,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 319,
+        "right": 122.421875,
+        "bottom": 341,
+        "width": 207.71875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 322,
+        "right": -52.34375,
+        "bottom": 338,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-9de423aa-ad91-4902-bcdc-d39c49a80d37",
+      "bounds": {
+        "left": 639.84375,
+        "top": 356,
+        "right": 843.5625,
+        "bottom": 524.5,
+        "width": 203.71875,
+        "height": 168.5
+      },
+      "scrollWidth": 202,
+      "clientWidth": 202,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "UX-01-regression",
+  "label": "week",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1
+  },
+  "screenshot": "1366x844-week.png",
+  "collectionIsUiPass": false
+}

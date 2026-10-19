@@ -37,7 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/payments", label: "Thu tiền", icon: Wallet, roles: ["ADMIN"] },
   {
     href: "/admin/bookings",
-    label: "Lịch hẹn (Calendar)",
+    label: "Lịch hẹn",
     icon: CalendarDays,
     roles: ["ADMIN", "STAFF"],
   },

@@ -63,9 +63,8 @@ function BookingWizardInner(): React.ReactElement | null {
   // Quick Auth state in Step 4 if not logged in
   const [authMode, setAuthMode] = React.useState<"login" | "register">("login");
   const [authName, setAuthName] = React.useState<string>("");
-  const [authPhone, setAuthPhone] = React.useState<string>("0900000101");
-  const [authPassword, setAuthPassword] =
-    React.useState<string>("Customer@123");
+  const [authPhone, setAuthPhone] = React.useState<string>("");
+  const [authPassword, setAuthPassword] = React.useState<string>("");
   const [authBusy, setAuthBusy] = React.useState<boolean>(false);
 
   const [submitting, setSubmitting] = React.useState<boolean>(false);
@@ -311,7 +310,7 @@ function BookingWizardInner(): React.ReactElement | null {
               <CardContent className="p-4 space-y-2.5">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
                   <Ticket className="h-4 w-4" />
-                  Thẻ liệu trình của bạn (Đặt lịch trừ buổi • Giá 0₫)
+                  Thẻ liệu trình của bạn — Đặt lịch bằng buổi trong thẻ
                 </div>
                 <div className="space-y-2">
                   {myPackages.map((pkg) => {
@@ -325,7 +324,7 @@ function BookingWizardInner(): React.ReactElement | null {
                         key={pkg.id}
                         onClick={() => toggleLine(pkg.service_id, pkg.id)}
                         className={cn(
-                          "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-xs transition",
+                          "flex min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border p-3 text-xs transition [overflow-wrap:anywhere]",
                           checked
                             ? "border-primary bg-card shadow-xs"
                             : "border-border bg-card/70"
@@ -341,7 +340,7 @@ function BookingWizardInner(): React.ReactElement | null {
                           </p>
                         </div>
                         <Badge variant={checked ? "success" : "outline"}>
-                          {checked ? "✓ Đã chọn (0₫)" : "Dùng thẻ (0₫)"}
+                          {checked ? "✓ Đã chọn 1 buổi" : "Dùng 1 buổi trong thẻ"}
                         </Badge>
                       </div>
                     );
@@ -418,7 +417,7 @@ function BookingWizardInner(): React.ReactElement | null {
       {step === 2 && (
         <div className="space-y-3">
           <h2 className="text-sm font-bold text-foreground">
-            Chọn Kỹ thuật viên phụ trách
+            Chọn Kỹ thuật viên thực hiện
           </h2>
           <p className="text-xs text-muted-foreground">
             Bạn có thể để Spa tự động sắp xếp Kỹ thuật viên có ca trống hoặc
@@ -509,6 +508,7 @@ function BookingWizardInner(): React.ReactElement | null {
                   type="button"
                   variant="outline"
                   size="icon"
+                  aria-label="Ngày trước"
                   onClick={() =>
                     setSelectedDate(addDaysISO(selectedDate, -1))
                   }
@@ -527,6 +527,7 @@ function BookingWizardInner(): React.ReactElement | null {
                   type="button"
                   variant="outline"
                   size="icon"
+                  aria-label="Ngày tiếp theo"
                   onClick={() =>
                     setSelectedDate(addDaysISO(selectedDate, 1))
                   }
@@ -540,7 +541,7 @@ function BookingWizardInner(): React.ReactElement | null {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground">
-                Khung giờ trống khả dụng ({availableSlots.length} slot)
+                Khung giờ còn trống ({availableSlots.length})
               </h3>
               <span className="text-xs text-muted-foreground">
                 Tổng {totalDuration} phút
@@ -568,9 +569,10 @@ function BookingWizardInner(): React.ReactElement | null {
                     <button
                       key={slot.start_time}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => setSelectedSlotStart(slot.start_time)}
                       className={cn(
-                        "flex flex-col items-center rounded-xl border py-2.5 px-2 text-xs font-semibold transition",
+                        "flex min-h-11 flex-col items-center rounded-xl border py-2.5 px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                         isSelected
                           ? "border-transparent text-white shadow"
                           : "border-border bg-card text-foreground hover:bg-muted/60"
@@ -588,7 +590,7 @@ function BookingWizardInner(): React.ReactElement | null {
                         className={cn(
                           "text-[10px]",
                           isSelected
-                            ? "text-white/85"
+                            ? "text-inherit"
                             : "text-muted-foreground"
                         )}
                       >
@@ -609,7 +611,7 @@ function BookingWizardInner(): React.ReactElement | null {
           <Card>
             <CardContent className="p-4 space-y-3 text-xs">
               <h3 className="text-sm font-bold text-foreground border-b border-border pb-2">
-                Tóm tắt Phiếu Đặt lịch
+                Xác nhận lịch hẹn
               </h3>
 
               <div className="flex justify-between">
@@ -658,7 +660,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       </span>
                       <span className="font-bold">
                         {line.customer_package_id
-                          ? "Trừ thẻ (0 ₫)"
+                          ? "Dùng 1 buổi trong thẻ"
                           : formatCurrency(svc?.price || 0)}
                       </span>
                     </div>
@@ -667,7 +669,8 @@ function BookingWizardInner(): React.ReactElement | null {
               </div>
 
               <div className="flex items-center justify-between border-t border-border pt-2.5 text-sm">
-                <span className="font-bold">Tổng thanh toán dự kiến:</span>
+                <span className="font-bold">{selectedLines.some((line) => line.customer_package_id)
+                  ? "Dự kiến thu thêm ngoài thẻ:" : "Tổng thanh toán dự kiến:"}</span>
                 <span
                   className="text-base font-extrabold"
                   style={{ color: "var(--brand-text)" }}
@@ -717,27 +720,45 @@ function BookingWizardInner(): React.ReactElement | null {
                   className="space-y-2.5"
                 >
                   {authMode === "register" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="wizAuthName">Họ và tên *</Label>
+                      <Input
+                        id="wizAuthName"
+                        name="full_name"
+                        autoComplete="name"
+                        placeholder="Họ và tên của bạn"
+                        value={authName}
+                        onChange={(e) => setAuthName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wizAuthPhone">Số điện thoại *</Label>
                     <Input
-                      placeholder="Họ và tên của bạn *"
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
+                      id="wizAuthPhone"
+                      name="phone_number"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="username"
+                      value={authPhone}
+                      onChange={(e) => setAuthPhone(e.target.value)}
                       required
                     />
-                  )}
-                  <Input
-                    type="tel"
-                    placeholder="Số điện thoại *"
-                    value={authPhone}
-                    onChange={(e) => setAuthPhone(e.target.value)}
-                    required
-                  />
-                  <Input
-                    type="password"
-                    placeholder="Mật khẩu (>= 6 ký tự) *"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    required
-                  />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wizAuthPassword">Mật khẩu *</Label>
+                    <Input
+                      id="wizAuthPassword"
+                      name="password"
+                      type="password"
+                      autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                      placeholder="Ít nhất 6 ký tự"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      required
+                    />
+                  </div>
                   <Button
                     type="submit"
                     size="sm"

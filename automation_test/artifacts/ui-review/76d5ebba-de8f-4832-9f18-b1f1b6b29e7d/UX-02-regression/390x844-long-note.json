@@ -1,0 +1,46 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 390,
+  "documentHeight": 977,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-3ee0e931-d4b3-4e18-a025-44b480544a4b",
+      "bounds": {
+        "left": 16,
+        "top": 600,
+        "right": 374,
+        "bottom": 961,
+        "width": 358,
+        "height": 361
+      },
+      "scrollWidth": 356,
+      "clientWidth": 356,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"booking\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "intentionalVerticalScrollSelectors": [],
+  "task": "UX-02-regression",
+  "label": "long-note",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "noteLength": 280
+  },
+  "screenshot": "390x844-long-note.png",
+  "collectionIsUiPass": false
+}
