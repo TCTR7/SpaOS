@@ -50,9 +50,8 @@ Hệ thống bắt buộc phải thiết kế theo kiến trúc **Multi-tenant (
     *   Chi tiết dịch vụ: Tên, Mô tả, Hình ảnh, Thời lượng (phút), Giá tiền.
 *   **Hệ thống Đặt lịch Đa dịch vụ (Booking Flow):**
     *   Bước 1: Chọn **1 hoặc nhiều dịch vụ** trong cùng 1 lần đặt (hoặc chọn đặt lịch trừ vào **Thẻ liệu trình** đang có). Hệ thống tự cộng dồn tổng thời gian thực hiện (`total_duration`).
-    *   Bước 2: Chọn Kỹ thuật viên (tùy chọn) hoặc "Spa tự sắp xếp".
-    *   Bước 3: Chọn Ngày & Giờ (Thuật toán chỉ hiển thị các slot khả dụng dựa trên Ca làm việc của KTV và các lịch đã đặt).
-    *   Bước 4: Xác nhận đặt lịch.
+    *   Bước 2: Chọn Ngày & Giờ cùng Kỹ thuật viên (tùy chọn) hoặc "Spa tự sắp xếp". Thuật toán chỉ hiển thị slot khả dụng theo ca làm và lịch đã đặt; khách tự chọn giờ, không tự chọn slot đầu. Không cho chọn ngày quá khứ.
+    *   Bước 3: Xác nhận đặt lịch; khách chưa đăng nhập có thể đăng nhập/đăng ký nhanh và giữ lựa chọn trong trang. Quay lại giữ dữ liệu hợp lệ; xung đột 409 cho chọn lại giờ trong cùng luồng. Cập nhật UX theo T09a ngày 19/10/2026; trạng thái kiểm chứng thực tế xem PROGRESS.
 *   **Quản lý Lịch hẹn:**
     *   Tab "Sắp tới": Các lịch hẹn chưa diễn ra.
     *   Tab "Lịch sử": Lịch đã hoàn thành, đã hủy.
@@ -176,7 +175,7 @@ Hệ thống bắt buộc phải thiết kế theo kiến trúc **Multi-tenant (
 *   **Prompt mẫu để gõ vào AI:**
     > "Thực hiện **Sprint 6** dựa trên `Spa_SaaS_PRD.md`:
     > 1. Xây dựng phân hệ Khách hàng theo Dynamic Route `/[tenant_slug]` tối ưu giao diện Mobile-first và cấu hình `manifest.json` chuẩn PWA.
-    > 2. Xây dựng luồng Đặt lịch 4 bước (Wizard): Chọn 1 hoặc nhiều dịch vụ (hoặc chọn dùng Thẻ liệu trình đang có) -> Chọn Kỹ thuật viên -> Chọn Ngày & Giờ trống -> Xác nhận.
+    > 2. Xây dựng luồng Đặt lịch 3 bước (Wizard, cập nhật T09a 19/10/2026): Chọn dịch vụ/thẻ -> Chọn Ngày giờ/Kỹ thuật viên -> Xác nhận. Không tự chọn giờ hoặc nhảy bước khi thiếu dữ liệu.
     > 3. Xây dựng trang Cá nhân của khách: Xem lịch hẹn Sắp tới (cho phép Hủy nếu trước giờ quy định), Lịch sử làm đẹp, và Xem số buổi còn lại trong Thẻ liệu trình."
 
 ### Sprint 7: Xây dựng Bộ Kiểm thử Tự động E2E (`automation_test/`)
@@ -254,3 +253,28 @@ SpaOS/
             └── tests/
                 ├── test_pwa_booking_flow.py
                 └── test_multi_tenant_isolation_ui.py
+
+## Bổ sung được PO xác nhận — 17/10/2026
+- Khách có một KTV phụ trách hồ sơ cố định. Admin có toàn quyền và là người duy nhất chuyển/gỡ người phụ trách; KTV khác không được đọc/sửa hồ sơ, thẻ hoặc lịch của khách qua UI hay API. Khách vẫn xem và thao tác dữ liệu của mình.
+- KTV thực hiện một booking và KTV phụ trách hồ sơ là hai khái niệm độc lập. Đổi KTV trên lịch không chuyển quyền hồ sơ; muốn người mới quản lý khách, Admin phải chuyển quyền tại CRM.
+- Dời lịch phải atomic, không hủy booking cũ rồi tạo booking mới; giữ giá/thời lượng/items đã chốt và buổi liệu trình đang giữ. Chỉ sửa PENDING/CONFIRMED; khách đổi trước hạn hủy.
+- Thanh toán ưu tiên xác nhận thủ công: tách phải thu và thực thu, ghi phương thức, người xác nhận, thời gian; theo dõi chưa thu/một phần/đã thu và lịch sử sửa. QR và đối soát ngân hàng tự động nằm ngoài đợt triển khai này.
+
+### Ghi nhận triển khai thu tiền thủ công (17/10/2026)
+Đã triển khai phiếu phải thu theo lịch/thẻ, thu nhiều phần, bút toán hủy có lý do, chống ghi trùng và nhật ký Admin. Giá bán thẻ mới được chốt lúc cấp; thẻ cũ cần xác nhận giá lịch sử. Thực thu theo ngày được tách khỏi giá trị dịch vụ hoàn thành. Admin có thể bàn giao hồ sơ cùng lúc dời lịch bằng lựa chọn rõ ràng, mặc định không chuyển quyền.
+
+### Luồng thu tiền đơn giản theo PO (17/10/2026)
+Admin xem danh sách khách cùng dịch vụ/thẻ đã có sẵn, xác nhận tiền mặt/chuyển khoản với số tiền mặc định bằng khoản còn thiếu. Không có bước lập/mở phiếu trên giao diện; tự cộng tổng hôm nay. Trả một phần, hoàn tác có lý do và lịch sử là thao tác phụ. Lịch dùng thẻ không thu thêm; giá giao dịch được giữ theo snapshot; thẻ cũ thiếu giá cần đối chiếu.
+
+## Định hướng chiến lược đang chờ quyết định — 17/10/2026
+Xem [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) về deployment riêng từng chủ spa và nhiều chi nhánh. PO hiện chỉ yêu cầu lưu định hướng, chưa cho triển khai. Nội dung này chưa thay thế schema/API và các tính năng đang chạy được mô tả ở trên. Conversation mới đọc AGENTS.md, PROGRESS.md và tài liệu chiến lược trước khi bắt đầu task.
+
+## Triển khai đa chi nhánh được PO phê duyệt — 17/10/2026
+Đã được phép triển khai sau bước lưu chiến lược. tenant_id giữ vai trò mã chi nhánh nội bộ; danh tính quản trị dùng chung qua login_accounts và branch_memberships. Tài khoản quản trị đăng nhập SĐT/mật khẩu, chủ chuyển chi nhánh và xem dashboard tổng hợp; STAFF chỉ có chi nhánh được cấp. Khách chọn chi nhánh theo tên, hồ sơ/thẻ/dịch vụ/giá vẫn riêng. Migration không gộp SĐT trùng; operator đối chiếu. Xem API_CONTRACT, MULTI_BRANCH_STRATEGY và tiến độ kiểm chứng mới nhất.
+
+## Cấp tài khoản chủ spa theo PO — 17/10/2026
+Đơn vị triển khai có danh tính quản trị riêng, seed từ secrets cấu hình; màn hình /operator tạo chủ spa và chi nhánh đầu tiên bằng form web Unicode. Chủ spa/nhân viên không đăng nhập cổng này, tiếp tục /admin/login. Seed mặc định không tạo dữ liệu demo; không dùng mật khẩu mặc định cho operator. Production một chủ spa/deployment, thêm chi nhánh qua quyền chủ như hiện hành.
+
+
+### Bổ sung sau Sprint: thương hiệu theo deployment
+Operator chọn/xem trước/lưu màu chủ đạo; áp dụng trang Admin, đăng nhập, PWA khách và các chi nhánh cùng chủ. Mỗi deployment độc lập; Admin chi nhánh không đổi màu chung. Chưa cấu hình giữ tương thích màu chi nhánh cũ.

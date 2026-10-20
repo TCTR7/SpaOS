@@ -1,0 +1,234 @@
+{
+  "viewport": {
+    "width": 768,
+    "height": 844
+  },
+  "documentWidth": 768,
+  "documentHeight": 1032,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": null,
+      "bounds": {
+        "left": 16,
+        "top": 52.203125,
+        "right": 752,
+        "bottom": 811.796875,
+        "width": 736,
+        "height": 759.59375
+      },
+      "scrollWidth": 734,
+      "clientWidth": 734,
+      "violationCount": 6,
+      "violations": [
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 535.734375,
+            "top": 837.203125,
+            "right": 561.328125,
+            "bottom": 856.203125,
+            "width": 25.59375,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-clipped",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "clipper": {
+            "tag": "div",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 535.734375,
+            "top": 837.203125,
+            "right": 561.328125,
+            "bottom": 856.203125,
+            "width": 25.59375,
+            "height": 19
+          },
+          "clipBounds": {
+            "left": 16,
+            "top": 52.203125,
+            "right": 752,
+            "bottom": 811.796875,
+            "width": 736,
+            "height": 759.59375
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 602.328125,
+            "top": 837.203125,
+            "right": 711,
+            "bottom": 856.203125,
+            "width": 108.671875,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-clipped",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "clipper": {
+            "tag": "div",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 602.328125,
+            "top": 837.203125,
+            "right": 711,
+            "bottom": 856.203125,
+            "width": 108.671875,
+            "height": 19
+          },
+          "clipBounds": {
+            "left": 16,
+            "top": 52.203125,
+            "right": 752,
+            "bottom": 811.796875,
+            "width": 736,
+            "height": 759.59375
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 518.734375,
+            "top": 829.203125,
+            "right": 578.328125,
+            "bottom": 865.203125,
+            "width": 59.59375,
+            "height": 36
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 586.328125,
+            "top": 829.203125,
+            "right": 727,
+            "bottom": 865.203125,
+            "width": 140.671875,
+            "height": 36
+          }
+        }
+      ]
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"modal\"]",
+  "measurementStatus": "measured",
+  "dialogs": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": "dialog",
+      "bounds": {
+        "left": 0,
+        "top": 20,
+        "right": 768,
+        "bottom": 844,
+        "width": 768,
+        "height": 824
+      },
+      "scrollHeight": 824,
+      "clientHeight": 824,
+      "focusInside": false,
+      "scrollRegions": [
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 16,
+            "top": 52.203125,
+            "right": 752,
+            "bottom": 811.796875,
+            "width": 736,
+            "height": 759.59375
+          },
+          "scrollHeight": 836,
+          "clientHeight": 758
+        },
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 421.203125,
+            "right": 727,
+            "bottom": 495.203125,
+            "width": 686,
+            "height": 74
+          },
+          "scrollHeight": 72,
+          "clientHeight": 72
+        },
+        {
+          "tag": "textarea",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 733.203125,
+            "right": 727,
+            "bottom": 805.203125,
+            "width": 686,
+            "height": 72
+          },
+          "scrollHeight": 70,
+          "clientHeight": 70
+        }
+      ]
+    }
+  ],
+  "cardViolationCount": 6,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "booking-modal",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "768x844-booking-modal.png",
+  "collectionIsUiPass": false
+}

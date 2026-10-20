@@ -1,0 +1,47 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 390,
+  "documentHeight": 977,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-32c90fce-d275-4c2c-ab59-b0053de92eaa",
+      "bounds": {
+        "left": 16,
+        "top": 600,
+        "right": 374,
+        "bottom": 961,
+        "width": 358,
+        "height": 361
+      },
+      "scrollWidth": 356,
+      "clientWidth": 356,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"booking\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "calendar-long-note",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 280
+  },
+  "screenshot": "390x844-calendar-long-note.png",
+  "collectionIsUiPass": false
+}

@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { getServerBranding } from "@/lib/server-branding";
+import { brandStyle } from "@/lib/brand-theme";
+import { BrandProvider } from "@/components/brand-provider";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
@@ -6,7 +9,7 @@ export const metadata: Metadata = {
   title: "SpaOS - Đặt lịch & Quản lý Spa",
   description:
     "Nền tảng Đặt lịch & Quản lý Spa chuẩn SaaS, theo dõi thẻ liệu trình và nhận nhắc lịch tự động.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -23,22 +26,21 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  themeColor: "#e11d48",
-  width: "device-width",
-  initialScale: 1,
-};
+export async function generateViewport(): Promise<Viewport> {
+  const brand = await getServerBranding();
+  return {themeColor:brand.theme_color,width:"device-width",initialScale:1};
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
-}): React.ReactElement {
+}): Promise<React.ReactElement> {
+  const branding = await getServerBranding();
   return (
-    <html lang="vi">
+    <html lang="vi" style={brandStyle(branding.theme_color)}>
       <body className="min-h-screen bg-background text-foreground">
-        <PwaRegister />
-        {children}
+        <BrandProvider initialBranding={branding}><PwaRegister />{children}</BrandProvider>
       </body>
     </html>
   );

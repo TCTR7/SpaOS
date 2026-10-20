@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useBranchGuard } from "@/lib/branch-guard";
+import { useBranding } from "@/components/brand-provider";
 import { Save, Settings as SettingsIcon } from "lucide-react";
 import { fetchTenantSettings, updateTenantSettings } from "@/lib/api";
 import { useAdminAuth } from "@/components/admin/auth-context";
@@ -15,6 +17,7 @@ import {
 import { Input, Label } from "@/components/ui/input";
 
 export default function AdminSettingsPage(): React.ReactElement {
+  const {branding} = useBranding();
   const { refreshMe } = useAdminAuth();
 
   const [slug, setSlug] = React.useState<string>("");
@@ -30,11 +33,16 @@ export default function AdminSettingsPage(): React.ReactElement {
   const [error, setError] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
 
+  const [attempt, setAttempt] = React.useState(0);
+  const [baseline, setBaseline] = React.useState("");
+  const draft = JSON.stringify([name, logoUrl, themeColor, openTime, closeTime, bufferMinutes]);
+  useBranchGuard(!loading && !!baseline && draft !== baseline, saving);
   React.useEffect(() => {
     void (async () => {
-      setLoading(true);
+      setLoading(true); setError(null);
       try {
         const t = await fetchTenantSettings();
+        setBaseline(JSON.stringify([t.name, t.logo_url || "", t.theme_color || "#be185d", (t.open_time || "09:00:00").slice(0,5), (t.close_time || "20:00:00").slice(0,5), t.buffer_minutes]));
         setSlug(t.slug);
         setName(t.name);
         setLogoUrl(t.logo_url || "");
@@ -50,12 +58,13 @@ export default function AdminSettingsPage(): React.ReactElement {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [attempt]);
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (saving || loading || !baseline) return;
     setSaving(true);
     setError(null);
     setSuccessMsg(null);
@@ -63,11 +72,12 @@ export default function AdminSettingsPage(): React.ReactElement {
       await updateTenantSettings({
         name: name.trim(),
         logo_url: logoUrl.trim() || null,
-        theme_color: themeColor.trim() || null,
+        ...(branding.configured ? {} : {theme_color: themeColor.trim() || null}),
         open_time: openTime.length === 5 ? `${openTime}:00` : openTime,
         close_time: closeTime.length === 5 ? `${closeTime}:00` : closeTime,
         buffer_minutes: bufferMinutes,
       });
+      setBaseline(draft);
       await refreshMe();
       setSuccessMsg("Đã lưu cấu hình Spa thành công!");
     } catch (err) {
@@ -80,7 +90,7 @@ export default function AdminSettingsPage(): React.ReactElement {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto min-w-0 max-w-2xl space-y-5 [overflow-wrap:anywhere]">
       <div>
         <h1 className="text-xl font-bold text-foreground">
           Cấu hình Thông tin & Vận hành Spa
@@ -92,8 +102,8 @@ export default function AdminSettingsPage(): React.ReactElement {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
-          {error}
+        <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+          <p>{error}</p>{!baseline && <Button type="button" variant="outline" onClick={() => setAttempt((v) => v+1)}>Thử tải lại cấu hình</Button>}
         </div>
       )}
 
@@ -145,16 +155,17 @@ export default function AdminSettingsPage(): React.ReactElement {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="themeColor">Màu chủ đạo (Theme Color)</Label>
+                  {branding.configured && <p className="text-xs text-muted-foreground">Màu thương hiệu chung {branding.theme_color} do đơn vị triển khai quản lý.</p>}
                   <div className="flex items-center gap-2">
                     <input
-                      type="color"
-                      value={themeColor}
+                      type="color" disabled={branding.configured}
+                      value={branding.configured ? branding.theme_color : themeColor}
                       onChange={(e) => setThemeColor(e.target.value)}
                       className="h-9 w-12 cursor-pointer rounded border border-input bg-background p-0.5"
                     />
                     <Input
-                      id="themeColor"
-                      value={themeColor}
+                      id="themeColor" disabled={branding.configured}
+                      value={branding.configured ? branding.theme_color : themeColor}
                       onChange={(e) => setThemeColor(e.target.value)}
                       placeholder="#be185d"
                     />
@@ -204,7 +215,7 @@ export default function AdminSettingsPage(): React.ReactElement {
               </div>
 
               <div className="flex justify-end pt-2">
-                <Button type="submit" disabled={saving}>
+                <Button type="submit" disabled={saving || loading || !baseline}>
                   <Save className="h-4 w-4" />
                   {saving ? "Đang lưu cấu hình..." : "Lưu thay đổi"}
                 </Button>

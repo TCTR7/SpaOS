@@ -1,0 +1,148 @@
+{
+  "viewport": {
+    "width": 360,
+    "height": 844
+  },
+  "documentWidth": 375,
+  "documentHeight": 2498,
+  "viewportOutsideCount": 3,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 33,
+        "top": 233,
+        "right": 374.5,
+        "bottom": 315,
+        "width": 341.5,
+        "height": 82
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 33,
+        "top": 271,
+        "right": 374.5,
+        "bottom": 315,
+        "width": 341.5,
+        "height": 44
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "button",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 293,
+        "top": 271,
+        "right": 374.5,
+        "bottom": 315,
+        "width": 81.5,
+        "height": 44
+      },
+      "excludedBy": null
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-0fe6415e-1afd-4965-8f16-9690c31a379d",
+      "bounds": {
+        "left": 27,
+        "top": 1652,
+        "right": 333,
+        "bottom": 1927,
+        "width": 306,
+        "height": 275
+      },
+      "scrollWidth": 304,
+      "clientWidth": 304,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": "dialog",
+      "bounds": {
+        "left": 0,
+        "top": 20,
+        "right": 360,
+        "bottom": 844,
+        "width": 360,
+        "height": 824
+      },
+      "scrollHeight": 824,
+      "clientHeight": 824,
+      "focusInside": false,
+      "scrollRegions": [
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 16,
+            "top": 52.203125,
+            "right": 344,
+            "bottom": 811.796875,
+            "width": 328,
+            "height": 759.59375
+          },
+          "scrollHeight": 984,
+          "clientHeight": 758
+        },
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 529.203125,
+            "right": 319,
+            "bottom": 603.203125,
+            "width": 278,
+            "height": 74
+          },
+          "scrollHeight": 72,
+          "clientHeight": 72
+        },
+        {
+          "tag": "textarea",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 41,
+            "top": 873.203125,
+            "right": 319,
+            "bottom": 945.203125,
+            "width": 278,
+            "height": 72
+          },
+          "scrollHeight": 70,
+          "clientHeight": 70
+        }
+      ]
+    }
+  ],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "task": "T00c-collector",
+  "label": "booking-modal",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "360x844-booking-modal.png",
+  "collectionIsUiPass": false
+}

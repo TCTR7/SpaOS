@@ -34,7 +34,7 @@ self.addEventListener("push", (event) => {
     } else if (payload.type === "BOOKING_CREATED") {
       targetUrl = "/admin/bookings";
     } else {
-      targetUrl = "/spa-demo/appointments";
+      targetUrl = "/";
     }
   }
 

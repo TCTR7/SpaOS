@@ -42,6 +42,7 @@ class BookingItemOut(BaseModel):
 
     id: uuid.UUID
     service_id: uuid.UUID
+    service_name: Optional[str] = None
     customer_package_id: Optional[uuid.UUID] = None
     duration_minutes: int
     price: Decimal
@@ -53,7 +54,9 @@ class BookingOut(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
     customer_id: uuid.UUID
+    customer_name: Optional[str] = None
     staff_id: Optional[uuid.UUID] = None
+    staff_name: Optional[str] = None
     start_time: datetime
     end_time: datetime
     total_duration_minutes: int
@@ -66,3 +69,11 @@ class BookingOut(BaseModel):
 
 class BookingStatusUpdate(BaseModel):
     status: BookingStatus
+
+
+class BookingUpdate(BaseModel):
+    transfer_customer: bool = False
+    model_config = ConfigDict(extra="forbid")
+    start_time: datetime
+    staff_id: Optional[uuid.UUID] = None
+    note: Optional[str] = Field(default=None, max_length=1000)

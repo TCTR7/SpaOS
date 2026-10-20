@@ -5,16 +5,17 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, or_, text
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, set_tenant_context
-from app.models.models import Booking, Notification, PushSubscription, User, UserRole
+from app.models.models import Booking, Notification, PushSubscription, Tenant, User, UserRole
 from app.services.booking_service import TZ
 
 logger = logging.getLogger("spaos.notifications")
 
 _STATUS_TITLES = {
+    "RESCHEDULED": "Lịch hẹn đã được thay đổi",
     "CONFIRMED": "Lịch hẹn đã được xác nhận",
     "IN_PROGRESS": "Buổi chăm sóc đã bắt đầu",
     "COMPLETED": "Buổi chăm sóc đã hoàn thành",
@@ -28,6 +29,7 @@ class Draft:
     user_id: uuid.UUID
     title: str
     body: str
+    url: str = "/admin/bookings"
 
 
 def webpush_enabled() -> bool:
@@ -63,6 +65,21 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
     jobs: List[Dict[str, Any]] = []
     async with AsyncSessionLocal() as session:
         await set_tenant_context(session, tenant_id)
+        customer_id = (await session.execute(select(Booking.customer_id).where(
+            Booking.id == booking_id, Booking.tenant_id == tenant_id))).scalar_one_or_none()
+        if customer_id is None:
+            return
+        await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                              {"key": f"customer:{tenant_id}:{customer_id}"})
+        owner_id = (await session.execute(select(User.assigned_staff_id).where(
+            User.id == customer_id, User.tenant_id == tenant_id))).scalar_one()
+        roles = dict((await session.execute(select(User.id, User.role).where(
+            User.tenant_id == tenant_id, User.id.in_({d.user_id for d in drafts}),
+            User.is_active.is_(True)))).all())
+        drafts = [d for d in drafts if d.user_id in roles and (
+            roles[d.user_id] == UserRole.ADMIN or d.user_id == customer_id or d.user_id == owner_id)]
+        if not drafts:
+            return
         # Notification INSERTs acquire FK KEY SHARE locks on users and bookings.
         # Acquire recipient locks first, in the same order as auto-assignment,
         # so an INSERT cannot hold a booking FK lock while waiting for its staff.
@@ -90,6 +107,7 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
                 )
             ).scalars().all()
             by_user: Dict[uuid.UUID, Notification] = {n.user_id: n for n in rows}
+            urls = {d.user_id: d.url for d in drafts}
             for s in subs:
                 n = by_user[s.user_id]
                 payload = json.dumps(
@@ -99,17 +117,27 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
                         "type": n.type,
                         "booking_id": str(booking_id),
                         "notification_id": str(n.id),
+                        "url": urls[s.user_id],
                     },
                     ensure_ascii=False,
                 )
                 jobs.append(
-                    {"sub_id": s.id, "sub": {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, "payload": payload}
+                    {"sub_id": s.id, "user_id": s.user_id, "sub": {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, "payload": payload}
                 )
         await session.commit()
 
     if not jobs:
         return
-    results = await asyncio.gather(*[_send_one(j["sub"], j["payload"]) for j in jobs], return_exceptions=True)
+    # Recheck ownership under the same customer lock while dispatching push.
+    # No nested sessions: avoid exhausting the pool while waiting for a second connection.
+    async with AsyncSessionLocal() as session:
+        await set_tenant_context(session, tenant_id)
+        await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                              {"key": f"customer:{tenant_id}:{customer_id}"})
+        owner_id = (await session.execute(select(User.assigned_staff_id).where(
+            User.id == customer_id, User.tenant_id == tenant_id))).scalar_one()
+        jobs = [j for j in jobs if roles[j["user_id"]] != UserRole.STAFF or j["user_id"] == owner_id]
+        results = await asyncio.gather(*[_send_one(j["sub"], j["payload"]) for j in jobs], return_exceptions=True)
     expired: List[uuid.UUID] = []
     for job, res in zip(jobs, results):
         if isinstance(res, BaseException):
@@ -132,8 +160,8 @@ async def notify_booking_event(
 ) -> None:
     """Chạy trong BackgroundTasks: KHÔNG bao giờ raise (không ảnh hưởng transaction đặt lịch chính).
 
-    event: CREATED | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
-    to_staff=True  -> gửi ADMIN/STAFF của Spa (trừ người thực hiện)
+    event: CREATED | RESCHEDULED | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
+    to_staff=True  -> gửi ADMIN và KTV phụ trách hồ sơ hiện tại (trừ người thực hiện)
     to_staff=False -> gửi CUSTOMER sở hữu lịch hẹn
     """
     try:
@@ -161,7 +189,8 @@ async def notify_booking_event(
                     await session.execute(
                         select(User.id).where(
                             User.tenant_id == tenant_id,
-                            User.role.in_((UserRole.ADMIN, UserRole.STAFF)),
+                            or_(User.role == UserRole.ADMIN,
+                                (User.role == UserRole.STAFF) & (User.id == customer.assigned_staff_id)),
                             User.is_active.is_(True),
                             User.id != actor_id,
                         )
@@ -172,12 +201,19 @@ async def notify_booking_event(
                         assigned = uid == booking.staff_id
                         title = "Lịch hẹn mới được giao cho bạn" if assigned else "Có lịch hẹn mới"
                         body = f"{customer.full_name} đặt lịch lúc {when}" + (f" - KTV {staff_name}" if staff_name else "")
+                    elif event == "RESCHEDULED":
+                        title = "Khách đã đổi lịch hẹn"
+                        body = f"{customer.full_name} đổi lịch sang {when}"
                     else:
                         title = "Khách đã hủy lịch hẹn"
                         body = f"{customer.full_name} đã hủy lịch lúc {when}"
                     drafts.append(Draft(uid, title, body))
             elif booking.customer_id != actor_id:
-                drafts.append(Draft(booking.customer_id, _STATUS_TITLES.get(event, "Cập nhật lịch hẹn"), f"Lịch hẹn lúc {when}"))
+                slug = (await session.execute(select(Tenant.slug).where(Tenant.id == tenant_id))).scalar_one()
+                drafts.append(Draft(
+                    booking.customer_id, _STATUS_TITLES.get(event, "Cập nhật lịch hẹn"),
+                    f"Lịch hẹn lúc {when}", f"/{slug}/appointments",
+                ))
         await _deliver(tenant_id, drafts, f"BOOKING_{event}", booking_id)
     except Exception:  # noqa: BLE001 - thông báo lỗi không được phép ảnh hưởng nghiệp vụ chính
         logger.exception("Gửi thông báo thất bại (booking=%s, event=%s)", booking_id, event)

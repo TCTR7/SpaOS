@@ -1,4 +1,7 @@
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import AsyncIterator, Callable
 
 import jwt
@@ -39,7 +42,8 @@ def get_token_data(
             tenant_id=uuid.UUID(payload["tenant_id"]),
             role=payload["role"],
         )
-    except (jwt.PyJWTError, KeyError, ValueError):
+    except (jwt.PyJWTError, KeyError, ValueError) as exc:
+        logger.warning("Authentication token rejected (%s)", type(exc).__name__)
         raise _UNAUTHORIZED
 
 
@@ -66,7 +70,16 @@ async def get_current_user(
     )
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
+        logger.warning("Authentication user missing or inactive within tenant context")
         raise _UNAUTHORIZED
+    from app.services.branch_service import membership_for, account_for
+    if user.role in (UserRole.ADMIN, UserRole.STAFF):
+        link = await membership_for(db, user)
+        if link:
+            await account_for(db, user)
+    tenant = (await db.execute(select(Tenant).where(Tenant.id == token.tenant_id, Tenant.status == "ACTIVE"))).scalar_one_or_none()
+    if tenant is None:
+        raise HTTPException(403, "Chi nhánh đã bị khóa")
     return user
 
 

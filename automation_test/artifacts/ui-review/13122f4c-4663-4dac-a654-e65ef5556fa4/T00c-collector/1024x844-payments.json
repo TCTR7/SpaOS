@@ -1,0 +1,24 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 844
+  },
+  "documentWidth": 1024,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "task": "T00c-collector",
+  "label": "payments",
+  "role": "ADMIN",
+  "route": "/admin/payments",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1024x844-payments.png",
+  "collectionIsUiPass": false
+}

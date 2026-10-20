@@ -33,3 +33,8 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+:root { --brand-color: #be185d; --brand-foreground: #ffffff; --brand-text: #9d174d; --primary-text: 335 60% 30%; }
+@layer utilities {
+  .text-primary, .hover\:text-primary:hover { color: hsl(var(--primary-text)); }
+}

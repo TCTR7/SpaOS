@@ -4,6 +4,15 @@ Dự án **SpaOS (Nền tảng Quản lý và Đặt lịch Spa chuẩn SaaS)**[
 
 ---
 
+
+## 0. BẮT ĐẦU TASK — ĐỊNH HƯỚNG CHIẾN LƯỢC
+
+- Trước mỗi task, đọc `docs/PROGRESS.md` và [định hướng đa chi nhánh](docs/MULTI_BRANCH_STRATEGY.md), sau đó đọc PRD/API_CONTRACT theo phạm vi.
+- Định hướng đang lưu: mỗi chủ spa một deployment riêng; nhiều chi nhánh trong deployment; đăng nhập SĐT/mật khẩu, dropdown chi nhánh và dashboard tổng hợp.
+- **Trạng thái: PO đã cho phép triển khai ngày 17/10/2026.** Đọc mục phê duyệt và tiến độ mới nhất để biết phần đang làm/đã kiểm chứng; không coi kế hoạch là tính năng đã hoàn thành.
+- Khi chưa có chỉ thị triển khai mới, tiếp tục task được giao trên kiến trúc hiện hành. Không tự gộp tài khoản/tenant hoặc bỏ kiểm soát tenant/RLS.
+- Khi PO cho phép triển khai, cập nhật phạm vi/trạng thái trong tài liệu chiến lược và PROGRESS; không hỏi lại quyền đã được cấp.
+
 ## 1. QUY TẮC TIẾT KIỆM QUOTA & CÔ LẬP MONOREPO (`backend/` & `frontend/`)
 - **Bỏ qua thư mục rác (Ignore Paths):** TUYỆT ĐỐI KHÔNG quét, đọc hoặc index: `node_modules/`, `.next/`, `venv/`, `.venv/`, `__pycache__/`, `.git/`, `dist/`, `build/`, `*.lock`, `package-lock.json`.
 - **Trả lời ngắn gọn:** Đi thẳng vào code và giải pháp. Không chào hỏi, không giải thích khái niệm cơ bản, không tóm tắt lại yêu cầu ở cuối câu.
@@ -61,3 +70,13 @@ Khi người dùng yêu cầu Review sau mỗi Sprint, Codex KHÔNG tự ý đ�
 3. **Nghiệp vụ Thẻ liệu trình:** Khi Booking chuyển sang `COMPLETED`[cite: 1], có tự động cộng `used_sessions += 1` và chặn vượt quá `total_sessions` không?
 4. **Hiệu năng Async:** Có lỗi `MissingGreenlet` hay N+1 query trong SQLAlchemy Async không?
 5. **Báo cáo:** Xuất kết quả theo 3 mức `[CRITICAL]`, `[WARNING]`, `[PASSED]` kèm tên file, dòng lỗi và tự động vá các lỗi `[CRITICAL]`.
+## Ghi chú kiến trúc sau thay đổi đa chi nhánh
+- tenant_id tiếp tục là mã chi nhánh nội bộ; không đổi/xóa ID dữ liệu nghiệp vụ cũ.
+- login_accounts là ngoại lệ danh tính xác thực cấp deployment, không có tenant_id; vẫn FORCE RLS theo account/phone bootstrap. branch_memberships có tenant_id và FORCE RLS, dùng để kiểm tra quyền trước khi đổi chi nhánh.
+- Dashboard tổng hợp chỉ đọc các chi nhánh đã được xác minh, lần lượt gán tenant context; không tắt RLS hoặc dùng role bypass.
+- Hồ sơ khách, thẻ, dịch vụ và nhân viên theo chi nhánh; không tự gộp SĐT hoặc cho dùng thẻ xuyên chi nhánh.
+
+## Quản trị triển khai và seed hiện hành
+- Seed mặc định app.seed chỉ tạo operator từ secrets cấu hình; demo ở app.seed_demo, chặn production. Không seed hoặc reset credentials mẫu vào database người dùng khi chạy test.
+- /operator dùng danh tính/JWT riêng, không thêm SUPER_ADMIN vào UserRole nghiệp vụ hoặc bypass RLS. Chủ spa tiếp tục /admin/login.
+- Kiểm thử backend qua python -m scripts.test_isolated; feature operator E2E dùng container/database QA tạm riêng.

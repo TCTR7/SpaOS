@@ -1,0 +1,119 @@
+{
+  "viewport": {
+    "width": 320,
+    "height": 844
+  },
+  "documentWidth": 320,
+  "documentHeight": 860,
+  "viewportOutsideCount": 5,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -16,
+        "top": 57.5,
+        "right": 304,
+        "bottom": 294.5,
+        "width": 320,
+        "height": 237
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -15,
+        "top": 58.5,
+        "right": 303,
+        "bottom": 136.5,
+        "width": 318,
+        "height": 78
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -15,
+        "top": 136.5,
+        "right": 303,
+        "bottom": 201.5,
+        "width": 318,
+        "height": 65
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -15,
+        "top": 201.5,
+        "right": 303,
+        "bottom": 293.5,
+        "width": 318,
+        "height": 92
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -15,
+        "top": 201.5,
+        "right": 303,
+        "bottom": 293.5,
+        "width": 318,
+        "height": 92
+      },
+      "excludedBy": null
+    }
+  ],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": null,
+      "bounds": {
+        "left": -16,
+        "top": 57.5,
+        "right": 304,
+        "bottom": 294.5,
+        "width": 320,
+        "height": 237
+      },
+      "scrollWidth": 318,
+      "clientWidth": 318,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"notifications\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "intentionalVerticalScrollSelectors": [],
+  "task": "T00c-collector",
+  "label": "notifications",
+  "role": "ADMIN",
+  "route": "/admin/payments",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "320x844-notifications.png",
+  "collectionIsUiPass": false
+}

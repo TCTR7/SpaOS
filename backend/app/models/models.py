@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Numeric,
     String,
@@ -19,7 +20,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -86,13 +87,16 @@ class Tenant(TimestampMixin, Base):
 
 class User(TimestampMixin, TenantOwnedMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("tenant_id", "phone_number", name="uq_users_tenant_phone"),)
+    __table_args__ = (UniqueConstraint("tenant_id", "phone_number", name="uq_users_tenant_phone"), UniqueConstraint("tenant_id", "id", name="uq_users_tenant_id_id"))
 
     role: Mapped[UserRole] = mapped_column(_enum(UserRole), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    assigned_staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
 
 
@@ -133,6 +137,7 @@ class CustomerPackage(TimestampMixin, TenantOwnedMixin, Base):
     service_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), nullable=False
     )
+    purchase_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
     package_name: Mapped[str] = mapped_column(String(255), nullable=False)
     total_sessions: Mapped[int] = mapped_column(Integer, nullable=False)
     used_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
@@ -212,3 +217,113 @@ class Notification(TimestampMixin, TenantOwnedMixin, Base):
         UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="SET NULL")
     )
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+
+class PaymentInvoice(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "payment_invoices"
+    __table_args__ = (
+        CheckConstraint("(booking_id IS NULL) <> (customer_package_id IS NULL)", name="ck_invoice_source"),
+        CheckConstraint("amount_due >= 0", name="ck_invoice_amount"),
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    booking_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), unique=True)
+    customer_package_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("customer_packages.id"), unique=True)
+    amount_due: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+
+class PaymentEntry(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "payment_entries"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "idempotency_key", name="uq_payment_idempotency"),
+        CheckConstraint("method IN ('CASH','BANK_TRANSFER')", name="ck_payment_method"),
+        CheckConstraint("(reversal_of IS NULL AND amount > 0) OR (reversal_of IS NOT NULL AND amount < 0)", name="ck_payment_sign"),
+    )
+    invoice_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("payment_invoices.id"), nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False)
+    recorded_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    idempotency_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reversal_of: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("payment_entries.id"), unique=True)
+    note: Mapped[Optional[str]] = mapped_column(String(500))
+
+
+class AuditLog(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "audit_logs"
+    actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    action: Mapped[str] = mapped_column(String(60), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    details: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class LoginAccount(TimestampMixin, Base):
+    """Deployment-level authentication identity; no business/customer data."""
+    __tablename__ = "login_accounts"
+    phone_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+
+
+class BranchMembership(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "branch_memberships"
+    __table_args__ = (
+        UniqueConstraint("account_id", "tenant_id", name="uq_account_branch"),
+        UniqueConstraint("user_id", name="uq_membership_user"),
+        ForeignKeyConstraint(["tenant_id", "user_id"], ["users.tenant_id", "users.id"], ondelete="CASCADE"),
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("login_accounts.id"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    is_owner: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+
+
+class DeploymentOperator(TimestampMixin, Base):
+    """Installation identity, deliberately separate from tenant business users."""
+    __tablename__ = "deployment_operators"
+    __table_args__ = (CheckConstraint("slot = 1", name="ck_single_operator"),)
+    slot: Mapped[int] = mapped_column(Integer, nullable=False, default=1, unique=True)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class OwnerProvision(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "owner_provisions"
+    __table_args__ = (
+        UniqueConstraint("operator_id", "request_id", name="uq_owner_provision_request"),
+        ForeignKeyConstraint(["tenant_id", "owner_user_id"], ["users.tenant_id", "users.id"]),
+    )
+    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("deployment_operators.id"), nullable=False)
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    request_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    branch_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class ManualBookingBatch(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "manual_booking_batches"
+    __table_args__ = (UniqueConstraint("tenant_id", "actor_id", "request_id", name="uq_manual_batch_request"),)
+    actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    package_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+    booking_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+
+
+class DeploymentBranding(TimestampMixin, Base):
+    """Public deployment appearance; contains no tenant business data."""
+    __tablename__ = "deployment_branding"
+    __table_args__ = (
+        CheckConstraint("slot = 1", name="ck_branding_singleton"),
+        CheckConstraint("theme_color ~ '^#[0-9a-f]{6}$'", name="ck_branding_color"),
+    )
+    slot: Mapped[int] = mapped_column(Integer, nullable=False, default=1, unique=True)
+    theme_color: Mapped[str] = mapped_column(String(7), nullable=False)
+    updated_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("deployment_operators.id"), nullable=False)

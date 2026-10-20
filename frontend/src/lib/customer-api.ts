@@ -1,9 +1,10 @@
 import { API_BASE_URL, ApiError } from "./api";
+import { listPage, type ListPage } from "./list-page";
 import type {
   AvailableSlotsResponse,
   BookingCreateInput,
   BookingRecord,
-  CustomerPackageItem,
+  MyCustomerPackageItem,
   MeResponse,
   NotificationItem,
   NotificationsListResponse,
@@ -13,7 +14,21 @@ import type {
 } from "./types";
 
 function tokenKeyForSlug(slug: string): string {
-  return `spaos_customer_token_${slug.toLowerCase()}`;
+  return `spaos_customer_token_${slug.trim().toLowerCase()}`;
+}
+
+export function customerSessionVersionKey(slug: string): string {
+  return `spaos_customer_session_version_${slug.trim().toLowerCase()}`;
+}
+
+const revisions = new Map<string, number>();
+export const CUSTOMER_SESSION_CHANGED = "spaos:customer-session-changed";
+export function invalidateCustomerSessionRequests(slug: string): void {
+  revisions.set(tokenKeyForSlug(slug), (revisions.get(tokenKeyForSlug(slug)) || 0) + 1);
+}
+export function getCustomerSessionIdentity(slug: string): string {
+  return JSON.stringify([getCustomerToken(slug), revisions.get(tokenKeyForSlug(slug)) || 0,
+    typeof window === "undefined" ? null : window.localStorage.getItem(customerSessionVersionKey(slug))]);
 }
 
 export function getCustomerToken(slug: string): string | null {
@@ -23,12 +38,17 @@ export function getCustomerToken(slug: string): string | null {
 
 export function saveCustomerToken(slug: string, token: string): void {
   if (typeof window === "undefined") return;
+  revisions.set(tokenKeyForSlug(slug), (revisions.get(tokenKeyForSlug(slug)) || 0) + 1);
   window.localStorage.setItem(tokenKeyForSlug(slug), token);
+  window.localStorage.setItem(customerSessionVersionKey(slug), window.crypto.randomUUID());
 }
 
 export function clearCustomerToken(slug: string): void {
   if (typeof window === "undefined") return;
+  revisions.set(tokenKeyForSlug(slug), (revisions.get(tokenKeyForSlug(slug)) || 0) + 1);
   window.localStorage.removeItem(tokenKeyForSlug(slug));
+  window.localStorage.setItem(customerSessionVersionKey(slug), window.crypto.randomUUID());
+  window.dispatchEvent(new CustomEvent(CUSTOMER_SESSION_CHANGED, { detail: slug.trim().toLowerCase() }));
 }
 
 interface CustomerRequestOptions {
@@ -36,6 +56,8 @@ interface CustomerRequestOptions {
   body?: unknown;
   slug: string;
   requireAuth?: boolean;
+  token?: string;
+  onResponse?: (response: Response) => void;
 }
 
 export async function customerApiRequest<T>(
@@ -43,7 +65,8 @@ export async function customerApiRequest<T>(
   options: CustomerRequestOptions
 ): Promise<T> {
   const slug = options.slug.trim().toLowerCase();
-  const token = getCustomerToken(slug);
+  const token = options.token ?? getCustomerToken(slug);
+  const session = getCustomerSessionIdentity(slug);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Tenant-Slug": slug,
@@ -61,7 +84,8 @@ export async function customerApiRequest<T>(
     cache: "no-store",
   });
 
-  if (response.status === 401 && options.requireAuth) {
+  if (response.status === 401 && options.requireAuth && token &&
+      token === getCustomerToken(slug) && session === getCustomerSessionIdentity(slug)) {
     clearCustomerToken(slug);
   }
 
@@ -82,6 +106,7 @@ export async function customerApiRequest<T>(
     throw new ApiError(response.status, detail);
   }
 
+  options.onResponse?.(response);
   return (await response.json()) as T;
 }
 
@@ -121,7 +146,7 @@ export async function loginCustomer(
 export async function fetchCustomerMe(slug: string): Promise<MeResponse> {
   return customerApiRequest<MeResponse>("/auth/me", {
     slug,
-    requireAuth: true,
+    // The provider owns validation, including its request/session guard.
   });
 }
 
@@ -129,6 +154,7 @@ export async function fetchCustomerMe(slug: string): Promise<MeResponse> {
 export async function fetchCustomerAvailableSlots(
   slug: string,
   params: {
+    booking_id?: string;
     date: string;
     service_ids: string[];
     staff_id?: string | null;
@@ -143,7 +169,7 @@ export async function fetchCustomerAvailableSlots(
     qs.set("staff_id", params.staff_id);
   }
   return customerApiRequest<AvailableSlotsResponse>(
-    `/bookings/available-slots?${qs.toString()}`,
+    `${params.booking_id ? `/bookings/${params.booking_id}/available-slots` : "/bookings/available-slots"}?${qs.toString()}`,
     { slug }
   );
 }
@@ -162,12 +188,19 @@ export async function createCustomerBooking(
 
 export async function fetchCustomerBookings(
   slug: string,
-  scope: "upcoming" | "history"
+  scope: "upcoming" | "history",
+  options: { limit?: number; offset?: number; onResponse?: (response: Response) => void } = {}
 ): Promise<BookingRecord[]> {
   return customerApiRequest<BookingRecord[]>(
-    `/bookings?scope=${scope}&limit=100`,
-    { slug, requireAuth: true }
+    `/bookings?scope=${scope}&limit=${options.limit ?? 100}&offset=${options.offset ?? 0}`,
+    { slug, requireAuth: true, onResponse: options.onResponse }
   );
+}
+
+export async function fetchCustomerBookingPage(slug: string, scope: "upcoming" | "history", offset = 0): Promise<ListPage<BookingRecord>> {
+  let response: Response | undefined;
+  const items = await fetchCustomerBookings(slug, scope, { limit: 50, offset, onResponse: (value) => { response = value; } });
+  return listPage(items, response, 50, offset);
 }
 
 export async function cancelCustomerBooking(
@@ -181,18 +214,10 @@ export async function cancelCustomerBooking(
   });
 }
 
-export async function fetchMyCustomerPackages(
-  slug: string,
-  customerId: string
-): Promise<CustomerPackageItem[]> {
-  try {
-    return await customerApiRequest<CustomerPackageItem[]>(
-      `/customers/${customerId}/packages`,
-      { slug, requireAuth: true }
-    );
-  } catch {
-    return [];
-  }
+export async function fetchMyCustomerPackages(slug: string): Promise<MyCustomerPackageItem[]> {
+  return customerApiRequest<MyCustomerPackageItem[]>("/customer-packages/me", {
+    slug, requireAuth: true,
+  });
 }
 
 // ------------------------- Notifications & Web Push -------------------------
@@ -210,7 +235,6 @@ export async function subscribeCustomerWebPush(
   payload: {
     endpoint: string;
     keys: { p256dh: string; auth: string };
-    user_agent?: string;
   }
 ): Promise<{ id: string; endpoint: string }> {
   return customerApiRequest<{ id: string; endpoint: string }>(
@@ -226,15 +250,16 @@ export async function subscribeCustomerWebPush(
 
 export async function unsubscribeCustomerWebPush(
   slug: string,
-  endpoint: string
-): Promise<{ unsubscribed: boolean }> {
-  return customerApiRequest<{ unsubscribed: boolean }>(
+  endpoint: string,
+  token?: string
+): Promise<{ deleted: number }> {
+  return customerApiRequest<{ deleted: number }>(
     "/notifications/unsubscribe",
     {
       method: "DELETE",
       slug,
       body: { endpoint },
-      requireAuth: true,
+      token,
     }
   );
 }
@@ -250,8 +275,8 @@ export async function fetchCustomerNotifications(
 
 export async function markAllCustomerNotificationsRead(
   slug: string
-): Promise<{ marked_read: number }> {
-  return customerApiRequest<{ marked_read: number }>(
+): Promise<{ updated: number }> {
+  return customerApiRequest<{ updated: number }>(
     "/notifications/read-all",
     {
       method: "PATCH",
@@ -273,4 +298,8 @@ export async function markCustomerNotificationRead(
       requireAuth: true,
     }
   );
+}
+
+export function rescheduleCustomerBooking(slug: string, id: string, payload: { start_time: string; staff_id: string | null; note: string | null }): Promise<BookingRecord> {
+  return customerApiRequest<BookingRecord>(`/bookings/${id}`, { method: "PATCH", slug, body: payload, requireAuth: true });
 }

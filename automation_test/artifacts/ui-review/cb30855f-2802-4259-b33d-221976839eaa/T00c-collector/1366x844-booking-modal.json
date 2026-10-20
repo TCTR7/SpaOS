@@ -1,0 +1,347 @@
+{
+  "viewport": {
+    "width": 1366,
+    "height": 844
+  },
+  "documentWidth": 1366,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [
+    {
+      "tag": "div",
+      "testId": "calendar-container",
+      "role": null,
+      "bounds": {
+        "left": -338,
+        "top": 308,
+        "right": 1342,
+        "bottom": 535.5,
+        "width": 1680,
+        "height": 227.5
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -338,
+        "top": 308,
+        "right": -108.296875,
+        "bottom": 352,
+        "width": 229.703125,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 319,
+        "right": -119.296875,
+        "bottom": 341,
+        "width": 207.703125,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -327,
+        "top": 322,
+        "right": -294.046875,
+        "bottom": 338,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -170.171875,
+        "top": 319,
+        "right": -119.296875,
+        "bottom": 341,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -96.296875,
+        "top": 308,
+        "right": 133.421875,
+        "bottom": 352,
+        "width": 229.71875,
+        "height": 44
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 319,
+        "right": 122.421875,
+        "bottom": 341,
+        "width": 207.71875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -85.296875,
+        "top": 322,
+        "right": -52.34375,
+        "bottom": 338,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": null,
+      "bounds": {
+        "left": 299,
+        "top": 52.203125,
+        "right": 1067,
+        "bottom": 811.796875,
+        "width": 768,
+        "height": 759.59375
+      },
+      "scrollWidth": 766,
+      "clientWidth": 766,
+      "violationCount": 6,
+      "violations": [
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 850.734375,
+            "top": 837.203125,
+            "right": 876.328125,
+            "bottom": 856.203125,
+            "width": 25.59375,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-clipped",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "clipper": {
+            "tag": "div",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 850.734375,
+            "top": 837.203125,
+            "right": 876.328125,
+            "bottom": 856.203125,
+            "width": 25.59375,
+            "height": 19
+          },
+          "clipBounds": {
+            "left": 299,
+            "top": 52.203125,
+            "right": 1067,
+            "bottom": 811.796875,
+            "width": 768,
+            "height": 759.59375
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 917.328125,
+            "top": 837.203125,
+            "right": 1026,
+            "bottom": 856.203125,
+            "width": 108.671875,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-clipped",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "clipper": {
+            "tag": "div",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 917.328125,
+            "top": 837.203125,
+            "right": 1026,
+            "bottom": 856.203125,
+            "width": 108.671875,
+            "height": 19
+          },
+          "clipBounds": {
+            "left": 299,
+            "top": 52.203125,
+            "right": 1067,
+            "bottom": 811.796875,
+            "width": 768,
+            "height": 759.59375
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 833.734375,
+            "top": 829.203125,
+            "right": 893.328125,
+            "bottom": 865.203125,
+            "width": 59.59375,
+            "height": 36
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 901.328125,
+            "top": 829.203125,
+            "right": 1042,
+            "bottom": 865.203125,
+            "width": 140.671875,
+            "height": 36
+          }
+        }
+      ]
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"modal\"]",
+  "measurementStatus": "measured",
+  "dialogs": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": "dialog",
+      "bounds": {
+        "left": 0,
+        "top": 20,
+        "right": 1366,
+        "bottom": 844,
+        "width": 1366,
+        "height": 824
+      },
+      "scrollHeight": 824,
+      "clientHeight": 824,
+      "focusInside": false,
+      "scrollRegions": [
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 299,
+            "top": 52.203125,
+            "right": 1067,
+            "bottom": 811.796875,
+            "width": 768,
+            "height": 759.59375
+          },
+          "scrollHeight": 836,
+          "clientHeight": 758
+        },
+        {
+          "tag": "div",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 324,
+            "top": 421.203125,
+            "right": 1042,
+            "bottom": 495.203125,
+            "width": 718,
+            "height": 74
+          },
+          "scrollHeight": 72,
+          "clientHeight": 72
+        },
+        {
+          "tag": "textarea",
+          "testId": null,
+          "role": null,
+          "bounds": {
+            "left": 324,
+            "top": 733.203125,
+            "right": 1042,
+            "bottom": 805.203125,
+            "width": 718,
+            "height": 72
+          },
+          "scrollHeight": 70,
+          "clientHeight": 70
+        }
+      ]
+    }
+  ],
+  "cardViolationCount": 6,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "booking-modal",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1366x844-booking-modal.png",
+  "collectionIsUiPass": false
+}

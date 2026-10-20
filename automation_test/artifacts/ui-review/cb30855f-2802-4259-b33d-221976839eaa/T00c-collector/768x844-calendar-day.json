@@ -1,0 +1,47 @@
+{
+  "viewport": {
+    "width": 768,
+    "height": 844
+  },
+  "documentWidth": 768,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-32c90fce-d275-4c2c-ab59-b0053de92eaa",
+      "bounds": {
+        "left": 280,
+        "top": 444,
+        "right": 744,
+        "bottom": 618,
+        "width": 464,
+        "height": 174
+      },
+      "scrollWidth": 462,
+      "clientWidth": 462,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"booking\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "calendar-day",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "768x844-calendar-day.png",
+  "collectionIsUiPass": false
+}

@@ -1,0 +1,681 @@
+{
+  "viewport": {
+    "width": 768,
+    "height": 844
+  },
+  "documentWidth": 768,
+  "documentHeight": 1156,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-a2f20cfd-7663-4a6b-ae48-ce67ec07b6c0",
+      "bounds": {
+        "left": 563,
+        "top": 508,
+        "right": 597,
+        "bottom": 1121,
+        "width": 34,
+        "height": 613
+      },
+      "scrollWidth": 169,
+      "clientWidth": 32,
+      "violationCount": 40,
+      "violations": [
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 589.109375,
+            "top": 534,
+            "right": 619.984375,
+            "bottom": 550,
+            "width": 30.875,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 589.109375,
+            "top": 566,
+            "right": 619.984375,
+            "bottom": 582,
+            "width": 30.875,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 634.875,
+            "top": 541.5,
+            "right": 638.203125,
+            "bottom": 556.5,
+            "width": 3.328125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 638.203125,
+            "top": 541.5,
+            "right": 650.0625,
+            "bottom": 556.5,
+            "width": 11.859375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 634.875,
+            "top": 558,
+            "right": 660.84375,
+            "bottom": 573,
+            "width": 25.96875,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 688.265625,
+            "top": 526,
+            "right": 705.84375,
+            "bottom": 542,
+            "width": 17.578125,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 688.265625,
+            "top": 542,
+            "right": 705.96875,
+            "bottom": 558,
+            "width": 17.703125,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 688.265625,
+            "top": 558,
+            "right": 707.921875,
+            "bottom": 574,
+            "width": 19.65625,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 688.265625,
+            "top": 574,
+            "right": 714.171875,
+            "bottom": 590,
+            "width": 25.90625,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 597,
+            "right": 620.125,
+            "bottom": 616,
+            "width": 42.125,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 623.984375,
+            "top": 597,
+            "right": 708.921875,
+            "bottom": 616,
+            "width": 84.9375,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 617,
+            "right": 663.3125,
+            "bottom": 636,
+            "width": 85.3125,
+            "height": 19
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 637,
+            "right": 654.359375,
+            "bottom": 653,
+            "width": 76.359375,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "strong",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 657.65625,
+            "top": 637,
+            "right": 705.140625,
+            "bottom": 653,
+            "width": 47.484375,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 589,
+            "top": 664,
+            "right": 608.96875,
+            "bottom": 679,
+            "width": 19.96875,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 589,
+            "top": 680.5,
+            "right": 605.4375,
+            "bottom": 695.5,
+            "width": 16.4375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 589,
+            "top": 697,
+            "right": 613.984375,
+            "bottom": 712,
+            "width": 24.984375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 607,
+            "top": 720.5,
+            "right": 624.984375,
+            "bottom": 736.5,
+            "width": 17.984375,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 587,
+            "top": 749.5,
+            "right": 602.125,
+            "bottom": 764.5,
+            "width": 15.125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 587,
+            "top": 766,
+            "right": 635.890625,
+            "bottom": 781,
+            "width": 48.890625,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 590.328125,
+            "top": 782.5,
+            "right": 602.1875,
+            "bottom": 797.5,
+            "width": 11.859375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 602.1875,
+            "top": 782.5,
+            "right": 616.140625,
+            "bottom": 797.5,
+            "width": 13.953125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 587,
+            "top": 799,
+            "right": 620.171875,
+            "bottom": 814,
+            "width": 33.171875,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 620.171875,
+            "top": 799,
+            "right": 623.5,
+            "bottom": 814,
+            "width": 3.328125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 841.5,
+            "right": 606.046875,
+            "bottom": 856.5,
+            "width": 28.046875,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 858,
+            "right": 599.65625,
+            "bottom": 873,
+            "width": 21.65625,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 596.734375,
+            "top": 885.5,
+            "right": 606.234375,
+            "bottom": 900.5,
+            "width": 9.5,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 594.671875,
+            "top": 902,
+            "right": 608.3125,
+            "bottom": 917,
+            "width": 13.640625,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 593.265625,
+            "top": 918.5,
+            "right": 609.703125,
+            "bottom": 933.5,
+            "width": 16.4375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 589,
+            "top": 935,
+            "right": 613.984375,
+            "bottom": 950,
+            "width": 24.984375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 596.734375,
+            "top": 967.5,
+            "right": 606.234375,
+            "bottom": 982.5,
+            "width": 9.5,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 594.671875,
+            "top": 984,
+            "right": 608.3125,
+            "bottom": 999,
+            "width": 13.640625,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 592.28125,
+            "top": 1000.5,
+            "right": 610.703125,
+            "bottom": 1015.5,
+            "width": 18.421875,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 605.828125,
+            "top": 1035,
+            "right": 623.171875,
+            "bottom": 1050,
+            "width": 17.34375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 598.53125,
+            "top": 1051.5,
+            "right": 630.484375,
+            "bottom": 1066.5,
+            "width": 31.953125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 602.59375,
+            "top": 1068,
+            "right": 626.40625,
+            "bottom": 1083,
+            "width": 23.8125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 604.4375,
+            "top": 1084.5,
+            "right": 624.5625,
+            "bottom": 1099.5,
+            "width": 20.125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 880.5,
+            "right": 624.984375,
+            "bottom": 956.5,
+            "width": 46.984375,
+            "height": 76
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 962.5,
+            "right": 624.984375,
+            "bottom": 1022,
+            "width": 46.984375,
+            "height": 59.5
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 578,
+            "top": 1030,
+            "right": 642.390625,
+            "bottom": 1106,
+            "width": 64.390625,
+            "height": 76
+          }
+        }
+      ]
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 40,
+  "intentionalScrollSelectors": [],
+  "task": "UX-01-regression",
+  "label": "week",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1
+  },
+  "screenshot": "768x844-week.png",
+  "collectionIsUiPass": false
+}

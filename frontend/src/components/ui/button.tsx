@@ -23,17 +23,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       };
 
     const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-      default: "h-9 px-4 py-2 text-sm",
-      sm: "h-8 rounded-md px-3 text-xs",
-      lg: "h-10 rounded-md px-6 text-sm",
-      icon: "h-9 w-9",
+      default: "h-11 min-h-11 px-4 py-2 text-sm sm:h-9 sm:min-h-9",
+      sm: "h-11 min-h-11 rounded-md px-3 text-sm sm:h-8 sm:min-h-8 sm:text-xs",
+      lg: "h-12 min-h-12 rounded-md px-6 text-base sm:h-10 sm:min-h-10 sm:text-sm",
+      icon: "h-11 min-h-11 w-11 min-w-11 shrink-0 sm:h-9 sm:min-h-9 sm:w-9 sm:min-w-9",
     };
 
     return (
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
           variantClasses[variant],
           sizeClasses[size],
           className

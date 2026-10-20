@@ -1,0 +1,310 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 844
+  },
+  "documentWidth": 1024,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": "calendar-container",
+      "role": null,
+      "bounds": {
+        "left": -680,
+        "top": 384,
+        "right": 1000,
+        "bottom": 617,
+        "width": 1680,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -680,
+        "top": 384,
+        "right": -450.296875,
+        "bottom": 617,
+        "width": 229.703125,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 395,
+        "right": -461.296875,
+        "bottom": 424,
+        "width": 207.703125,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 398,
+        "right": -636.046875,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -512.171875,
+        "top": 395,
+        "right": -461.296875,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 432,
+        "right": -461.296875,
+        "bottom": 606,
+        "width": 207.703125,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 432,
+        "right": -461.296875,
+        "bottom": 456,
+        "width": 207.703125,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -438.296875,
+        "top": 384,
+        "right": -208.578125,
+        "bottom": 617,
+        "width": 229.71875,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 395,
+        "right": -219.578125,
+        "bottom": 424,
+        "width": 207.71875,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 398,
+        "right": -394.34375,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -270.453125,
+        "top": 395,
+        "right": -219.578125,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 432,
+        "right": -219.578125,
+        "bottom": 606,
+        "width": 207.71875,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 432,
+        "right": -219.578125,
+        "bottom": 456,
+        "width": 207.71875,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -196.578125,
+        "top": 384,
+        "right": 33.140625,
+        "bottom": 617,
+        "width": 229.71875,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 395,
+        "right": 22.140625,
+        "bottom": 424,
+        "width": 207.71875,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 398,
+        "right": -152.625,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -28.734375,
+        "top": 395,
+        "right": 22.140625,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 432,
+        "right": 22.140625,
+        "bottom": 606,
+        "width": 207.71875,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 432,
+        "right": 22.140625,
+        "bottom": 456,
+        "width": 207.71875,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-b4788299-b228-4083-a2ef-02a3a597daa2",
+      "bounds": {
+        "left": 297.84375,
+        "top": 432,
+        "right": 505.5625,
+        "bottom": 606,
+        "width": 207.71875,
+        "height": 174
+      },
+      "scrollWidth": 206,
+      "clientWidth": 206,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "calendar-week",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1024x844-calendar-week.png",
+  "collectionIsUiPass": false
+}

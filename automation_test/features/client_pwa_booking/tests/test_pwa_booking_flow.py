@@ -14,7 +14,7 @@ from features.client_pwa_booking.pages.my_appointments_page import (
 )
 
 
-def test_customer_pwa_4step_booking_and_admin_calendar_sync(
+def test_customer_pwa_3step_booking_and_admin_calendar_sync(
     customer_pwa_page: Page, admin_page: Page, api_helper: ApiHelper
 ) -> None:
     token = api_helper.get_admin_token()
@@ -25,13 +25,13 @@ def test_customer_pwa_4step_booking_and_admin_calendar_sync(
     booking_day = (date.today() + timedelta(days=4)).isoformat()
     unique_note = f"PWA_E2E_BOOKING_{unique_suffix()}"
 
-    # 1. Customer completes 4-step wizard on Mobile PWA
+    # 1. Customer completes 3-step wizard on Mobile PWA
     wizard = BookingWizardPage(customer_pwa_page)
     wizard.open_wizard(config.tenant_slug)
     wizard.step1_select_service_by_name(chosen_service_name)
     wizard.step2_choose_auto_assign_staff()
-    wizard.step3_select_date_and_first_slot(booking_day)
-    wizard.step4_confirm_booking(unique_note)
+    wizard.step2_select_date_and_first_slot(booking_day)
+    wizard.step3_confirm_booking(unique_note)
 
     # 2. Verify redirect to /[tenant_slug]/appointments ("Sắp tới")
     my_appts = MyAppointmentsPage(customer_pwa_page)

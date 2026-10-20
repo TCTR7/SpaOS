@@ -36,6 +36,7 @@ export default function AdminServicesPage(): React.ReactElement {
   const [totalSessions, setTotalSessions] = React.useState<number>(1);
   const [isActive, setIsActive] = React.useState<boolean>(true);
   const [saving, setSaving] = React.useState<boolean>(false);
+  const saveFlight = React.useRef(false);
 
   const loadServices = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -82,6 +83,8 @@ export default function AdminServicesPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (saveFlight.current) return;
+    saveFlight.current = true;
     setSaving(true);
     setError(null);
     setInfoMessage(null);
@@ -108,6 +111,7 @@ export default function AdminServicesPage(): React.ReactElement {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lưu dịch vụ thất bại");
     } finally {
+      saveFlight.current = false;
       setSaving(false);
     }
   };
@@ -131,7 +135,7 @@ export default function AdminServicesPage(): React.ReactElement {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">
@@ -151,7 +155,7 @@ export default function AdminServicesPage(): React.ReactElement {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+        <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
           {error}
         </div>
       )}
@@ -168,6 +172,8 @@ export default function AdminServicesPage(): React.ReactElement {
             Đang tải danh mục dịch vụ...
           </CardContent>
         </Card>
+      ) : error && services.length === 0 ? (
+        <Button variant="outline" onClick={() => void loadServices()}>Thử tải lại dịch vụ</Button>
       ) : services.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -177,34 +183,34 @@ export default function AdminServicesPage(): React.ReactElement {
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
+          <CardContent className="min-w-0 p-0">
+            <table className="block w-full text-left text-sm lg:table lg:text-xs">
+              <thead className="hidden lg:table-header-group border-b border-border bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Tên dịch vụ</th>
-                  <th className="px-4 py-3">Phân loại</th>
-                  <th className="px-4 py-3">Thời lượng</th>
-                  <th className="px-4 py-3">Đơn giá</th>
-                  <th className="px-4 py-3">Trạng thái</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell">Tên dịch vụ</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell">Phân loại</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell">Thời lượng</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell">Đơn giá</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell">Trạng thái</th>
                   {isAdmin && (
-                    <th className="px-4 py-3 text-right">Thao tác</th>
+                    <th className="block min-w-0 px-4 py-3 lg:table-cell text-right">Thao tác</th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="block space-y-3 p-3 lg:table-row-group lg:space-y-0 lg:divide-y lg:divide-border lg:p-0">
                 {services.map((svc) => (
-                  <tr key={svc.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3">
+                  <tr key={svc.id} className="grid min-w-0 grid-cols-2 rounded-xl border border-border lg:table-row lg:rounded-none lg:border-0 lg:hover:bg-muted/30">
+                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell">
                       <p className="font-semibold text-foreground text-sm">
                         {svc.name}
                       </p>
                       {svc.description && (
-                        <p className="text-muted-foreground line-clamp-1">
+                        <p className="text-muted-foreground [overflow-wrap:anywhere]">
                           {svc.description}
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell">
                       {svc.is_package ? (
                         <Badge variant="default">
                           Gói liệu trình ({svc.total_sessions} buổi)
@@ -213,19 +219,21 @@ export default function AdminServicesPage(): React.ReactElement {
                         <Badge variant="secondary">Dịch vụ lẻ (1 buổi)</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell font-medium">
+                      <span className="block text-xs text-muted-foreground lg:hidden">Thời lượng</span>
                       {svc.duration_minutes} phút
                     </td>
-                    <td className="px-4 py-3 font-bold text-foreground">
+                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell font-bold text-foreground">
+                      <span className="block text-xs font-normal text-muted-foreground lg:hidden">Đơn giá</span>
                       {formatCurrency(svc.price)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell">
                       <Badge variant={svc.is_active ? "success" : "outline"}>
                         {svc.is_active ? "Đang hoạt động" : "Tạm ngưng"}
                       </Badge>
                     </td>
                     {isAdmin && (
-                      <td className="px-4 py-3 text-right">
+                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell text-right">
                         <div className="inline-flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -258,9 +266,12 @@ export default function AdminServicesPage(): React.ReactElement {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        pending={saving}
+        dirty={editing ? name !== editing.name || description !== (editing.description || "") || durationMinutes !== editing.duration_minutes || price !== Number(editing.price) || isPackage !== editing.is_package || totalSessions !== editing.total_sessions || isActive !== editing.is_active : !!name || !!description || durationMinutes !== 60 || price !== 350000 || isPackage || !isActive}
         title={editing ? "Chỉnh sửa Dịch vụ" : "Thêm Dịch vụ / Gói liệu trình"}
       >
-        <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
+        <form ref={(element) => { element?.toggleAttribute("inert", saving); }} onSubmit={(e) => void handleSave(e)} className="space-y-4">
+          {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
           <div className="space-y-1.5">
             <Label htmlFor="svcName">Tên dịch vụ</Label>
             <Input
@@ -358,13 +369,6 @@ export default function AdminServicesPage(): React.ReactElement {
           </label>
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setModalOpen(false)}
-            >
-              Hủy
-            </Button>
             <Button type="submit" disabled={saving}>
               {saving ? "Đang lưu..." : "Lưu dịch vụ"}
             </Button>

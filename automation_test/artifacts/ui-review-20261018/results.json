@@ -1,0 +1,280 @@
+[
+  {
+    "screen": "calendar-day",
+    "viewport": 360,
+    "pageWidth": 360,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "calendar-week",
+    "viewport": 360,
+    "pageWidth": 360,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "booking-modal",
+    "viewport": 360,
+    "pageWidth": 360,
+    "outside": [],
+    "smallTargets": 24
+  },
+  {
+    "screen": "payments",
+    "viewport": 360,
+    "pageWidth": 360,
+    "outside": [],
+    "smallTargets": 11
+  },
+  {
+    "screen": "notifications",
+    "viewport": 360,
+    "pageWidth": 360,
+    "outside": [],
+    "smallTargets": 14
+  },
+  {
+    "screen": "customer-package",
+    "viewport": 360,
+    "pageWidth": 360,
+    "outside": [],
+    "smallTargets": 2
+  },
+  {
+    "screen": "calendar-day",
+    "viewport": 390,
+    "pageWidth": 390,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "calendar-week",
+    "viewport": 390,
+    "pageWidth": 390,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "booking-modal",
+    "viewport": 390,
+    "pageWidth": 390,
+    "outside": [],
+    "smallTargets": 24
+  },
+  {
+    "screen": "payments",
+    "viewport": 390,
+    "pageWidth": 390,
+    "outside": [],
+    "smallTargets": 11
+  },
+  {
+    "screen": "notifications",
+    "viewport": 390,
+    "pageWidth": 390,
+    "outside": [],
+    "smallTargets": 14
+  },
+  {
+    "screen": "customer-package",
+    "viewport": 390,
+    "pageWidth": 390,
+    "outside": [],
+    "smallTargets": 2
+  },
+  {
+    "screen": "calendar-day",
+    "viewport": 768,
+    "pageWidth": 768,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "calendar-week",
+    "viewport": 768,
+    "pageWidth": 768,
+    "outside": [],
+    "smallTargets": 13
+  },
+  {
+    "screen": "booking-modal",
+    "viewport": 768,
+    "pageWidth": 768,
+    "outside": [],
+    "smallTargets": 21
+  },
+  {
+    "screen": "payments",
+    "viewport": 768,
+    "pageWidth": 768,
+    "outside": [],
+    "smallTargets": 11
+  },
+  {
+    "screen": "notifications",
+    "viewport": 768,
+    "pageWidth": 768,
+    "outside": [],
+    "smallTargets": 14
+  },
+  {
+    "screen": "customer-package",
+    "viewport": 768,
+    "pageWidth": 768,
+    "outside": [],
+    "smallTargets": 2
+  },
+  {
+    "screen": "calendar-day",
+    "viewport": 1024,
+    "pageWidth": 1024,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "calendar-week",
+    "viewport": 1024,
+    "pageWidth": 1024,
+    "outside": [],
+    "smallTargets": 13
+  },
+  {
+    "screen": "booking-modal",
+    "viewport": 1024,
+    "pageWidth": 1024,
+    "outside": [],
+    "smallTargets": 21
+  },
+  {
+    "screen": "payments",
+    "viewport": 1024,
+    "pageWidth": 1024,
+    "outside": [],
+    "smallTargets": 11
+  },
+  {
+    "screen": "notifications",
+    "viewport": 1024,
+    "pageWidth": 1024,
+    "outside": [],
+    "smallTargets": 14
+  },
+  {
+    "screen": "customer-package",
+    "viewport": 1024,
+    "pageWidth": 1024,
+    "outside": [],
+    "smallTargets": 2
+  },
+  {
+    "screen": "calendar-day",
+    "viewport": 1366,
+    "pageWidth": 1366,
+    "outside": [],
+    "smallTargets": 16
+  },
+  {
+    "screen": "calendar-week",
+    "viewport": 1366,
+    "pageWidth": 1366,
+    "outside": [],
+    "smallTargets": 14
+  },
+  {
+    "screen": "booking-modal",
+    "viewport": 1366,
+    "pageWidth": 1366,
+    "outside": [],
+    "smallTargets": 22
+  },
+  {
+    "screen": "payments",
+    "viewport": 1366,
+    "pageWidth": 1366,
+    "outside": [],
+    "smallTargets": 11
+  },
+  {
+    "screen": "notifications",
+    "viewport": 1366,
+    "pageWidth": 1366,
+    "outside": [],
+    "smallTargets": 14
+  },
+  {
+    "screen": "customer-package",
+    "viewport": 1366,
+    "pageWidth": 1366,
+    "outside": [],
+    "smallTargets": 2
+  },
+  {
+    "screen": "calendar-long-note",
+    "viewport": 390,
+    "pageWidth": 1821,
+    "outside": [
+      {
+        "tag": "DIV",
+        "text": "10:00 – 10:30(30 phút)Trừ thẻ liệu trìnhKhách: QA Customer (0987673794)KTV phụ trách: QA S",
+        "classes": "rounded-lg border border-border p-3.5 shadow-xs transition hover:shadow-md border-l-4 border-l-amber-500 bg-amber-50/70"
+      },
+      {
+        "tag": "DIV",
+        "text": "10:00 – 10:30(30 phút)Trừ thẻ liệu trìnhKhách: QA Customer (0987673794)KTV phụ trách: QA S",
+        "classes": "flex flex-wrap items-start justify-between gap-2"
+      },
+      {
+        "tag": "DIV",
+        "text": "Chờ xác nhận0 ₫",
+        "classes": "flex flex-col items-end gap-1"
+      },
+      {
+        "tag": "SPAN",
+        "text": "Chờ xác nhận",
+        "classes": "rounded-full border px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 border-amber-300"
+      },
+      {
+        "tag": "SPAN",
+        "text": "0 ₫",
+        "classes": "text-xs font-bold text-foreground"
+      },
+      {
+        "tag": "DIV",
+        "text": "QA Treatment (30p • Thẻ 0₫)",
+        "classes": "mt-2.5 flex flex-wrap gap-1.5"
+      },
+      {
+        "tag": "P",
+        "text": "Ghi chú: LongNoteLongNoteLongNoteLongNoteLongNoteLongNoteLongNoteLongNoteLongNoteLongNoteL",
+        "classes": "mt-2 rounded bg-white/60 px-2.5 py-1 text-xs italic text-slate-600"
+      },
+      {
+        "tag": "DIV",
+        "text": "Trạng thái:→ Đã xác nhận→ Đã hủyĐổi ngày / giờ / KTV",
+        "classes": "mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Đổi ngày / giờ / KTV",
+        "classes": "inline-flex items-center gap-1 rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100"
+      },
+      {
+        "tag": "svg",
+        "text": "",
+        "classes": {}
+      },
+      {
+        "tag": "path",
+        "text": "",
+        "classes": {}
+      },
+      {
+        "tag": "path",
+        "text": "",
+        "classes": {}
+      }
+    ],
+    "smallTargets": 16
+  }
+]

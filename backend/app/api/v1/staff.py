@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_tenant_id, get_tenant_db, require_roles
 from app.api.utils import apply_patch, commit_and_refresh
 from app.core.security import hash_password
-from app.models.models import StaffSchedule, User, UserRole
+from app.services.branch_service import provision_account, membership_for, account_for, account_context
+from app.models.models import StaffSchedule, User, UserRole, BranchMembership
 from app.schemas.admin import (
     ScheduleOut,
     ScheduleReplace,
@@ -60,6 +61,8 @@ async def create_staff(
     )
     db.add(staff)
     try:
+        await db.flush()
+        await provision_account(db, staff)
         await commit_and_refresh(db, tenant_id, staff)
     except IntegrityError:
         await db.rollback()
@@ -80,18 +83,31 @@ async def update_staff(
     password = data.pop("password", None)
     for key, value in data.items():
         if value is None and key != "notes":
-            raise HTTPException(
-                status_code=getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", 422),
-                detail=f"Trường '{key}' không được để null",
-            )
-        setattr(staff, key, value)
-    if password:
-        staff.password_hash = hash_password(password)
+            raise HTTPException(422, f"Trường '{key}' không được để null")
+    account, link = None, None
+    if password or "phone_number" in data:
+        link = await membership_for(db, staff)
+        if link:
+            account, _ = await account_for(db, staff)
+            links = (await db.execute(select(BranchMembership.id).where(BranchMembership.account_id == account.id))).all()
+            if len(links) > 1:
+                raise HTTPException(409, "Tài khoản dùng nhiều chi nhánh: không đổi SĐT/mật khẩu tại một chi nhánh.")
     try:
+        for key, value in data.items():
+            setattr(staff, key, value)
+        if account:
+            account.phone_number = staff.phone_number
+            if password:
+                account.password_hash = hash_password(password)
+                staff.password_hash = account.password_hash
+        elif password:
+            staff.password_hash = hash_password(password)
+        if (password or "phone_number" in data) and not link:
+            await provision_account(db, staff)
         await commit_and_refresh(db, tenant_id, staff)
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Số điện thoại đã tồn tại trong Spa")
+        raise HTTPException(409, "Số điện thoại đã tồn tại trong hệ thống")
     return staff
 
 

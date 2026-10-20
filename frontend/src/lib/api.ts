@@ -1,3 +1,4 @@
+import { withAdminWrite } from "./branch-guard";
 import type {
   AvailableSlotsResponse,
   BookingCreateInput,
@@ -16,11 +17,26 @@ import type {
   UserDetail,
   VapidPublicKeyResponse,
 } from "./types";
+import { listPage, type ListPage } from "./list-page";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 const TOKEN_KEY = "spaos_admin_token";
 const SLUG_KEY = "spaos_admin_slug";
+export const ADMIN_SESSION_VERSION_KEY = "spaos_admin_session_version";
+let sessionRevision = 0;
+export const ADMIN_SESSION_CHANGED = "spaos:admin-session-changed";
+export function invalidateAdminSessionRequests(): void { sessionRevision += 1; }
+
+export function getAdminSessionIdentity(): string {
+  return JSON.stringify([getStoredToken(), sessionRevision,
+    typeof window === "undefined" ? null : window.localStorage.getItem(ADMIN_SESSION_VERSION_KEY)]);
+}
+
+export function saveVerifiedAdminSlug(slug: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SLUG_KEY, slug);
+}
 
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -34,13 +50,18 @@ export function getStoredSlug(): string | null {
 
 export function saveAuthSession(token: string, slug: string): void {
   if (typeof window === "undefined") return;
+  sessionRevision += 1;
   window.localStorage.setItem(TOKEN_KEY, token);
   window.localStorage.setItem(SLUG_KEY, slug);
+  window.localStorage.setItem(ADMIN_SESSION_VERSION_KEY, window.crypto.randomUUID());
 }
 
 export function clearAuthSession(): void {
   if (typeof window === "undefined") return;
+  sessionRevision += 1;
   window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.setItem(ADMIN_SESSION_VERSION_KEY, window.crypto.randomUUID());
+  window.dispatchEvent(new Event(ADMIN_SESSION_CHANGED));
 }
 
 export class ApiError extends Error {
@@ -57,6 +78,7 @@ interface RequestOptions {
   body?: unknown;
   headers?: Record<string, string>;
   skipAuthRedirect?: boolean;
+  onResponse?: (response: Response) => void;
 }
 
 export async function apiRequest<T>(
@@ -64,6 +86,7 @@ export async function apiRequest<T>(
   options: RequestOptions = {}
 ): Promise<T> {
   const token = getStoredToken();
+  const session = getAdminSessionIdentity();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -73,15 +96,23 @@ export async function apiRequest<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const send = () => {
+    if (token && session !== getAdminSessionIdentity()) throw new Error("Phi\u00ean \u0111\u00e3 thay \u0111\u1ed5i. Kh\u00f4ng g\u1eedi l\u1ea1i thao t\u00e1c c\u0169.");
+    return fetch(`${API_BASE_URL}${path}`, {
     method: options.method || "GET",
     headers,
     body:
       options.body !== undefined ? JSON.stringify(options.body) : undefined,
     cache: "no-store",
   });
+  };
+  const guardedWrite = !!token && options.method && options.method !== "GET"
+    && !path.startsWith("/auth/") && !/^\/branches\/[^/]+\/switch$/.test(path)
+    && path !== "/notifications/unsubscribe";
+  const response = await (guardedWrite ? withAdminWrite(send) : send());
 
-  if (response.status === 401 && !options.skipAuthRedirect) {
+  if (response.status === 401 && !options.skipAuthRedirect && token &&
+      headers.Authorization === `Bearer ${token}` && session === getAdminSessionIdentity()) {
     clearAuthSession();
     if (
       typeof window !== "undefined" &&
@@ -109,18 +140,17 @@ export async function apiRequest<T>(
     throw new ApiError(response.status, detail);
   }
 
+  options.onResponse?.(response);
   return (await response.json()) as T;
 }
 
 // ------------------------- 2.1 Auth -------------------------
 export async function loginAdmin(
-  tenantSlug: string,
   phoneNumber: string,
   password: string
 ): Promise<TokenResponse> {
   return apiRequest<TokenResponse>("/auth/login", {
     method: "POST",
-    headers: { "X-Tenant-Slug": tenantSlug.trim().toLowerCase() },
     body: { phone_number: phoneNumber.trim(), password },
     skipAuthRedirect: true,
   });
@@ -141,7 +171,7 @@ export async function registerTenant(payload: {
 }
 
 export async function fetchMe(): Promise<MeResponse> {
-  return apiRequest<MeResponse>("/auth/me");
+  return apiRequest<MeResponse>("/auth/me", { skipAuthRedirect: true });
 }
 
 // ------------------------- 2.2 Tenant Settings -------------------------
@@ -277,13 +307,20 @@ export async function fetchCustomers(params?: {
   q?: string;
   limit?: number;
   offset?: number;
-}): Promise<UserDetail[]> {
+}, onResponse?: (response: Response) => void): Promise<UserDetail[]> {
   const qs = new URLSearchParams();
   if (params?.q && params.q.trim()) qs.set("q", params.q.trim());
   if (params?.limit !== undefined) qs.set("limit", String(params.limit));
   if (params?.offset !== undefined) qs.set("offset", String(params.offset));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
-  return apiRequest<UserDetail[]>(`/customers${suffix}`);
+  return apiRequest<UserDetail[]>(`/customers${suffix}`, { onResponse });
+}
+
+export async function fetchCustomerPage(params: { q?: string; limit?: number; offset?: number } = {}): Promise<ListPage<UserDetail>> {
+  let response: Response | undefined;
+  const limit = params.limit ?? 50, offset = params.offset ?? 0;
+  const items = await fetchCustomers({ ...params, limit, offset }, (value) => { response = value; });
+  return listPage(items, response, limit, offset);
 }
 
 export async function createCustomer(payload: {
@@ -346,6 +383,7 @@ export async function issueCustomerPackage(payload: {
 
 // ------------------------- 2.6 Bookings -------------------------
 export async function fetchAvailableSlots(params: {
+  booking_id?: string;
   date: string;
   service_ids: string[];
   staff_id?: string | null;
@@ -359,7 +397,7 @@ export async function fetchAvailableSlots(params: {
     qs.set("staff_id", params.staff_id);
   }
   return apiRequest<AvailableSlotsResponse>(
-    `/bookings/available-slots?${qs.toString()}`
+    `${params.booking_id ? `/bookings/${params.booking_id}/available-slots` : "/bookings/available-slots"}?${qs.toString()}`
   );
 }
 
@@ -372,7 +410,7 @@ export async function fetchBookings(params?: {
   scope?: "upcoming" | "history";
   limit?: number;
   offset?: number;
-}): Promise<BookingRecord[]> {
+}, onResponse?: (response: Response) => void): Promise<BookingRecord[]> {
   const qs = new URLSearchParams();
   if (params?.date_from) qs.set("date_from", params.date_from);
   if (params?.date_to) qs.set("date_to", params.date_to);
@@ -383,7 +421,14 @@ export async function fetchBookings(params?: {
   if (params?.limit !== undefined) qs.set("limit", String(params.limit));
   if (params?.offset !== undefined) qs.set("offset", String(params.offset));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
-  return apiRequest<BookingRecord[]>(`/bookings${suffix}`);
+  return apiRequest<BookingRecord[]>(`/bookings${suffix}`, { onResponse });
+}
+
+export async function fetchBookingPage(params: NonNullable<Parameters<typeof fetchBookings>[0]>): Promise<ListPage<BookingRecord>> {
+  let response: Response | undefined;
+  const limit = params.limit ?? 50, offset = params.offset ?? 0;
+  const items = await fetchBookings({ ...params, limit, offset }, (value) => { response = value; });
+  return listPage(items, response, limit, offset);
 }
 
 export async function createBooking(
@@ -393,6 +438,25 @@ export async function createBooking(
     method: "POST",
     body: payload,
   });
+}
+
+export interface ManualBatchInput {
+  request_id: string;
+  customer_id?: string;
+  new_customer?: { full_name: string; phone_number: string; notes?: string | null };
+  staff_id: string | null;
+  items: { service_id: string; customer_package_id: string | null }[];
+  start_times: string[];
+  note: string | null;
+}
+export interface ManualBatchResult {
+  request_id: string; customer_id: string; package_ids: string[]; booking_ids: string[];
+}
+export function createManualBatch(body: ManualBatchInput): Promise<ManualBatchResult> {
+  return apiRequest<ManualBatchResult>("/bookings/manual-batches", { method: "POST", body });
+}
+export function fetchManualBatch(id: string): Promise<ManualBatchResult> {
+  return apiRequest<ManualBatchResult>(`/bookings/manual-batches/${id}`);
 }
 
 export async function updateBookingStatus(
@@ -436,7 +500,6 @@ export async function fetchVapidPublicKey(): Promise<VapidPublicKeyResponse> {
 export async function subscribeWebPush(payload: {
   endpoint: string;
   keys: { p256dh: string; auth: string };
-  user_agent?: string;
 }): Promise<{ id: string; endpoint: string }> {
   return apiRequest<{ id: string; endpoint: string }>(
     "/notifications/subscribe",
@@ -448,11 +511,14 @@ export async function subscribeWebPush(payload: {
 }
 
 export async function unsubscribeWebPush(
-  endpoint: string
-): Promise<{ unsubscribed: boolean }> {
-  return apiRequest<{ unsubscribed: boolean }>("/notifications/unsubscribe", {
+  endpoint: string,
+  token?: string
+): Promise<{ deleted: number }> {
+  return apiRequest<{ deleted: number }>("/notifications/unsubscribe", {
     method: "DELETE",
     body: { endpoint },
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    skipAuthRedirect: true,
   });
 }
 
@@ -472,9 +538,9 @@ export async function fetchNotifications(params?: {
 }
 
 export async function markAllNotificationsRead(): Promise<{
-  marked_read: number;
+  updated: number;
 }> {
-  return apiRequest<{ marked_read: number }>("/notifications/read-all", {
+  return apiRequest<{ updated: number }>("/notifications/read-all", {
     method: "PATCH",
   });
 }
@@ -489,3 +555,19 @@ export async function markNotificationRead(
     }
   );
 }
+
+export function rescheduleBooking(id: string, payload: { start_time: string; staff_id: string | null; note: string | null; transfer_customer?: boolean }): Promise<BookingRecord> {
+  return apiRequest<BookingRecord>(`/bookings/${id}`, { method: "PATCH", body: payload });
+}
+
+export function assignCustomer(id: string, assigned_staff_id: string | null): Promise<UserDetail> {
+  return apiRequest<UserDetail>(`/customers/${id}/assignment`, { method: "PATCH", body: { assigned_staff_id } });
+}
+
+export const fetchBranches = (): Promise<import("./types").BranchAccess[]> => apiRequest("/branches");
+export const switchBranch = (id: string): Promise<TokenResponse> => apiRequest(`/branches/${id}/switch`, { method: "POST" });
+export const createBranch = (name: string): Promise<import("./types").BranchAccess> => apiRequest("/branches", { method: "POST", body: { name } });
+export const grantBranchStaff = (branchId: string, sourceStaffId: string): Promise<import("./types").AuthUser> =>
+  apiRequest(`/branches/${branchId}/staff-access`, { method: "POST", body: { source_staff_id: sourceStaffId } });
+export const fetchBranchDashboard = (day: string, all = false): Promise<import("./types").BranchDashboard> =>
+  apiRequest(`/dashboard?day=${day}&all_branches=${all}`);

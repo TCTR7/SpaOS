@@ -59,7 +59,7 @@ def test_complete_booking_on_calendar_deducts_package_session(
 
     cal_page.transition_booking_for_customer(cust_name, "→ Đã xác nhận")
     card = admin_page.locator("div.rounded-lg.border", has_text=cust_name).first
-    expect(card.get_by_role("button", name="→ Hoàn thành")).to_be_visible()
+    expect(card.get_by_role("button", name="Chi tiết lịch hẹn", exact=True)).to_be_visible()
 
     cal_page.transition_booking_for_customer(cust_name, "→ Hoàn thành")
     expect(card.get_by_text("Hoàn thành")).to_be_visible()

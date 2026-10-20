@@ -1,0 +1,48 @@
+{
+  "viewport": {
+    "width": 768,
+    "height": 844
+  },
+  "documentWidth": 768,
+  "documentHeight": 1138,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-288fca66-30aa-4b77-a548-552b4101f8ea",
+      "bounds": {
+        "left": 291,
+        "top": 584,
+        "right": 733,
+        "bottom": 858.5,
+        "width": 442,
+        "height": 274.5
+      },
+      "scrollWidth": 440,
+      "clientWidth": 440,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-layout-card=\"booking\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "intentionalVerticalScrollSelectors": [],
+  "task": "UX-01-regression",
+  "label": "week-expanded",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "expanded": true
+  },
+  "screenshot": "768x844-week-expanded.png",
+  "collectionIsUiPass": false
+}

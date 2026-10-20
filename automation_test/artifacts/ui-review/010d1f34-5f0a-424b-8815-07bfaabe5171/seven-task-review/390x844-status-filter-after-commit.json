@@ -1,0 +1,41 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 390,
+  "documentHeight": 849,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-fabc5d5b-d13e-4e11-8701-b35be84c1523",
+      "bounds": {
+        "left": 16,
+        "top": 600,
+        "right": 374,
+        "bottom": 833,
+        "width": 358,
+        "height": 233
+      },
+      "scrollWidth": 356,
+      "clientWidth": 356,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "task": "seven-task-review",
+  "label": "status-filter-after-commit",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "serverStatus": "CONFIRMED",
+    "currentFilter": "PENDING"
+  },
+  "screenshot": "390x844-status-filter-after-commit.png",
+  "collectionIsUiPass": false
+}

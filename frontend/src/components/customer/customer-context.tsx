@@ -7,7 +7,12 @@ import {
   fetchPublicTenant,
   getCustomerToken,
   unsubscribeCustomerWebPush,
+  getCustomerSessionIdentity,
+  invalidateCustomerSessionRequests,
+  customerSessionVersionKey,
+  CUSTOMER_SESSION_CHANGED,
 } from "@/lib/customer-api";
+import { ApiError } from "@/lib/api";
 import type { AuthUser, PublicTenantResponse } from "@/lib/types";
 
 interface CustomerTenantContextValue {
@@ -15,8 +20,11 @@ interface CustomerTenantContextValue {
   tenant: PublicTenantResponse | null;
   tenantLoading: boolean;
   tenantNotFound: boolean;
+  tenantError: string | null;
+  refreshTenant: () => Promise<void>;
   user: AuthUser | null;
   authLoading: boolean;
+  authError: string | null;
   refreshCustomer: () => Promise<void>;
   logoutCustomer: () => Promise<void>;
 }
@@ -26,13 +34,16 @@ const CustomerTenantContext = React.createContext<CustomerTenantContextValue>({
   tenant: null,
   tenantLoading: true,
   tenantNotFound: false,
+  tenantError: null,
+  refreshTenant: async () => {},
   user: null,
   authLoading: true,
+  authError: null,
   refreshCustomer: async () => {},
   logoutCustomer: async () => {},
 });
 
-export function CustomerTenantProvider({
+function ScopedCustomerTenantProvider({
   slug,
   children,
 }: {
@@ -45,34 +56,46 @@ export function CustomerTenantProvider({
   const [tenantNotFound, setTenantNotFound] = React.useState<boolean>(false);
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = React.useState<boolean>(true);
+  const [authError, setAuthError] = React.useState<string | null>(null);
+  const [tenantError, setTenantError] = React.useState<string | null>(null);
+  const authRequest = React.useRef(0);
+  const tenantRequest = React.useRef(0);
+  const verifiedIdentity = React.useRef<string | null>(null);
+  const [authGeneration, setAuthGeneration] = React.useState(0);
 
-  React.useEffect(() => {
-    let cancelled = false;
+  const refreshTenant = React.useCallback(async (): Promise<void> => {
+    const request = ++tenantRequest.current;
     setTenantLoading(true);
-    setTenantNotFound(false);
-    void (async () => {
-      try {
-        const data = await fetchPublicTenant(normalizedSlug);
-        if (!cancelled) {
-          setTenant(data);
-        }
-      } catch {
-        if (!cancelled) {
-          setTenant(null);
-          setTenantNotFound(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setTenantLoading(false);
-        }
+    setTenantNotFound(false); setTenant(null); setTenantError(null);
+    try {
+      const data = await fetchPublicTenant(normalizedSlug);
+      if (request === tenantRequest.current) setTenant(data);
+    } catch (error) {
+      if (request === tenantRequest.current) {
+        if (error instanceof ApiError && error.status === 404) setTenantNotFound(true);
+        else setTenantError("Không tải được thông tin Spa. Kiểm tra kết nối và thử lại.");
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } finally {
+      if (request === tenantRequest.current) setTenantLoading(false);
+    }
   }, [normalizedSlug]);
 
+  React.useEffect(() => {
+    void refreshTenant();
+    return () => { tenantRequest.current += 1; };
+  }, [refreshTenant]);
+
   const refreshCustomer = React.useCallback(async (): Promise<void> => {
+    // Remove private drafts and portaled dialogs from the previous verified
+    // identity. Anonymous inline login retains its booking choices.
+    if (verifiedIdentity.current) {
+      verifiedIdentity.current = null;
+      setAuthGeneration((previous) => previous + 1);
+    }
+    const request = ++authRequest.current;
+    const session = getCustomerSessionIdentity(normalizedSlug);
+    const current = (): boolean => request === authRequest.current && session === getCustomerSessionIdentity(normalizedSlug);
+    setUser(null); setAuthError(null); setAuthLoading(true);
     const token = getCustomerToken(normalizedSlug);
     if (!token) {
       setUser(null);
@@ -81,36 +104,61 @@ export function CustomerTenantProvider({
     }
     try {
       const me = await fetchCustomerMe(normalizedSlug);
+      if (!current()) return;
+      if (me.user.role !== "CUSTOMER" || me.tenant.slug !== normalizedSlug || me.user.tenant_id !== me.tenant.id) {
+        clearCustomerToken(normalizedSlug);
+        return;
+      }
       setUser(me.user);
-    } catch {
-      clearCustomerToken(normalizedSlug);
-      setUser(null);
+      verifiedIdentity.current = session;
+    } catch (error) {
+      if (!current()) return;
+      if (error instanceof ApiError && error.status === 401) clearCustomerToken(normalizedSlug);
+      else setAuthError("Chưa xác minh được phiên đăng nhập. Kiểm tra kết nối và thử lại.");
     } finally {
-      setAuthLoading(false);
+      if (current()) setAuthLoading(false);
     }
   }, [normalizedSlug]);
 
   React.useEffect(() => {
     void refreshCustomer();
-  }, [refreshCustomer]);
+    const changed = (event: StorageEvent): void => {
+      if (event.key === null || event.key === `spaos_customer_token_${normalizedSlug}` || event.key === customerSessionVersionKey(normalizedSlug)) {
+        invalidateCustomerSessionRequests(normalizedSlug);
+        void refreshCustomer();
+      }
+    };
+    const invalidated = (event: Event): void => {
+      if ((event as CustomEvent<string>).detail === normalizedSlug) void refreshCustomer();
+    };
+    window.addEventListener("storage", changed);
+    window.addEventListener(CUSTOMER_SESSION_CHANGED, invalidated);
+    return () => {
+      authRequest.current += 1;
+      window.removeEventListener("storage", changed);
+      window.removeEventListener(CUSTOMER_SESSION_CHANGED, invalidated);
+    };
+  }, [normalizedSlug, refreshCustomer]);
 
   const logoutCustomer = React.useCallback(async (): Promise<void> => {
+    const token = getCustomerToken(normalizedSlug);
+    authRequest.current += 1;
+    clearCustomerToken(normalizedSlug);
+    const loggedOutSession = getCustomerSessionIdentity(normalizedSlug);
+    setUser(null); setAuthLoading(false); setAuthError(null);
     try {
       if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
         const sub = await reg?.pushManager.getSubscription();
-        if (sub) {
-          await unsubscribeCustomerWebPush(normalizedSlug, sub.endpoint).catch(
+        if (sub && token && loggedOutSession === getCustomerSessionIdentity(normalizedSlug)) {
+          await unsubscribeCustomerWebPush(normalizedSlug, sub.endpoint, token).catch(
             () => {}
           );
-          await sub.unsubscribe().catch(() => {});
+          if (loggedOutSession === getCustomerSessionIdentity(normalizedSlug)) await sub.unsubscribe().catch(() => {});
         }
       }
     } catch {
       // ignore push cleanup errors
-    } finally {
-      clearCustomerToken(normalizedSlug);
-      setUser(null);
     }
   }, [normalizedSlug]);
 
@@ -121,15 +169,24 @@ export function CustomerTenantProvider({
         tenant,
         tenantLoading,
         tenantNotFound,
+        tenantError, refreshTenant,
         user,
         authLoading,
+        authError,
         refreshCustomer,
         logoutCustomer,
       }}
     >
-      {children}
+      <React.Fragment key={authGeneration}>{children}</React.Fragment>
     </CustomerTenantContext.Provider>
   );
+}
+
+// A new branch gets fresh state before its first render; pending requests from
+// the unmounted branch are invalidated by the effects above.
+export function CustomerTenantProvider({ slug, children }: { slug: string; children: React.ReactNode }): React.ReactElement {
+  const normalizedSlug = slug.trim().toLowerCase();
+  return <ScopedCustomerTenantProvider key={normalizedSlug} slug={normalizedSlug}>{children}</ScopedCustomerTenantProvider>;
 }
 
 export function useCustomerTenant(): CustomerTenantContextValue {

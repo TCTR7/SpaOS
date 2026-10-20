@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useNotificationFeed } from "@/lib/use-notification-feed";
 import {
   Bell,
   BellRing,
@@ -13,17 +14,16 @@ import {
   fetchCustomerNotifications,
   markAllCustomerNotificationsRead,
   markCustomerNotificationRead,
-  subscribeCustomerWebPush,
 } from "@/lib/customer-api";
 import {
   disableCustomerWebPush,
   enableCustomerWebPush,
-  getActivePushSubscription,
+  syncExistingWebPush,
   isWebPushSupported,
 } from "@/lib/web-push";
-import type { NotificationItem } from "@/lib/types";
 import { cn, formatDateTimeVN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 
 export function CustomerNotificationBell({
   slug,
@@ -33,34 +33,25 @@ export function CustomerNotificationBell({
   themeColor: string;
 }): React.ReactElement {
   const [open, setOpen] = React.useState<boolean>(false);
-  const [unreadCount, setUnreadCount] = React.useState<number>(0);
-  const [items, setItems] = React.useState<NotificationItem[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(false);
   const [pushSubscribed, setPushSubscribed] = React.useState<boolean>(false);
   const [pushSupported, setPushSupported] = React.useState<boolean>(false);
   const [pushBusy, setPushBusy] = React.useState<boolean>(false);
+  const pushAlive = React.useRef(false);
+  const pushFlight = React.useRef(false);
+  React.useEffect(() => { pushAlive.current = true; return () => { pushAlive.current = false; }; }, []);
   const [pushMsg, setPushMsg] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-
-  const loadNotifications = React.useCallback(async (): Promise<void> => {
-    setLoading(true);
-    try {
-      const res = await fetchCustomerNotifications(slug);
-      setUnreadCount(res.unread_count);
-      setItems(res.items);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [slug]);
-
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const { items, unreadCount, loading, readBusy, error, loadNotifications,
+    handleMarkOneRead, handleMarkAllRead } = useNotificationFeed(slug, {
+    load: () => fetchCustomerNotifications(slug), read: (id) => markCustomerNotificationRead(slug, id), readAll: () => markAllCustomerNotificationsRead(slug),
+  });
   React.useEffect(() => {
     void loadNotifications();
     const timer = window.setInterval(() => {
       void loadNotifications();
     }, 20000);
-    return () => window.clearInterval(timer);
+    return () => { window.clearInterval(timer); };
   }, [loadNotifications]);
 
   React.useEffect(() => {
@@ -68,41 +59,20 @@ export function CustomerNotificationBell({
     setPushSupported(supported);
     if (!supported) return;
 
-    void (async () => {
-      const sub = await getActivePushSubscription();
-      if (sub) {
-        setPushSubscribed(true);
-        const json = sub.toJSON();
-        if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
-          await subscribeCustomerWebPush(slug, {
-            endpoint: json.endpoint,
-            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-            user_agent: navigator.userAgent,
-          }).catch(() => {});
-        }
-      }
-    })();
+    let cancelled = false;
+    void syncExistingWebPush(slug, () => !cancelled)
+      .then((subscribed) => { if (!cancelled) setPushSubscribed(subscribed); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [slug]);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const onOutside = (e: MouseEvent): void => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [open]);
 
   const handleEnablePush = async (): Promise<void> => {
+    if (pushFlight.current || !pushAlive.current) return;
+    pushFlight.current = true;
     setPushBusy(true);
     setPushMsg(null);
     try {
-      await enableCustomerWebPush(slug);
+      await enableCustomerWebPush(slug, () => pushAlive.current);
       setPushSubscribed(true);
       setPushMsg("Đã bật thông báo nhắc lịch trên điện thoại!");
     } catch (err) {
@@ -110,15 +80,18 @@ export function CustomerNotificationBell({
         err instanceof Error ? err.message : "Không thể bật thông báo đẩy"
       );
     } finally {
-      setPushBusy(false);
+      pushFlight.current = false;
+      if (pushAlive.current) setPushBusy(false);
     }
   };
 
   const handleDisablePush = async (): Promise<void> => {
+    if (pushFlight.current || !pushAlive.current) return;
+    pushFlight.current = true;
     setPushBusy(true);
     setPushMsg(null);
     try {
-      await disableCustomerWebPush(slug);
+      await disableCustomerWebPush(slug, () => pushAlive.current);
       setPushSubscribed(false);
       setPushMsg("Đã tắt thông báo đẩy trên thiết bị này.");
     } catch (err) {
@@ -126,27 +99,8 @@ export function CustomerNotificationBell({
         err instanceof Error ? err.message : "Không thể tắt thông báo đẩy"
       );
     } finally {
-      setPushBusy(false);
-    }
-  };
-
-  const handleMarkOneRead = async (id: string): Promise<void> => {
-    try {
-      const updated = await markCustomerNotificationRead(slug, id);
-      setItems((prev) => prev.map((n) => (n.id === id ? updated : n)));
-      setUnreadCount((c) => Math.max(0, c - 1));
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleMarkAllRead = async (): Promise<void> => {
-    try {
-      await markAllCustomerNotificationsRead(slug);
-      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-    } catch {
-      // ignore
+      pushFlight.current = false;
+      if (pushAlive.current) setPushBusy(false);
     }
   };
 
@@ -159,27 +113,30 @@ export function CustomerNotificationBell({
           setOpen(next);
           if (next) void loadNotifications();
         }}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-slate-700 transition hover:bg-muted"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-slate-700 transition hover:bg-muted"
+        ref={triggerRef} aria-haspopup="dialog" aria-expanded={open}
         aria-label="Thông báo lịch hẹn"
       >
         {unreadCount > 0 ? (
-          <BellRing className="h-4 w-4" style={{ color: themeColor }} />
+          <BellRing className="h-4 w-4" style={{ color: "var(--brand-text)" }} />
         ) : (
           <Bell className="h-4 w-4" />
         )}
         {unreadCount > 0 && (
           <span
             className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
-            style={{ backgroundColor: themeColor }}
+            style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
+      <Modal open={open} onClose={() => setOpen(false)} title="Bảng thông báo" returnFocusRef={triggerRef} historyGuard>
+        <div data-layout-card="notifications" className="min-w-0 [overflow-wrap:anywhere]">
+          {error && <p role="alert" className="p-3 text-sm text-rose-700">{error}</p>}
+          {loading && <p role="status" className="p-3 text-sm">Đang tải thông báo...</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3.5 py-2.5">
             <span className="text-xs font-bold text-foreground">
               Thông báo ({unreadCount} mới)
             </span>
@@ -187,7 +144,8 @@ export function CustomerNotificationBell({
               <button
                 type="button"
                 onClick={() => void loadNotifications()}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
+                aria-label="Làm mới thông báo" disabled={loading}
+                className="min-h-11 min-w-11 rounded p-1 text-muted-foreground hover:bg-muted"
               >
                 <RefreshCw
                   className={cn("h-3.5 w-3.5", loading && "animate-spin")}
@@ -196,9 +154,9 @@ export function CustomerNotificationBell({
               {unreadCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => void handleMarkAllRead()}
+                  disabled={readBusy} onClick={() => void handleMarkAllRead()}
                   className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold"
-                  style={{ color: themeColor }}
+                  style={{ color: "var(--brand-text)" }}
                 >
                   <CheckCheck className="h-3 w-3" />
                   Đọc hết
@@ -208,7 +166,7 @@ export function CustomerNotificationBell({
           </div>
 
           {pushSupported && (
-            <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2">
               <span className="flex items-center gap-1.5 text-[11px] text-slate-700">
                 <Radio
                   className={cn(
@@ -232,7 +190,7 @@ export function CustomerNotificationBell({
                 <Button
                   size="sm"
                   disabled={pushBusy}
-                  style={{ backgroundColor: themeColor }}
+                  style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
                   onClick={() => void handleEnablePush()}
                 >
                   Bật Push
@@ -248,7 +206,7 @@ export function CustomerNotificationBell({
           )}
 
           <div className="max-h-72 overflow-y-auto divide-y divide-border">
-            {items.length === 0 ? (
+            {items.length === 0 && !error && !loading ? (
               <p className="p-6 text-center text-xs text-muted-foreground">
                 Chưa có thông báo nào từ Spa.
               </p>
@@ -261,7 +219,7 @@ export function CustomerNotificationBell({
                     !item.is_read && "bg-primary/5"
                   )}
                 >
-                  <div className="space-y-0.5">
+                  <div className="min-w-0 flex-1 space-y-0.5">
                     <p className="font-semibold text-foreground">
                       {item.title}
                     </p>
@@ -273,9 +231,9 @@ export function CustomerNotificationBell({
                   {!item.is_read && (
                     <button
                       type="button"
-                      onClick={() => void handleMarkOneRead(item.id)}
-                      className="rounded p-1 hover:bg-muted"
-                      style={{ color: themeColor }}
+                      disabled={readBusy} onClick={() => void handleMarkOneRead(item.id)}
+                      className="min-h-11 min-w-11 shrink-0 rounded p-1 hover:bg-muted"
+                      style={{ color: "var(--brand-text)" }}
                       title="Đánh dấu đã đọc"
                     >
                       <Check className="h-3.5 w-3.5" />
@@ -286,7 +244,7 @@ export function CustomerNotificationBell({
             )}
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

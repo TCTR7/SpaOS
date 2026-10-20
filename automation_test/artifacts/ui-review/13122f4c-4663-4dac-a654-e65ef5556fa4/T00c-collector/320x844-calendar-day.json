@@ -1,0 +1,84 @@
+{
+  "viewport": {
+    "width": 320,
+    "height": 844
+  },
+  "documentWidth": 375,
+  "documentHeight": 887,
+  "viewportOutsideCount": 3,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 33,
+        "top": 313,
+        "right": 374.5,
+        "bottom": 395,
+        "width": 341.5,
+        "height": 82
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 33,
+        "top": 351,
+        "right": 374.5,
+        "bottom": 395,
+        "width": 341.5,
+        "height": 44
+      },
+      "excludedBy": null
+    },
+    {
+      "tag": "button",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": 293,
+        "top": 351,
+        "right": 374.5,
+        "bottom": 395,
+        "width": 81.5,
+        "height": 44
+      },
+      "excludedBy": null
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-0fe6415e-1afd-4965-8f16-9690c31a379d",
+      "bounds": {
+        "left": 16,
+        "top": 596,
+        "right": 304,
+        "bottom": 871,
+        "width": 288,
+        "height": 275
+      },
+      "scrollWidth": 286,
+      "clientWidth": 286,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [],
+  "task": "T00c-collector",
+  "label": "calendar-day",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "320x844-calendar-day.png",
+  "collectionIsUiPass": false
+}

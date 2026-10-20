@@ -10,7 +10,8 @@ from app.api.deps import get_current_tenant_id, get_current_user, get_tenant_db
 from app.api.utils import commit_and_refresh
 from app.core.config import settings
 from app.core.database import set_tenant_context
-from app.models.models import Notification, PushSubscription, User
+from app.models.models import Notification, PushSubscription, User, UserRole, Booking
+from app.services.customer_access import customer_scope
 from app.schemas.sprint4 import (
     NotificationListOut,
     NotificationOut,
@@ -22,16 +23,24 @@ from app.schemas.sprint4 import (
     VapidKeyOut,
 )
 from app.services.booking_service import HTTP_422
+from app.services.notification_service import webpush_enabled
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+def visible_notifications(tenant_id, user):
+    base = (Notification.tenant_id == tenant_id) & (Notification.user_id == user.id)
+    if user.role == UserRole.STAFF:
+        base = base & Notification.booking_id.in_(select(Booking.id).where(
+            Booking.tenant_id == tenant_id,
+            Booking.customer_id.in_(customer_scope(tenant_id, user))))
+    return base
 
 
 @router.get("/vapid-public-key", response_model=VapidKeyOut)
 async def vapid_public_key() -> VapidKeyOut:
     """Public key (không bí mật) để Frontend gọi `pushManager.subscribe({ applicationServerKey })`."""
-    if not settings.VAPID_PUBLIC_KEY:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Web Push chưa được cấu hình")
-    return VapidKeyOut(public_key=settings.VAPID_PUBLIC_KEY)
+    return VapidKeyOut(public_key=settings.VAPID_PUBLIC_KEY, enabled=webpush_enabled())
 
 
 @router.post("/subscribe", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
@@ -104,7 +113,7 @@ async def list_notifications(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> NotificationListOut:
-    base = (Notification.tenant_id == tenant_id) & (Notification.user_id == user.id)
+    base = visible_notifications(tenant_id, user)
     unread = (
         await db.execute(select(func.count(Notification.id)).where(base, Notification.is_read.is_(False)))
     ).scalar_one()
@@ -126,7 +135,7 @@ async def read_all(
 ) -> ReadAllOut:
     result = await db.execute(
         update(Notification)
-        .where(Notification.tenant_id == tenant_id, Notification.user_id == user.id, Notification.is_read.is_(False))
+        .where(visible_notifications(tenant_id, user), Notification.is_read.is_(False))
         .values(is_read=True)
     )
     await db.commit()
@@ -144,8 +153,7 @@ async def mark_read(
         await db.execute(
             select(Notification).where(
                 Notification.id == notification_id,
-                Notification.tenant_id == tenant_id,
-                Notification.user_id == user.id,
+                visible_notifications(tenant_id, user),
             )
         )
     ).scalar_one_or_none()

@@ -1,0 +1,615 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 844
+  },
+  "documentWidth": 1024,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [
+    {
+      "tag": "div",
+      "testId": "calendar-container",
+      "role": null,
+      "bounds": {
+        "left": -680,
+        "top": 384,
+        "right": 1000,
+        "bottom": 617,
+        "width": 1680,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -680,
+        "top": 384,
+        "right": -450.296875,
+        "bottom": 617,
+        "width": 229.703125,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 395,
+        "right": -461.296875,
+        "bottom": 424,
+        "width": 207.703125,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 398,
+        "right": -636.046875,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -512.171875,
+        "top": 395,
+        "right": -461.296875,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 432,
+        "right": -461.296875,
+        "bottom": 606,
+        "width": 207.703125,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -669,
+        "top": 432,
+        "right": -461.296875,
+        "bottom": 456,
+        "width": 207.703125,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -438.296875,
+        "top": 384,
+        "right": -208.578125,
+        "bottom": 617,
+        "width": 229.71875,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 395,
+        "right": -219.578125,
+        "bottom": 424,
+        "width": 207.71875,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 398,
+        "right": -394.34375,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -270.453125,
+        "top": 395,
+        "right": -219.578125,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 432,
+        "right": -219.578125,
+        "bottom": 606,
+        "width": 207.71875,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -427.296875,
+        "top": 432,
+        "right": -219.578125,
+        "bottom": 456,
+        "width": 207.71875,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -196.578125,
+        "top": 384,
+        "right": 33.140625,
+        "bottom": 617,
+        "width": 229.71875,
+        "height": 233
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 395,
+        "right": 22.140625,
+        "bottom": 424,
+        "width": 207.71875,
+        "height": 29
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 398,
+        "right": -152.625,
+        "bottom": 414,
+        "width": 32.953125,
+        "height": 16
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "span",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -28.734375,
+        "top": 395,
+        "right": 22.140625,
+        "bottom": 417,
+        "width": 50.875,
+        "height": 22
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "div",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 432,
+        "right": 22.140625,
+        "bottom": 606,
+        "width": 207.71875,
+        "height": 174
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    },
+    {
+      "tag": "p",
+      "testId": null,
+      "role": null,
+      "bounds": {
+        "left": -185.578125,
+        "top": 432,
+        "right": 22.140625,
+        "bottom": 456,
+        "width": 207.71875,
+        "height": 24
+      },
+      "excludedBy": "[data-calendar-scroll]"
+    }
+  ],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "booking-card-a063de03-5c53-478b-a205-f549f9a9a1a0",
+      "bounds": {
+        "left": 297.84375,
+        "top": 432,
+        "right": 505.5625,
+        "bottom": 606,
+        "width": 207.71875,
+        "height": 174
+      },
+      "scrollWidth": 206,
+      "clientWidth": 206,
+      "violationCount": 19,
+      "violations": [
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 312.84375,
+            "top": 599,
+            "right": 325.78125,
+            "bottom": 615,
+            "width": 12.9375,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 325.78125,
+            "top": 599,
+            "right": 353.78125,
+            "bottom": 615,
+            "width": 28,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "p",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 353.78125,
+            "top": 599,
+            "right": 456.890625,
+            "bottom": 615,
+            "width": 103.109375,
+            "height": 16
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 321.84375,
+            "top": 628,
+            "right": 388.875,
+            "bottom": 643,
+            "width": 67.03125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 388.875,
+            "top": 628,
+            "right": 395.21875,
+            "bottom": 643,
+            "width": 6.34375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 395.21875,
+            "top": 628,
+            "right": 407.078125,
+            "bottom": 643,
+            "width": 11.859375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 407.078125,
+            "top": 628,
+            "right": 421.03125,
+            "bottom": 643,
+            "width": 13.953125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 424.046875,
+            "top": 628,
+            "right": 459.640625,
+            "bottom": 643,
+            "width": 35.59375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 321.84375,
+            "top": 644.5,
+            "right": 392.078125,
+            "bottom": 659.5,
+            "width": 70.234375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 392.078125,
+            "top": 644.5,
+            "right": 395.40625,
+            "bottom": 659.5,
+            "width": 3.328125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "span",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 312.84375,
+            "top": 692,
+            "right": 365.546875,
+            "bottom": 707,
+            "width": 52.703125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 386.546875,
+            "top": 692,
+            "right": 399.0625,
+            "bottom": 707,
+            "width": 12.515625,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 399.0625,
+            "top": 692,
+            "right": 460.15625,
+            "bottom": 707,
+            "width": 61.09375,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 323.84375,
+            "top": 724.5,
+            "right": 336.359375,
+            "bottom": 739.5,
+            "width": 12.515625,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 336.359375,
+            "top": 724.5,
+            "right": 371.4375,
+            "bottom": 739.5,
+            "width": 35.078125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "text-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 341.84375,
+            "top": 759,
+            "right": 444.125,
+            "bottom": 774,
+            "width": 102.28125,
+            "height": 15
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 375.546875,
+            "top": 687,
+            "right": 471.15625,
+            "bottom": 713.5,
+            "width": 95.609375,
+            "height": 26.5
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 312.84375,
+            "top": 719.5,
+            "right": 382.4375,
+            "bottom": 746,
+            "width": 69.59375,
+            "height": 26.5
+          }
+        },
+        {
+          "kind": "control-outside-card",
+          "element": {
+            "tag": "button",
+            "testId": null,
+            "role": null
+          },
+          "bounds": {
+            "left": 312.84375,
+            "top": 754,
+            "right": 455.125,
+            "bottom": 780.5,
+            "width": 142.28125,
+            "height": 26.5
+          }
+        }
+      ]
+    }
+  ],
+  "dialogs": [],
+  "cardViolationCount": 19,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "calendar-week",
+  "role": "ADMIN",
+  "route": "/admin/bookings",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1024x844-calendar-week.png",
+  "collectionIsUiPass": false
+}

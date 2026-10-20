@@ -1,0 +1,47 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 844
+  },
+  "documentWidth": 1024,
+  "documentHeight": 844,
+  "viewportOutsideCount": 0,
+  "viewportOutside": [],
+  "intentionalViewportOutside": [],
+  "cards": [
+    {
+      "index": 0,
+      "testId": "collection-940c60a4-827a-41b8-9d95-cd594d18ff2c",
+      "bounds": {
+        "left": 280,
+        "top": 414,
+        "right": 1000,
+        "bottom": 556,
+        "width": 720,
+        "height": 142
+      },
+      "scrollWidth": 718,
+      "clientWidth": 718,
+      "violationCount": 0,
+      "violations": []
+    }
+  ],
+  "cardCount": 1,
+  "cardSelector": "[data-testid^=\"collection-\"]",
+  "measurementStatus": "measured",
+  "dialogs": [],
+  "cardViolationCount": 0,
+  "intentionalScrollSelectors": [
+    "[data-calendar-scroll]"
+  ],
+  "task": "T00c-collector",
+  "label": "payments",
+  "role": "ADMIN",
+  "route": "/admin/payments",
+  "dataset": {
+    "bookings": 1,
+    "longNoteLength": 0
+  },
+  "screenshot": "1024x844-payments.png",
+  "collectionIsUiPass": false
+}
