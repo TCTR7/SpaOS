@@ -33,6 +33,7 @@ export default function AdminLoginPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -57,7 +58,7 @@ export default function AdminLoginPage(): React.ReactElement {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-rose-50 via-background to-amber-50/40 p-4">
-      <Card className="w-full max-w-md shadow-lg">
+      <Card className="w-full min-w-0 max-w-md shadow-lg [overflow-wrap:anywhere]">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow">
             <Sparkles className="h-6 w-6" />
@@ -72,7 +73,7 @@ export default function AdminLoginPage(): React.ReactElement {
         <CardContent>
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+              <div role="alert" className="min-w-0 [overflow-wrap:anywhere] rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
                 {error}
               </div>
             )}

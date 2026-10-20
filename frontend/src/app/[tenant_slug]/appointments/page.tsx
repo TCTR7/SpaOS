@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useAvailableSlots } from "@/lib/use-available-slots";
+import { ReschedulePreview } from "@/components/reschedule-preview";
+import { ApiError } from "@/lib/api";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -14,10 +17,9 @@ import {
 import {
   cancelCustomerBooking,
   rescheduleCustomerBooking,
-  fetchCustomerAvailableSlots,
-  fetchCustomerBookings,
+  fetchCustomerBookingPage,
 } from "@/lib/customer-api";
-import type { BookingRecord, SlotItem } from "@/lib/types";
+import type { BookingRecord } from "@/lib/types";
 import {
   BOOKING_STATUS_META,
   cn,
@@ -37,8 +39,15 @@ function AppointmentsInner(): React.ReactElement | null {
   const { slug, tenant, user, authLoading } = useCustomerTenant();
 
   const [scope, setScope] = React.useState<"upcoming" | "history">("upcoming");
-  const [bookings, setBookings] = React.useState<BookingRecord[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(true);
+  const listScope = JSON.stringify([slug, user?.id, scope]);
+  const liveScope = React.useRef(listScope);
+  liveScope.current = listScope;
+  const listRequest = React.useRef(0);
+  const [list, setList] = React.useState({ scope: "", rows: [] as BookingRecord[], loading: true, nextOffset: null as number | null, moreLoading: false, moreError: null as string | null });
+  const listRef = React.useRef(list);
+  listRef.current = list;
+  const bookings = list.scope === listScope ? list.rows : [];
+  const loading = list.scope !== listScope || list.loading;
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [justBooked, setJustBooked] = React.useState<boolean>(false);
@@ -50,11 +59,6 @@ function AppointmentsInner(): React.ReactElement | null {
   const [rescheduleDate, setRescheduleDate] = React.useState<string>(() =>
     formatDateISOInVN()
   );
-  const [rescheduleSlots, setRescheduleSlots] = React.useState<SlotItem[]>([]);
-  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] =
-    React.useState<boolean>(false);
-  const [rescheduleSlotStart, setRescheduleSlotStart] =
-    React.useState<string>("");
   const [rescheduleKeepStaff, setRescheduleKeepStaff] =
     React.useState<boolean>(false);
   const [rescheduleNote, setRescheduleNote] = React.useState<string>("");
@@ -63,6 +67,7 @@ function AppointmentsInner(): React.ReactElement | null {
   );
   const [rescheduleSubmitting, setRescheduleSubmitting] =
     React.useState<boolean>(false);
+  const rescheduleFlight = React.useRef(false);
 
   React.useEffect(() => {
     if (searchParams.get("booked") === "1") {
@@ -70,71 +75,49 @@ function AppointmentsInner(): React.ReactElement | null {
     }
   }, [searchParams]);
 
-  const loadBookings = React.useCallback(async (): Promise<void> => {
-    if (!user) return;
-    setLoading(true);
+  const loadBookings = React.useCallback(async (append = false): Promise<void> => {
+    if (!user || liveScope.current !== listScope) return;
+    const previous = listRef.current;
+    if (append && (previous.scope !== listScope || previous.moreLoading || previous.nextOffset === null)) return;
+    const offset = append ? previous.nextOffset! : 0;
+    const request = ++listRequest.current;
+    if (append) setList((value) => ({ ...value, moreLoading: true, moreError: null }));
+    else setList({ scope: listScope, rows: [], loading: true, nextOffset: null, moreLoading: false, moreError: null });
     setError(null);
     try {
-      const data = await fetchCustomerBookings(slug, scope);
-      setBookings(data);
+      const data = await fetchCustomerBookingPage(slug, scope, offset);
+      if (request !== listRequest.current || liveScope.current !== listScope) return;
+      setList((value) => ({ scope: listScope, rows: Array.from(new Map([
+        ...(append && value.scope === listScope ? value.rows : []), ...data.items,
+      ].map((booking) => [booking.id, booking])).values()), loading: false, nextOffset: data.nextOffset, moreLoading: false, moreError: null }));
     } catch (err) {
+      if (request !== listRequest.current || liveScope.current !== listScope) return;
+      if (append) {
+        setList((value) => ({ ...value, moreLoading: false, moreError: err instanceof Error ? err.message : "Không tải thêm được lịch" }));
+        return;
+      }
+      setList({ scope: listScope, rows: [], loading: false, nextOffset: null, moreLoading: false, moreError: null });
       setError(
         err instanceof Error ? err.message : "Không thể tải danh sách lịch hẹn"
       );
-    } finally {
-      setLoading(false);
     }
-  }, [slug, scope, user]);
+  }, [slug, scope, user, listScope]);
 
   React.useEffect(() => {
     if (user) {
       void loadBookings();
-    } else if (!authLoading) {
-      setLoading(false);
     }
+    return () => { listRequest.current += 1; };
   }, [user, authLoading, loadBookings]);
+  const latestLoad = React.useRef(loadBookings);
+  React.useLayoutEffect(() => { latestLoad.current = loadBookings; }, [loadBookings]);
 
-  // Load available slots when Reschedule Modal is open
-  React.useEffect(() => {
-    if (!rescheduleTarget || !rescheduleDate) {
-      setRescheduleSlots([]);
-      setRescheduleSlotStart("");
-      return;
-    }
-
-    let cancelled = false;
-    setRescheduleSlotsLoading(true);
-    setRescheduleSlots([]);
-    setRescheduleSlotStart("");
-
-    void (async () => {
-      try {
-        const res = await fetchCustomerAvailableSlots(slug, {
-          date: rescheduleDate,
-          service_ids: rescheduleTarget.items.map((i) => i.service_id),
-          staff_id:
-            rescheduleKeepStaff && rescheduleTarget.staff_id
-              ? rescheduleTarget.staff_id
-              : null,
-        });
-        if (!cancelled) {
-          setRescheduleSlots(res.slots);
-          setRescheduleSlotStart(res.slots[0]?.start_time || "");
-        }
-      } catch {
-        if (!cancelled) {
-          setRescheduleSlots([]);
-          setRescheduleSlotStart("");
-        }
-      } finally {
-        if (!cancelled) setRescheduleSlotsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [slug, rescheduleTarget, rescheduleDate, rescheduleKeepStaff]);
+  const { slots: rescheduleSlots, loading: rescheduleSlotsLoading, error: rescheduleSlotsError,
+    retry: retryRescheduleSlots, selectedStart: rescheduleSlotStart, select: setRescheduleSlotStart } = useAvailableSlots({
+    slug, date: rescheduleDate, serviceIds: rescheduleTarget?.items.map((item) => item.service_id) || [],
+    staffId: rescheduleKeepStaff ? rescheduleTarget?.staff_id : null, enabled: Boolean(rescheduleTarget && user),
+    bookingId: rescheduleTarget?.id, preferredStart: rescheduleTarget?.start_time,
+  });
 
   const serviceById = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -151,7 +134,7 @@ function AppointmentsInner(): React.ReactElement | null {
     setSuccessMsg(null);
     try {
       await cancelCustomerBooking(slug, bookingId);
-      await loadBookings();
+      await latestLoad.current();
     } catch (err) {
       setError(
         err instanceof Error
@@ -167,7 +150,7 @@ function AppointmentsInner(): React.ReactElement | null {
     setRescheduleError(null);
     setRescheduleTarget(booking);
     setRescheduleDate(formatDateISOInVN(new Date(booking.start_time)));
-    setRescheduleKeepStaff(false);
+    setRescheduleKeepStaff(true);
     setRescheduleNote(booking.note || "");
   };
 
@@ -175,11 +158,13 @@ function AppointmentsInner(): React.ReactElement | null {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (rescheduleFlight.current) return;
     if (!rescheduleTarget || !rescheduleSlotStart) {
       setRescheduleError("Vui lòng chọn khung giờ trống mới.");
       return;
     }
 
+    rescheduleFlight.current = true;
     setRescheduleSubmitting(true);
     setRescheduleError(null);
     try {
@@ -193,15 +178,17 @@ function AppointmentsInner(): React.ReactElement | null {
       setSuccessMsg(
         `Đã dời lịch hẹn thành công sang ${formatDateTimeVN(rescheduleSlotStart)}!`
       );
-      await loadBookings();
+      await latestLoad.current();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) retryRescheduleSlots();
       setRescheduleError(
         err instanceof Error
           ? err.message
           : "Không thể đổi lịch hẹn. Vui lòng thử lại hoặc chọn khung giờ khác."
       );
-      await loadBookings();
+      await latestLoad.current();
     } finally {
+      rescheduleFlight.current = false;
       setRescheduleSubmitting(false);
     }
   };
@@ -300,6 +287,11 @@ function AppointmentsInner(): React.ReactElement | null {
         </button>
       </div>
 
+      {!loading && <div className="space-y-2 text-xs" aria-live="polite">
+        <p>Đã tải {bookings.length} lịch{list.nextOffset !== null ? "; còn dữ liệu" : ""}.</p>
+        {list.nextOffset !== null && <Button variant="outline" disabled={list.moreLoading} onClick={() => void loadBookings(true)}>{list.moreLoading ? "Đang tải thêm..." : "Tải thêm lịch"}</Button>}
+        {list.moreError && <p role="alert">{list.moreError} — Nhấn tải thêm để thử lại.</p>}
+      </div>}
       {loading ? (
         <Card>
           <CardContent className="p-8 text-center text-xs text-muted-foreground">
@@ -337,10 +329,10 @@ function AppointmentsInner(): React.ReactElement | null {
             const withinModifyWindow = hoursUntilStart >= 2;
 
             return (
-              <Card key={b.id} className="overflow-hidden">
+              <Card key={b.id} data-testid={`customer-booking-${b.id}`} className="overflow-hidden">
                 <CardContent className={cn("p-4 space-y-2.5", meta.cardClass)}>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900">
                         <Clock className="h-3.5 w-3.5 text-primary" />
                         {formatDateTimeVN(b.start_time)}
@@ -348,6 +340,7 @@ function AppointmentsInner(): React.ReactElement | null {
                       <p className="text-[11px] text-muted-foreground">
                         Tổng thời lượng: {b.total_duration_minutes} phút
                       </p>
+                      <p className="break-words text-xs">KTV: {b.staff_name || (b.staff_id ? "Chưa có tên KTV" : "Spa tự sắp xếp")}</p>
                     </div>
                     <span
                       className={cn(
@@ -363,10 +356,10 @@ function AppointmentsInner(): React.ReactElement | null {
                     {b.items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between rounded bg-white/80 px-2.5 py-1 text-xs border border-border/60"
+                        className="flex min-w-0 items-center justify-between gap-2 rounded bg-white/80 px-2.5 py-1 text-xs border border-border/60"
                       >
-                        <span className="font-medium text-foreground">
-                          {serviceById.get(item.service_id) || "Dịch vụ Spa"} (
+                        <span className="min-w-0 break-words font-medium text-foreground">
+                          {item.service_name || serviceById.get(item.service_id) || "Chưa có tên dịch vụ"} (
                           {item.duration_minutes}p)
                         </span>
                         {item.customer_package_id ? (
@@ -448,6 +441,8 @@ function AppointmentsInner(): React.ReactElement | null {
         open={Boolean(rescheduleTarget)}
         onClose={() => setRescheduleTarget(null)}
         title="Đổi ngày / giờ buổi hẹn"
+        pending={rescheduleSubmitting}
+        dirty={Boolean(rescheduleTarget && (rescheduleNote !== (rescheduleTarget.note || "") || rescheduleDate !== formatDateISOInVN(new Date(rescheduleTarget.start_time)) || !rescheduleKeepStaff || (rescheduleSlotStart && new Date(rescheduleSlotStart).getTime() !== new Date(rescheduleTarget.start_time).getTime())))}
         description="Chọn ngày và khung giờ trống mới. Buổi thẻ liệu trình (nếu có) sẽ được tự động chuyển sang lịch mới."
       >
         {rescheduleTarget && (
@@ -455,6 +450,7 @@ function AppointmentsInner(): React.ReactElement | null {
             onSubmit={(e) => void handleConfirmReschedule(e)}
             className="space-y-4"
           >
+            <fieldset disabled={rescheduleSubmitting} className="space-y-4">
             {rescheduleError && (
               <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
                 {rescheduleError}
@@ -501,10 +497,16 @@ function AppointmentsInner(): React.ReactElement | null {
 
             <div className="space-y-2">
               <Label>2. Chọn khung giờ trống mới</Label>
+              <ReschedulePreview booking={rescheduleTarget} start={rescheduleSlotStart}
+                staffName={rescheduleKeepStaff ? rescheduleTarget.staff_name || "KTV hiện tại" : "Spa tự sắp xếp"} />
               {rescheduleSlotsLoading ? (
                 <p className="rounded-lg border border-border p-3 text-center text-xs text-muted-foreground">
                   Đang tìm khung giờ trống ngày {rescheduleDate}...
                 </p>
+              ) : rescheduleSlotsError ? (
+                <div role="alert" className="space-y-2 rounded-lg border p-3 text-center text-sm">
+                  <p>{rescheduleSlotsError}</p><Button type="button" variant="outline" onClick={retryRescheduleSlots}>Thử lại khung giờ</Button>
+                </div>
               ) : rescheduleSlots.length === 0 ? (
                 <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-center text-xs text-amber-800">
                   Không còn khung giờ trống nào trong ngày {rescheduleDate}. Vui
@@ -557,13 +559,7 @@ function AppointmentsInner(): React.ReactElement | null {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRescheduleTarget(null)}
-              >
-                Đóng
-              </Button>
+              
               <Button
                 type="submit"
                 disabled={rescheduleSubmitting || rescheduleSlotsLoading || !rescheduleSlotStart}
@@ -574,6 +570,7 @@ function AppointmentsInner(): React.ReactElement | null {
                   : "Xác nhận đổi lịch"}
               </Button>
             </div>
+          </fieldset>
           </form>
         )}
       </Modal>

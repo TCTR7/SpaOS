@@ -1,6 +1,6 @@
 # Kế hoạch review và cải thiện UI/UX mobile
 
-Ngày cập nhật: 19/10/2026. Bản 2 — ĐANG TRIỂN KHAI THEO NHÓM. Đã sửa và kiểm chứng lại T00c/T02/T04b, đóng R7-01–04; 7/29 task đạt phạm vi nghiệm thu, còn 22. Production build và 55/55 ca kiểm tra PASS; xem PROGRESS để biết phạm vi/giới hạn. T00c đạt công cụ đo, không có nghĩa mọi màn UI đã đạt. Full release gate chưa hoàn tất.
+Ngày cập nhật: 19/10/2026. T11b/T11c/T11d đã nghiệm thu phạm vi Chromium: 28/29 task, còn T12. Guard dirty/pending đổi chi nhánh cả hai tab, giữ UUID/payload giao dịch; dashboard đúng scope/Back/Forward, thông báo vừa màn hình/có retry và coverage các route còn lại. Production cuối 86d9eaf7-ae95-42eb-ae99-d6d658765eeb: build/TypeScript và full E2E 204/204 PASS (554.89s); backend isolated 88/88, unit QA harness 23/23 PASS. T12 mới đạt phần tự động; thiết bị thật/bàn phím/safe area/zoom 200% và pilot CHƯA KIỂM CHỨNG. QA-04 đã tái hiện ở run trung gian f5a26bdb, chưa đóng nguyên nhân; không nới JWT hoặc coi lượt xanh là đã sửa. Migration 0008 chưa áp dụng DB ứng dụng; chưa chốt pilot/release. Xem PROGRESS cho source, run lỗi, lệnh và cleanup.
 
 ## Cách dùng cho conversation/model tiếp theo
 
@@ -35,13 +35,13 @@ Khi muốn sửa, đổi thành “TRIỂN KHAI task T__ trong phạm vi và ti�
 - Bổ sung UX-25, UX-26: lỗi mạng làm mất phiên Admin và bị báo nhầm “Spa không tồn tại”.
 - Chốt phạm vi UI ban đầu, tránh model nhỏ tự thêm route/framework/chế độ lịch mới. Luồng có giao dịch không bị đổi vòng đời state chỉ vì chuyển sang sheet.
 - Bổ sung các màn trước đây chưa có coverage rõ: login/register, chọn chi nhánh, settings, cấp quyền chi nhánh và Operator.
-- Trạng thái 19/10: T00a/T00b/T00c/T04a/T04b/T02/T03a đạt phạm vi (7/29), R7-01–04 đã đóng. Còn 22 task. QA-04 vẫn chưa có bản sửa nguyên nhân; các lượt chạy không tái hiện không đóng blocker này.
+- Trạng thái 19/10: 28/29 đạt phạm vi, còn T12. T11b/c/d đã được kiểm chứng trong full 204/204 PASS. R7-01–04 đã đóng; QA-04 chưa đóng nguyên nhân, T12 còn thiết bị thật/pilot.
 
 ## Nhóm triển khai theo yêu cầu PO
 
 - A — Nền QA và UI cơ bản: T00a/T00b/T00c/T04a/T04b. Đã nghiệm thu; T00c/T04b được sửa và kiểm chứng lại ngày 19/10.
 - B — Tính đúng và bố cục lịch: T02 → T03a. Đã nghiệm thu; T02 đã thêm refresh scope hiện tại sau mutation, 9 regression đổi scope/kết quả PATCH PASS.
-- C — Dialog, thao tác lịch và thu tiền: T05a → T05b → T03b/T06.
+- C — Dialog, thao tác lịch và thu tiền: T05a → T05b → T03b/T06. Đã nghiệm thu phạm vi đầu ngày 19/10; 73/73 PASS. T01 vẫn giữ phần phục hồi nhiều buổi tự động; chưa có draft lưu qua reload.
 - D — Phiên đăng nhập, lỗi mạng và tenant: T07a/T07b → T07c; review quyền sau sửa.
 - E — Contract dữ liệu, wizard và dời lịch: T08a → T08b, T09b → T09a/T09c theo dependency. Chốt API trước sửa backend.
 - F — Nhiều buổi thành công một phần: T01a → T01b. Có thể điều tra ngay sau A; không bỏ qua trước pilot.
@@ -112,15 +112,15 @@ Quyết định UI cho đợt đầu:
 
 ### T01a — Tái hiện và chốt cách khôi phục [review giao dịch]
 
-- [ ] CHƯA LÀM. Sau T00c. UX-21.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UX-21. Test tái hiện chuỗi cũ để lại khách/thẻ/buổi 1 sau buổi 2 lỗi. Chốt atomic batch + UUID chống lặp và GET đối chiếu tại API_CONTRACT mục T01. Backend 85/85 toàn suite rồi 8/8 scoped mở rộng PASS, gồm RLS, ownership transfer, cùng/khác UUID tranh KTV auto.
 - File: frontend/src/app/(admin)/admin/bookings/page.tsx handleCreateManualBooking; frontend/src/lib/api.ts; API_CONTRACT; fixture booking.
 - Ca: tạo khách nhanh + thẻ + 3 buổi, buổi 2 trả 409/503; riêng ca commit thành công nhưng mất response. Đếm ID khách/thẻ/lịch trước/sau và hành vi retry/đóng form/reload.
-- Đầu ra bắt buộc: quyết định atomic batch/idempotency hay recovery từng bước, contract/payload/lỗi và cách đối chiếu phần đã thành công. Chưa có quyết định trong plan này.
+- Quyết định: atomic batch và request UUID theo tenant/actor, GET kết quả cùng actor/quyền khách hiện tại; contract/payload/lỗi/migration tại API_CONTRACT mục T01. Không có trạng thái tạo một phần trong luồng mới; lỗi trước commit rollback cả khách/thẻ/lịch/audit.
 - Không tự xóa phần đã tạo, không Promise.all để “sửa”, không chạy lại toàn chuỗi khi chưa biết kết quả.
 
 ### T01b — Triển khai theo quyết định T01a
 
-- [ ] CHỜ T01a. Chỉ giao khi T01a đã chốt file/API, test đồng thời và migration nếu cần.
+- [x] ĐÃ KIỂM CHỨNG 19/10 theo quyết định T01a. File mới manual_booking_service.py, schemas/manual_booking.py, migration 0008_manual_booking_batches.py; UI dùng use-manual-batch.ts. Production 49/49 hồi quy PASS; sau bổ sung UI, build cuối 9f4d3b45: TypeScript + 17/17 recovery/dialog PASS (51.29s). Rollback toàn bộ khi buổi 2 lỗi; mất response sau commit/retry/check/đóng rồi mở/reload giữ một khách/một thẻ/đúng 3 lịch. Không tự migrate DB ứng dụng.
 - Nghiệm thu: không cấp thêm thẻ/lịch khi retry kết quả chưa rõ; thông báo đúng từng phần đã tạo. Backend kiểm chứng tenant/ownership/concurrency nếu có thay đổi. UI đẹp không thay thế gate này.
 
 ## T02 — Response lịch cũ và dữ liệu tham chiếu
@@ -145,7 +145,7 @@ Quyết định UI cho đợt đầu:
 
 ### T03b — Chi tiết và hành động theo trạng thái
 
-- [ ] CHƯA LÀM. Sau T03a/T05b. UX-01, UX-03, UX-17.
+- [x] ĐÃ TRIỂN KHAI VÀ KIỂM CHỨNG 19/10. Card có một trạng thái tiếp theo + mở chi tiết bằng Button; chi tiết dùng Modal chung. Hoàn thành/hủy/vắng mặt có xác nhận khách/giờ, giữ API transition; trạng thái canonical và số buổi được đối chiếu server. Giữ vị trí cuộn sau mutation trong cùng scope, bỏ phục hồi khi đổi scope. Regression 30 lịch thật PASS. UX-01, UX-03, UX-17 trong phạm vi này.
 - Cùng file/component lịch. Card gọn mở chi tiết, một hành động tiếp theo rõ; menu phụ không che quyền/confirmation hiện có.
 - Nội dung đủ để đối chiếu trước cập nhật trạng thái; hoàn thành thẻ/hủy/vắng mặt đúng nghiệp vụ. Keyboard và quay lại vị trí lịch; không đổi transition API.
 
@@ -170,7 +170,7 @@ Quyết định UI cho đợt đầu:
 
 ### T05a — Primitive dialog
 
-- [ ] CHƯA LÀM. Sau T04a. UX-04.
+- [x] ĐÃ TRIỂN KHAI VÀ KIỂM CHỨNG 19/10. Native dialog/portal, tên/mô tả, Tab/Shift+Tab, focus ban đầu/restore/fallback, nền inert và scroll lock; policy pending/dirty do caller. Có history guard cho manual/payment, giữ theme shell khi portal. Test keyboard/backdrop/back/dirty/resize PASS; caller ngoài nhóm C còn cần cấu hình policy nghiệp vụ ở T09/T10. UX-04.
 - File: frontend/src/components/ui/modal.tsx và caller để thêm props/accessibility cần thiết.
 - Accessible name/description, initial focus, Tab/Shift+Tab trap, restore focus (fallback khi nút mở đã mất), khóa scroll nền và tương tác nền. Cleanup đúng khi unmount.
 - Escape/backdrop theo chính sách caller: cho đóng bình thường; đang ghi/kết quả chưa rõ không đóng; dirty có bỏ/tiếp tục. Không chồng dialog và không khóa focus mất lối thoát.
@@ -178,14 +178,14 @@ Quyết định UI cho đợt đầu:
 
 ### T05b — Form dài trên điện thoại
 
-- [ ] CHƯA LÀM. Sau T05a. UX-04, UX-08, UX-12.
+- [x] ĐÃ TRIỂN KHAI VÀ KIỂM CHỨNG 19/10 trong phạm vi đầu. Header/footer manual tách vùng cuộn, 320x480/390x844/1366x768 PASS; field cuối tiếp cận được, select mobile 44px/16px và slot tối thiểu 44px. 409 giữ field; đang gửi không đóng. Kết quả chưa rõ/đã có thay đổi một phần chặn gửi lại và cho đối chiếu thủ công, giữ draft trong trang; không coi là giải pháp recovery/idempotency T01. Reload không giữ draft và không tự replay (đã test). Customer nav có safe area. UX-04, UX-08, UX-12.
 - Phạm vi lần đầu: container dùng chung và caller tạo lịch thủ công; customer-shell chỉ cho safe area. Các caller dời lịch/CRM/staff áp dụng container ở T09/T10, không sửa gộp ở đây. Không đổi field/API.
 - View tập trung trong route hiện tại, header/footer truy cập được với màn thấp; không chồng nav/CTA, không che input cuối. Giữ form khi lỗi/409.
 - Đóng/hủy/back trong lúc pending không làm mất state cần retry; resize không remount giao dịch. Phân biệt browser Back, nút Back và reload.
 
 ## T06 — Thu tiền mobile
 
-- [ ] CHƯA LÀM. Sau T05b. UX-05.
+- [x] ĐÃ TRIỂN KHAI VÀ KIỂM CHỨNG 19/10. Search toàn hàng mobile, dòng thu không ép tên/tiền, CTA dưới thông tin; Modal mở một ledger, có khách/dịch vụ và số tiền CTA. Row30 đúng ID khách/thẻ, resize + thu một phần + đóng khôi phục vị trí/focus. Lost response giữ UUID/payload, refresh lỗi khóa thu tiếp, đủ/một phần/hoàn tác/STAFF403 đều PASS. Không thay receive/reverse API/amount calculation. UX-05.
 - File: frontend/src/app/(admin)/admin/payments/page.tsx, components/admin/payment-ledger.tsx; lib/payment-api.ts chỉ đọc; automation_test/features/admin_payments.
 - Ô tìm kiếm toàn hàng, tên/tiền không bị nút ép nhỏ, nút mobile dưới thông tin. Chọn dòng thứ 30 mở đúng khách/chi nhánh và CTA có tiền; trở về đúng vị trí sau thành công.
 - Không đổi UUID/payload/retry/amount calculation. Sheet đóng hoặc breakpoint không tạo ledger mới mất pending state.
@@ -195,7 +195,7 @@ Quyết định UI cho đợt đầu:
 
 ### T07a — Phiên Customer [review ranh giới quyền]
 
-- [ ] CHƯA LÀM. Sau T00c. UX-14.
+- [x] ĐÃ NGHIỆM THU phạm vi 19/10. UX-14. Guard ở context và API helper; version theo slug xử lý cả cùng JWT khi đăng nhập lại ở tab khác. Lỗi tạm giữ token, không lộ dữ liệu/dialog phiên cũ, có retry; inline login giữ draft từ phiên chưa đăng nhập.
 - File: frontend/src/components/customer/customer-context.tsx, frontend/src/lib/customer-api.ts; customer_regressions.
 - auth/me 503/network giữ token, xóa/ẩn dữ liệu chưa được xác minh, có Thử lại; không enable ghi dữ liệu trước xác minh.
 - 401 của phiên hiện tại chỉ xóa token đúng slug; không ảnh hưởng Admin/slug khác. Response cũ sau đổi slug/logout/đăng nhập lại không set user hay xóa token mới; guard ở cả context và API helper.
@@ -203,14 +203,14 @@ Quyết định UI cho đợt đầu:
 
 ### T07b — Phiên Admin [review ranh giới quyền]
 
-- [ ] CHƯA LÀM. Sau T00c. UX-25.
+- [x] ĐÃ NGHIỆM THU phạm vi 19/10. UX-25. Lỗi danh sách chi nhánh có retry, không coi là quyền rỗng; guard me/helper/switch/logout và thay đổi tab. Response/lỗi switch cũ bị bỏ qua và dropdown được mở khóa. Production mới cuối 8/8 auth/branch PASS.
 - File: frontend/src/components/admin/auth-context.tsx, frontend/src/lib/api.ts; admin_auth/admin_branches.
 - Cùng ma trận 503/network/401 và response muộn như T07a, thêm đổi branch, tab khác logout/switch. Không lưu lại token cũ sau response muộn.
 - fetchBranches lỗi khác “không có chi nhánh”: có retry, không trình bày empty như quyền đã được xác minh. Giữ backend là nơi quyết định quyền.
 
 ### T07c — Tenant công khai và slots lỗi
 
-- [ ] CHƯA LÀM. Sau T07a; phối hợp T02 cho lịch Admin. UX-14, UX-24, UX-26.
+- [x] ĐÃ NGHIỆM THU phạm vi 19/10. UX-14, UX-24, UX-26. Public tenant chỉ 404 mới not-found; lỗi có retry. Slots wizard/đổi lịch Customer/Admin và từng dòng manual phân biệt lỗi/200 rỗng, khóa submit theo scope đã xác minh, giữ lựa chọn còn hợp lệ khi retry, loại response cũ.
 - File: customer-context/customer-shell, customer book/appointments, admin slots loader.
 - Tenant 404 mới hiện không tìm thấy; 503/offline có thông báo và retry. Loading/error khi đổi slug không hiển thị chi nhánh cũ.
 - Slots 200 rỗng khác 503/offline; giữ lựa chọn còn hợp lệ, khóa submit khi slots chưa xác minh. Response ngày/KTV cũ không ghi đè lựa chọn mới.
@@ -220,15 +220,15 @@ Quyết định UI cho đợt đầu:
 
 ### T08a — Chốt contract [API review]
 
-- [ ] CHƯA LÀM. Sau T00c. UX-13, UX-16.
+- [x] ĐÃ CHỐT VÀ KIỂM CHỨNG backend 19/10. UX-13, UX-16. Bổ sung tên vào Booking/BookingItem bằng 2 query theo lô sau lọc quyền; PublicTenant.staff chỉ id/full_name STAFF active, độc lập slots; giữ mảng GET bookings/customers, thêm X-Has-More/X-Next-Offset và limit+1. Chi tiết quyền, thiếu tên, thứ tự/offset và lỗi tại API_CONTRACT mục T08. Backend isolated 78/78 PASS.
 - File: frontend/src/lib/types.ts, api.ts/customer-api.ts; customer book/admin bookings; docs/API_CONTRACT.md. Backend chỉ mở phạm vi endpoint/schema liên quan.
 - Quyết định cụ thể: display fields trong booking hay batch lookup theo quyền; nguồn KTV công khai độc lập slots đã lọc; phân trang lịch theo contract thực.
 - Dữ liệu >200 khách, khách ngoài trang đầu, >200 lịch trong khoảng ngày, KTV hết giờ hôm nay nhưng còn ngày mai. Không tải vô hạn toàn CRM.
-- Lưu method/path/query/DTO/errors/quyền, hành vi dữ liệu thiếu và test tenant/STAFF ownership/N+1. Không trả SĐT/notes/hồ sơ trong public staff DTO. Chưa có quyết định API cuối cùng ở bản plan này.
+- Đã lưu method/path/query/DTO/errors/quyền, hành vi dữ liệu thiếu và test tenant/STAFF ownership/N+1; không trả SĐT/notes/hồ sơ trong public staff DTO. Không có migration hoặc thay RLS/giao dịch đặt lịch.
 
 ### T08b — API đã duyệt và UI tiêu thụ
 
-- [ ] CHỜ T08a. Tách lượt backend và frontend nếu quyết định cần đổi cả hai.
+- [x] ĐÃ NGHIỆM THU phạm vi 19/10. Calendar/appointments có tải thêm, trạng thái còn dữ liệu và guard scope; manual tìm khách bằng q/phân trang 50, không join tên từ trang CRM đầu; wizard dùng danh sách KTV công khai độc lập slots. Tên thiếu không hiện UUID; tên dài xuống dòng. Backend 78/78, UI dev 55/55 và production cuối 9/9 ca T08/resource-401 PASS sau hai lỗi đã sửa ở lượt tổng hợp. CRM chính 100 dòng còn T10a; full release gate T12 chưa chạy lại toàn bộ trên source cuối.
 - Backend tests quyền/cross-tenant trước; cập nhật API_CONTRACT rồi type/client. Không gọi thêm một request riêng cho mỗi card.
 - UI hiện tên đúng quyền, có “còn dữ liệu”/phân trang rõ; không trình bày 200 kết quả như toàn bộ và không dùng UUID thay tên như trạng thái bình thường.
 
@@ -236,7 +236,7 @@ Quyết định UI cho đợt đầu:
 
 ### T09a — Wizard 3 bước
 
-- [ ] CHƯA LÀM. Sau T05b/T07c/T08b. UX-13, UX-15.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UX-13, UX-15. Gộp 3 bước, bỏ auto-select riêng wizard, guard stepper/ngày quá khứ/pending, 409 trở lại chọn giờ và giữ draft. Production 9685143a: build/TypeScript PASS, 70/70 PASS (253.08s); gồm 4 ca mới cho 360/390/1366px và thẻ/double-submit. Không thay API/backend; thiết bị thật vẫn T12.
 - File: frontend/src/app/[tenant_slug]/book/page.tsx; automation_test/features/client_pwa_booking/pages/booking_wizard_page.py và tests liên quan.
 - Dịch vụ/thẻ → Ngày giờ/KTV → Xác nhận. Không auto chọn slot hoặc nhảy bước thiếu dữ liệu; ngày quá khứ bị chặn cả mũi tên.
 - Danh sách KTV không co theo slots đã lọc; đổi lựa chọn xóa slot không tương thích, Back giữ dữ liệu hợp lệ. Đăng nhập giữ lựa chọn, dùng thẻ vẫn cần auth.
@@ -244,15 +244,16 @@ Quyết định UI cho đợt đầu:
 
 ### T09b — Chốt gợi ý giờ khi sửa lịch [API/concurrency review]
 
-- [ ] CHƯA LÀM. Sau T00c, phối hợp T08a. UX-23.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UX-23. Contract GET /bookings/{id}/available-slots theo snapshot, exclude sau quyền; PATCH omit staff_id giữ KTV. Backend isolated 81/81 PASS; production UI b/c và hồi quy 55/55 PASS (a15b5244). Không thay thứ tự khóa/giao dịch.
 - File: admin/customer reschedule, API_CONTRACT; booking endpoint/service/schema chỉ trong phạm vi sửa bug.
 - Kiểm tra sửa note không đổi giờ; đổi KTV cùng giờ; menu đổi duration sau booking; giữ KTV khi không yêu cầu đổi; booking đã chuyển trạng thái không còn sửa được.
+- Bao gồm STAFF phụ trách khách A1 nhưng lịch do A2 thực hiện: tên A2 đã có trong Booking DTO (T08), dropdown dời lịch hiện chỉ có STAFF hiện tại. T09 phải giữ/hiển thị đúng KTV cũ, không biến option thiếu thành “tự sắp xếp” hoặc chuyển người khi chỉ sửa note.
 - Chốt API đề xuất nếu cần dùng snapshot và loại đúng booking đang sửa: xác minh tenant/ownership trước exclude, không nhận ID tùy ý để nới khả dụng. API gợi ý không thay kiểm tra lock/409 lúc PATCH.
 - Lưu quyết định method/path/DTO/lỗi/tests; không giao model nhỏ tự suy ra cách sửa snapshot/locking.
 
 ### T09c — UI dời lịch theo contract đã chốt
 
-- [ ] CHỜ T09b và backend cần thiết đã kiểm chứng; sau T05b/T07c.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UI dùng snapshot, giữ lựa chọn hợp lệ, không auto chọn giờ mới, preview/pending/dirty và chốt double-submit. Production build/TypeScript và 55/55 regression PASS (152.34s), gồm 6 ca snapshot/đổi ngày/trạng thái mới, ownership, slots recovery, calendar loading và dialog. Sau đó T09a đã hoàn thành và chạy lại 70 ca khách/PWA như mục trên.
 - Giữ KTV hiện tại nếu không chọn đổi; không tự nhảy sang giờ đầu khác. Preview trước/sau, 409 giữ form và lịch gốc.
 - Bàn giao chủ hồ sơ riêng, Admin-only, mặc định tắt. Kiểm tra ID/items/price/duration snapshot giữ nguyên và thẻ không bị giữ/trừ thêm ngoài nghiệp vụ.
 - Regression customer_regressions/tests/test_ownership_reschedule.py + admin_bookings.
@@ -261,21 +262,22 @@ Quyết định UI cho đợt đầu:
 
 ### T10a — CRM/nhân sự
 
-- [ ] CHƯA LÀM. Sau T05b. UX-10, UX-12.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UX-10, UX-12. Production ace45b5b: build/TypeScript và 16/16 PASS (51.39s), gồm 10 ca mới + 6 hồi quy cấp thẻ/ca làm/ownership. CRM trang 50/tải thêm; mobile danh sách → chi tiết giữ query/scroll/focus, tên dài không overflow 360/390/1366px. Lỗi ca làm không cho lưu mặc định; response khách/KTV cũ không ghi đè; modal cấp thẻ pin khách ban đầu khi search hoàn tất. Không sửa backend/API hoặc quyền.
 - File: admin/customers/page.tsx và admin/staff/page.tsx (đầy đủ dưới frontend/src/app/(admin)); tách hai lượt nếu đổi nhiều.
+- Đã sửa phát hiện limit=100 của CRM chính: dùng fetchCustomerPage limit=50/header metadata, tải thêm có chủ ý và bỏ trùng ID; kiểm tra 105 khách. Mutation hồ sơ tải lại query để offset không lệch khi tên thay đổi. T08 trước đó chỉ xử lý bộ chọn khách và tên lịch.
 - Danh sách → chi tiết có Quay lại, giữ tìm kiếm/vị trí, selection có keyboard semantics. Không thêm quyền truy cập chỉ để mở hồ sơ.
 - Regression admin_crm_packages, admin_catalog/tests/test_staff_schedules.py, ownership.
 
 ### T10b — Dịch vụ/báo cáo
 
-- [ ] CHƯA LÀM. Sau T04a. UX-09.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UX-09. Một DOM table dùng thẻ trên mobile/bảng trên PC, không nhân đôi control/ID; báo cáo rõ giá trị COMPLETED/thực thu/hoa hồng ước tính, guard kỳ cũ và lỗi/retry. Production f1eedaa1: build/TypeScript + 31/31 PASS (74.35s), chung với T10c/regression thẻ/PWA/wizard; tên dài/giá lớn ở 360/390/768/1366px. Không thay API/backend.
 - File: admin/services/page.tsx, admin/reports/page.tsx.
 - Mobile cards đọc đủ tiền/trạng thái, desktop giữ bảng hợp lý. Không duplicate focus/ID giữa hai layout.
 - Commission là ước tính; thực thu khác giá trị dịch vụ, bộ lọc và kỳ báo cáo rõ. Regression admin_catalog/tests/test_services.py, admin_reports.
 
 ### T10c — Thẻ khách và màn rộng
 
-- [ ] CHƯA LÀM. Sau T04b/T07c. UX-11, UX-12.
+- [x] ĐÃ KIỂM CHỨNG 19/10. UX-11, UX-12. Thẻ tách hết buổi/hết hạn/giữ chỗ (kể cả ACTIVE quá hạn), không suy đã thu tiền; retry tải thẻ. Shell/home/profile rộng hơn PC, form book/login/register giữ chiều rộng đọc được. Production f1eedaa1: build/TypeScript + 31/31 PASS, gồm 12 ca mới và 19 hồi quy liên quan. Thiết bị thật/keyboard/safe area vẫn T12.
 - File: frontend/src/app/[tenant_slug]/profile/page.tsx; customer-shell; customer home nếu cần breakpoint.
 - Đã dùng/giữ chỗ/có thể đặt thêm/hạn dùng rõ; expired/hết buổi/giữ hết buổi khác nhau. “Dùng 1 buổi” không hàm ý thẻ đã thu tiền.
 - Mở rộng PC hợp lý, vẫn đọc tốt phone. Regression automation_test/features/client_pwa_booking/tests/test_customer_package.py và automation_test/features/customer_regressions/tests/test_customer_safety.py.
@@ -284,28 +286,29 @@ Quyết định UI cho đợt đầu:
 
 ### T11a — Điều hướng và safe area
 
-- [ ] CHƯA LÀM. Sau T03b/T06/T10a, dùng T05a. UX-08.
+- [x] ĐÃ SỬA VÀ KIỂM CHỨNG phạm vi Chromium. Admin mobile 5 mục, STAFF 3 mục đúng quyền; Thêm dùng Modal chung, giữ Back/focus và không thêm route. Customer giữ 4 mục, vùng chạm tối thiểu 48px và aria-current. Production 0f2f8f4c-60a9-4a3b-899c-31f2452d5bbc: build/TypeScript và 42/42 PASS (105.39s), gồm 9 ca điều hướng mới, 13 dialog và 20 phiên đăng nhập. Kiểm tra 320/360/390px, landscape 667/844px và khách PC 1366px; nội dung có khoảng đệm, modal giữ nav inert. Thiết bị thật/keyboard/safe area vẫn T12. UX-08.
 - File: admin-shell, customer-shell. Admin 5 mục, STAFF chỉ mục được phép; “Thêm” dùng menu/sheet trong shell, không tự tạo hệ route mới.
 - Tất cả màn hiện có vẫn truy cập được; active tab đúng, Back/focus đúng; không chồng nav với form/action footer.
 - Test deep link, reload, mobile landscape; safe area/keyboard thật tại T12.
 
 ### T11b — Guard chuyển chi nhánh [review phiên/giao dịch]
 
-- [ ] CHƯA LÀM. Sau T07b/T05b/T06. UX-19.
+- [x] ĐÃ SỬA VÀ KIỂM CHỨNG phạm vi Chromium. Shared/exclusive Web Locks cho form/request/đổi branch, xác nhận dirty, chặn pending/uncertain cả hai tab; không replay mutation hoặc lưu draft/PII vào localStorage. Bao gồm lịch tạo thủ công đã đóng modal, thu tiền, ca làm, cấu hình, cấp quyền, KTV phụ trách và Push chờ quyền. Fail closed khi thiếu Web Locks; thiết bị/HTTPS thực vẫn T12. Full 204/204 PASS, xem PROGRESS. UX-19.
 - File: admin-shell/auth-context và caller khai báo dirty/pending.
+- Khi tiếp tục: guard phải bao gồm manualBatch.uncertain sau khi đóng modal bằng Kiểm tra sau, PaymentLedger attempt/voidAttempt/refreshFailed và form inline settings/ca làm, không chỉ Modal đang mở. Kiểm tra pending ở tab khác trước khi đổi; vẫn xóa UI riêng tư ngay khi phiên đổi ngoài tab, không giữ token cũ để bảo vệ draft. Chỉ metadata đối chiếu không chứa PII; không lưu payload/draft khách vào localStorage.
 - Dirty cho bỏ/tiếp tục; pending chưa rõ kết quả không đổi branch ngầm. Không lưu draft nhạy cảm vào localStorage.
 - Giữ cơ chế clear state/token giữa các tab; không replay submit cũ vào branch mới. Test hai tab và request muộn, không chỉ dropdown một tab.
 
 ### T11c — Dashboard và popup thông báo
 
-- [ ] CHƯA LÀM. Sau T11a/T07b; chia theo màn nếu cần. UX-07, UX-18.
+- [x] ĐÃ SỬA VÀ KIỂM CHỨNG phạm vi Chromium. Bell hai phía dùng Modal chung, tên dài/30 thông báo/error/empty/retry/Back/Escape/focus ở 320/360/1366px. Dashboard ưu tiên tác vụ tại chi nhánh, tổng hợp chỉ xem, đồng bộ query/Back/Forward và retry; không thêm chỉ số/API. Full 204/204 PASS. UX-07, UX-18.
 - File: admin/dashboard, notification-bell hai phía.
 - Tác vụ hôm nay sớm, metric chỉ dùng dữ liệu đã có và ghi rõ phạm vi; không tự thêm API/chỉ số chưa tồn tại. Tổng chi nhánh chỉ xem.
 - Popup 320/360px và tên dài không tràn; danh sách rỗng/lỗi/nhiều thông báo, focus/đóng/retry. Đã xác nhận popup Admin tràn trái ở 320px ngày 19/10, 5 phần tử ngoài viewport; xem artifact run 76d5ebba, T00c-collector/320x844-notifications. Không suy diễn mọi popup đều lỗi.
 
 ### T11d — Coverage các màn còn lại
 
-- [ ] CHƯA LÀM. Sau T04/T07/T11a tương ứng; kiểm tra từng màn, không sửa gộp mọi route.
+- [x] ĐÃ SỬA VÀ KIỂM CHỨNG phạm vi Chromium. Coverage route bên dưới ở 320/390/768/1366px, tên/lỗi dài, label và sample theme sáng/tối. Bổ sung retry GET, chặn settings save khi chưa có baseline (UX-28), giữ Operator UUID/payload và luồng đăng nhập riêng. Full 204/204 PASS; không suy thành đạt bàn phím/thiết bị thật hoặc mọi tổ hợp màu.
 - File: trang chọn chi nhánh /, admin/login, customer login/register, admin/branches, admin/settings, operator/login và operator/page; components branding.
 - Xác nhận 320/390/768/1366, tên/SĐT/lỗi dài, bàn phím/label/loading/error, theme sáng/tối. Đây là checklist coverage, chưa gán lỗi khi chưa có bằng chứng.
 - Admin không đăng ký tenant trên production; Operator riêng tạo chủ spa, customer register giữ luồng hiện tại. Không mở lại public owner signup theo tài liệu cũ.
@@ -314,7 +317,12 @@ Quyết định UI cho đợt đầu:
 
 ## T12 — Gate tổng hợp và pilot
 
-- [ ] CHƯA LÀM. Các task trong phạm vi release đã kiểm chứng; T01/T08/T09 phải có kết luận hoặc ghi blocker, không lờ đi vì UI đã đẹp.
+- Cập nhật QA-04 ngày 19/10: PO yêu cầu **không ghi file log**, runner hiện chỉ xuất console, Docker QA logging=none và chặn collector. Windows chưa đồng bộ giờ; Ubuntu WSL bật NTP riêng, có 14 clock change trong cửa sổ lỗi gốc. Resync Windows bị Access denied, chờ người vận hành chạy PowerShell Administrator. Chưa thay cấu hình giờ và chưa đóng QA-04; xem quy trình khắc phục/hoàn nguyên trong RELEASE_RUNBOOK và bằng chứng trong PROGRESS. Không chạy lại vô hạn suite để thay cho sửa runtime.
+
+- Cập nhật điều tra 19/10: PO xác nhận chưa có staging HTTPS/thiết bị thật. Đã thêm probe JWT chỉ đọc và log metadata khi gặp ImmatureSignatureError; không thay chính sách xác thực. **Backend 98/98 PASS (201.24s), production regression auth/branches/operator/session/guard 44/44 PASS (116.05s), run 9c4b7634**. Probe 21.761 mẫu/120s không tái hiện lỗi, không đủ để đóng QA-04. Full UI 204/204 phía dưới là lượt trước, frontend không đổi. Lệnh và số liệu trong PROGRESS; T12 vẫn chờ môi trường, kiểm chứng nguyên nhân và nghiệm thu thực tế.
+- [ ] ĐÃ CHẠY PHẦN TỰ ĐỘNG, CHƯA HOÀN TẤT. Production cuối 86d9eaf7-ae95-42eb-ae99-d6d658765eeb: build/TypeScript và full E2E 204/204 PASS (554.89s), không skip/xfail/setup error. Backend isolated 88/88, unit QA harness 23/23 PASS; cleanup đã xác nhận. Không cần chạy lại chỉ vì cập nhật tài liệu.
+- QA-04 vẫn là blocker: setup ImmatureSignatureError tái hiện run trung gian f5a26bdb; chưa sửa nguyên nhân, không đóng từ lượt xanh. Probe đồng hồ 240s ở run khác chỉ là quan sát, chưa chứng minh nguyên nhân. Không tăng leeway/retry để che lỗi.
+- Thiết bị thật/keyboard/safe area/zoom 200%/Push và pilot chủ spa/KTV/khách: CHƯA KIỂM CHỨNG. Giữ các tiêu chí bên dưới; ghi thiết bị/OS/trình duyệt, ngày, vai trò, kịch bản, expected/actual và vấn đề khi kiểm tra. Không giả lập thành nghiệm thu thật.
 - Build production trong môi trường QA; full E2E + regression layout. Backend isolated khi đổi API/quyền/giao dịch. Không gọi collector PASS là UI PASS.
 - Android Chrome/iPhone Safari thật: portrait/landscape, bàn phím ảo, safe area, 200% zoom, mất mạng, Back, touch. Chưa có thiết bị thì ghi CHƯA KIỂM CHỨNG.
 - Dữ liệu T00c; cả ADMIN/STAFF/CUSTOMER/OPERATOR; đổi chi nhánh và khách ngoài quyền không lộ qua UI.
@@ -371,4 +379,4 @@ Frontend build: npm.cmd run build tại frontend, nhưng chỉ với output/back
 
 ## Mốc chuyển model nhỏ
 
-R7-01–04 đã đóng ngày 19/10. Các regression chạy trong features/admin_bookings và features/ui_quality; seven_task_recheck.py giữ làm entry point tương thích. Tiếp theo C (T05a → T05b → T03b/T06), theo nhóm/dependency PO đã cho phép. T01a/T08a/T09b cần reviewer chốt giao dịch/contract; T07/T11b cần review phiên/quyền. Popup 320px được ghi vào T11c; QA-04 vẫn phải điều tra nguyên nhân trước gate tổng, không nới xác thực/retry để làm xanh.
+R7-01–04, nhóm C/D/E/F/G và T09a/b/c đã nghiệm thu phạm vi. T01 đã chốt contract/khóa/RLS/khôi phục và kiểm chứng; giữ nguyên UUID khi chưa rõ kết quả, không replay chuỗi POST cũ. CRM có phân trang/mobile detail/ownership; không bỏ pin issueTarget hoặc guard response cũ. Giữ nhãn báo cáo giá trị dịch vụ/thực thu/hoa hồng ước tính và trạng thái thẻ theo server. T11a/b/c/d đã nghiệm thu phạm vi; giữ Web Locks/guard caller và xóa UI khi phiên thực sự đổi. Không để thay shell remount mất attempt. Còn T12: QA-04, thiết bị thật và pilot; không cần chạy lại suite đã xanh nếu chỉ sửa tài liệu. Không chốt release từ UI PASS hoặc nới xác thực/retry để làm xanh.

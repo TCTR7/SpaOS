@@ -83,6 +83,11 @@ class ServiceDeleteOut(BaseModel):
 
 
 # ---------- Public ----------
+class PublicStaffOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+
+
 class PublicTenantOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -95,6 +100,7 @@ class PublicTenantOut(BaseModel):
     close_time: time
     buffer_minutes: int
     services: List[ServiceOut]
+    staff: List[PublicStaffOut] = Field(default_factory=list)
 
 
 # ---------- Users (staff / customer) ----------

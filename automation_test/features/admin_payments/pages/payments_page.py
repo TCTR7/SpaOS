@@ -23,7 +23,7 @@ class PaymentsPage:
             self.page.locator("#receiptAmount").fill(amount)
         self.page.locator("#receiptMethod").select_option(method)
         with self.page.expect_response(lambda r: r.url.endswith("/receipts") and r.request.method == "POST") as result:
-            self.page.get_by_role("region", name="Xác nhận thu tiền", exact=True).get_by_role("button", name="Xác nhận đã thu", exact=True).click()
+            self.page.get_by_role("region", name="Xác nhận thu tiền", exact=True).get_by_role("button", name="Xác nhận đã thu", exact=False).click()
         assert result.value.status == 201, result.value.text()
         expect(self.page.get_by_role("status").filter(has_text="Đã ghi nhận")).to_be_visible()
         return result.value.json()

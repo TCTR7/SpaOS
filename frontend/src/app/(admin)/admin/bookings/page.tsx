@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useManualBatch } from "@/lib/use-manual-batch";
+import { useAvailableSlots } from "@/lib/use-available-slots";
+import { ReschedulePreview } from "@/components/reschedule-preview";
 import {
   Calendar as CalendarIcon,
   CalendarClock,
@@ -16,16 +19,14 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
-  createBooking,
+  ApiError,
   rescheduleBooking,
-  createCustomer,
   fetchAvailableSlots,
-  fetchBookings,
+  fetchBookingPage,
+  fetchCustomerPage,
   fetchCustomerPackages,
-  fetchCustomers,
   fetchServices,
   fetchStaffList,
-  issueCustomerPackage,
   updateBookingStatus,
 } from "@/lib/api";
 import type {
@@ -62,6 +63,8 @@ interface ScheduledSessionRow {
   date: string;
   slots: SlotItem[];
   slotsLoading: boolean;
+  slotsError: string | null;
+  slotsScope: string;
   selectedSlotStart: string;
 }
 
@@ -71,6 +74,8 @@ function createEmptySessionRow(dateISO: string): ScheduledSessionRow {
     date: dateISO,
     slots: [],
     slotsLoading: false,
+    slotsError: null,
+    slotsScope: "",
     selectedSlotStart: "",
   };
 }
@@ -96,10 +101,14 @@ export default function AdminBookingsPage(): React.ReactElement {
   referenceScopeRef.current = referenceScope;
   const bookingRequest = React.useRef(0);
   const referenceRequest = React.useRef(0);
+  const calendarReturnPosition = React.useRef<{ scope: string; x: number; y: number } | null>(null);
   const mounted = React.useRef(true);
   const [bookingState, setBookingState] = React.useState<{
     scope: string; rows: BookingRecord[]; loading: boolean; error: string | null;
   }>({ scope: "", rows: [], loading: true, error: null });
+  const [bookingPage, setBookingPage] = React.useState({ scope: "", nextOffset: null as number | null, loading: false, error: null as string | null });
+  const bookingPageRef = React.useRef(bookingPage);
+  bookingPageRef.current = bookingPage;
   const [referenceData, setReferenceData] = React.useState<{
     scope: string; services: ServiceItem[]; customers: UserDetail[]; staff: UserDetail[];
     loading: boolean; errors: string[]; servicesReady: boolean; customersReady: boolean; staffReady: boolean;
@@ -125,11 +134,17 @@ export default function AdminBookingsPage(): React.ReactElement {
     };
   }, []);
   const [error, setError] = React.useState<string | null>(null);
+  const [manualNotice, setManualNotice] = React.useState({ scope: "", text: "" });
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = React.useState<BookingRecord | null>(null);
+  const [statusConfirmation, setStatusConfirmation] = React.useState<BookingStatus | null>(null);
 
   // Manual Booking Modal State
   const [modalOpen, setModalOpen] = React.useState<boolean>(false);
   const [modalCustomerId, setModalCustomerId] = React.useState<string>("");
+  const [customerQuery, setCustomerQuery] = React.useState("");
+  const customerLookupRequest = React.useRef(0);
+  const [customerPage, setCustomerPage] = React.useState({ query: "", nextOffset: null as number | null, loading: false, error: null as string | null });
   const [quickNewCustomer, setQuickNewCustomer] =
     React.useState<boolean>(false);
   const [newCustomerName, setNewCustomerName] = React.useState<string>("");
@@ -149,7 +164,6 @@ export default function AdminBookingsPage(): React.ReactElement {
   );
   const [modalNote, setModalNote] = React.useState<string>("");
   const [modalError, setModalError] = React.useState<string | null>(null);
-  const [creatingBooking, setCreatingBooking] = React.useState<boolean>(false);
 
   const [transferCustomer, setTransferCustomer] = React.useState(false);
 
@@ -161,17 +175,13 @@ export default function AdminBookingsPage(): React.ReactElement {
   );
   const [rescheduleStaffId, setRescheduleStaffId] =
     React.useState<string>("");
-  const [rescheduleSlots, setRescheduleSlots] = React.useState<SlotItem[]>([]);
-  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] =
-    React.useState<boolean>(false);
-  const [rescheduleSlotStart, setRescheduleSlotStart] =
-    React.useState<string>("");
   const [rescheduleNote, setRescheduleNote] = React.useState<string>("");
   const [rescheduleError, setRescheduleError] = React.useState<string | null>(
     null
   );
   const [rescheduleSaving, setRescheduleSaving] =
     React.useState<boolean>(false);
+  const rescheduleFlight = React.useRef(false);
 
   const serviceMap = React.useMemo(() => {
     const map = new Map<string, ServiceItem>();
@@ -223,6 +233,7 @@ export default function AdminBookingsPage(): React.ReactElement {
   const loadReferenceData = React.useCallback(async (): Promise<void> => {
     if (!user || !mounted.current || referenceScopeRef.current !== referenceScope) return;
     const request = ++referenceRequest.current;
+    customerLookupRequest.current += 1;
     setReferenceData((previous) => ({ ...previous, scope: referenceScope,
       services: previous.scope === referenceScope ? previous.services : [],
       customers: previous.scope === referenceScope ? previous.customers : [],
@@ -234,7 +245,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       created_at: new Date().toISOString(),
     }]);
     const [svc, cust, staff] = await Promise.allSettled([
-      fetchServices(), fetchCustomers({ limit: 200 }), staffTask,
+      fetchServices(), fetchCustomerPage({ limit: 50 }), staffTask,
     ]);
     if (!mounted.current || request !== referenceRequest.current
         || referenceScopeRef.current !== referenceScope) return;
@@ -244,37 +255,74 @@ export default function AdminBookingsPage(): React.ReactElement {
     if (staff.status === "rejected") errors.push("Danh sách KTV");
     setReferenceData({ scope: referenceScope, loading: false, errors,
       services: svc.status === "fulfilled" ? svc.value : [],
-      customers: cust.status === "fulfilled" ? cust.value : [],
+      customers: cust.status === "fulfilled" ? cust.value.items : [],
       staff: staff.status === "fulfilled" ? staff.value : [],
       servicesReady: svc.status === "fulfilled", customersReady: cust.status === "fulfilled",
       staffReady: staff.status === "fulfilled" });
+    setCustomerPage({ query: "", nextOffset: cust.status === "fulfilled" ? cust.value.nextOffset : null, loading: false, error: null });
   }, [user, referenceScope]);
 
-  const loadBookings = React.useCallback(async (): Promise<void> => {
+  const searchCustomers = async (append = false): Promise<void> => {
+    if (!referencesReady || customerPage.loading) return;
+    const query = append ? customerPage.query : customerQuery.trim();
+    const offset = append ? customerPage.nextOffset : 0;
+    if (offset === null) return;
+    const request = ++customerLookupRequest.current;
+    setCustomerPage((previous) => ({ ...previous, query, nextOffset: append ? previous.nextOffset : null, loading: true, error: null }));
+    if (!append) {
+      setModalCustomerId(""); setCustomerPackages([]);
+      setReferenceData((previous) => ({ ...previous, customers: [] }));
+      setSelectedLines((previous) => previous.filter((line) => !line.customer_package_id));
+    }
+    try {
+      const result = await fetchCustomerPage({ q: query, limit: 50, offset });
+      if (!mounted.current || referenceScopeRef.current !== referenceScope || request !== customerLookupRequest.current) return;
+      setReferenceData((previous) => ({ ...previous, customers: Array.from(new Map([
+        ...(append ? previous.customers : []), ...result.items,
+      ].map((customer) => [customer.id, customer])).values()) }));
+      setCustomerPage({ query, nextOffset: result.nextOffset, loading: false, error: null });
+    } catch (error) {
+      if (!mounted.current || referenceScopeRef.current !== referenceScope || request !== customerLookupRequest.current) return;
+      setCustomerPage((previous) => ({ ...previous, loading: false, error: error instanceof Error ? error.message : "Không tìm được khách" }));
+    }
+  };
+
+  const loadBookings = React.useCallback(async (append = false): Promise<void> => {
     // A mutation may finish after the user changed filters. Its old callback
     // must not start a request for that previous scope.
     if (!mounted.current || scopeRef.current !== scopeKey) return;
+    const page = bookingPageRef.current;
+    if (append && (page.scope !== scopeKey || page.loading || page.nextOffset === null)) return;
+    const offset = append ? page.nextOffset! : 0;
     const request = ++bookingRequest.current;
-    setBookingState({ scope: scopeKey, rows: [], loading: true, error: null });
+    if (!append) setBookingState({ scope: scopeKey, rows: [], loading: true, error: null });
+    setBookingPage({ scope: scopeKey, nextOffset: append ? offset : null, loading: true, error: null });
     setError(null);
     try {
       const dateFrom = viewMode === "day" ? selectedDate : weekDays[0];
       const dateTo = viewMode === "day" ? selectedDate : weekDays[6];
-      const data = await fetchBookings({
+      const data = await fetchBookingPage({
         date_from: dateFrom,
         date_to: dateTo,
         staff_id: filterStaffId || undefined,
         status: filterStatus || undefined,
         limit: 200,
+        offset,
       });
-      const sorted = [...data].sort(
-        (a, b) =>
-          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      );
       if (!mounted.current || request !== bookingRequest.current || scopeRef.current !== scopeKey) return;
-      setBookingState({ scope: scopeKey, rows: sorted, loading: false, error: null });
+      setBookingState((previous) => {
+        const rows = Array.from(new Map([...(append && previous.scope === scopeKey ? previous.rows : []), ...data.items].map((row) => [row.id, row])).values());
+        rows.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime() || a.id.localeCompare(b.id));
+        return { scope: scopeKey, rows, loading: false, error: null };
+      });
+      setBookingPage({ scope: scopeKey, nextOffset: data.nextOffset, loading: false, error: null });
     } catch (err) {
       if (!mounted.current || request !== bookingRequest.current || scopeRef.current !== scopeKey) return;
+      if (append) {
+        setBookingPage({ scope: scopeKey, nextOffset: offset, loading: false, error: err instanceof Error ? err.message : "Không tải thêm được lịch" });
+        return;
+      }
+      setBookingPage({ scope: scopeKey, nextOffset: null, loading: false, error: null });
       setBookingState({ scope: scopeKey, rows: [], loading: false,
         error: err instanceof Error ? err.message : "Không thể tải danh sách lịch hẹn" });
     }
@@ -291,6 +339,15 @@ export default function AdminBookingsPage(): React.ReactElement {
     await latestLoadBookings.current();
   }, [referenceScope]);
 
+  const manualBatch = useManualBatch(user ? `spaos_manual_batch_${user.tenant_id}_${user.id}` : null,
+    (result) => {
+      setManualNotice({ scope: referenceScope, text: `Đã lưu ${result.booking_ids.length} buổi hẹn. Kiểm tra kết quả không tạo thêm khách, thẻ hoặc lịch.` });
+      setModalOpen(false); void refreshAfterMutation(); void loadReferenceData();
+    },
+    () => setModalOpen(true));
+  const creatingBooking = manualBatch.busy;
+  const manualUncertain = manualBatch.uncertain;
+
   React.useEffect(() => {
     void loadReferenceData();
   }, [loadReferenceData]);
@@ -298,6 +355,16 @@ export default function AdminBookingsPage(): React.ReactElement {
   React.useEffect(() => {
     void loadBookings();
   }, [loadBookings]);
+
+  React.useLayoutEffect(() => {
+    const position = calendarReturnPosition.current;
+    if (!position) return;
+    if (position.scope !== scopeKey) { calendarReturnPosition.current = null; return; }
+    if (!loading) {
+      window.scrollTo(position.x, position.y);
+      calendarReturnPosition.current = null;
+    }
+  }, [loading, scopeKey, bookingState]);
 
   React.useEffect(() => {
     const region = weekScroller.current;
@@ -312,16 +379,19 @@ export default function AdminBookingsPage(): React.ReactElement {
       setCustomerPackages([]);
       return;
     }
+    let cancelled = false;
+    setCustomerPackages([]);
     void (async () => {
       try {
         const pkgs = await fetchCustomerPackages(modalCustomerId);
-        setCustomerPackages(
+        if (!cancelled) setCustomerPackages(
           pkgs.filter((p) => p.status === "ACTIVE" && p.remaining_sessions > 0)
         );
       } catch {
-        setCustomerPackages([]);
+        if (!cancelled) setCustomerPackages([]);
       }
     })();
+    return () => { cancelled = true; };
   }, [modalCustomerId]);
 
   const selectedServiceIdsKey = React.useMemo(
@@ -333,6 +403,9 @@ export default function AdminBookingsPage(): React.ReactElement {
     () => sessionRows.map((r) => `${r.rowId}:${r.date}`).join("|"),
     [sessionRows]
   );
+  const [slotsAttempt, setSlotsAttempt] = React.useState(0);
+  const sessionSlotScope = (row: ScheduledSessionRow): string => JSON.stringify([row.date, selectedServiceIdsKey, modalStaffId]);
+  const sessionSlotVerified = (row: ScheduledSessionRow): boolean => !row.slotsLoading && !row.slotsError && row.slotsScope === sessionSlotScope(row) && row.slots.some((slot) => slot.start_time === row.selectedSlotStart);
 
   // Fetch available slots for each scheduled session row whenever services, staff, or row dates change
   React.useEffect(() => {
@@ -342,6 +415,8 @@ export default function AdminBookingsPage(): React.ReactElement {
           ...r,
           slots: [],
           slotsLoading: false,
+          slotsError: null,
+          slotsScope: "",
           selectedSlotStart: "",
         }))
       );
@@ -352,14 +427,14 @@ export default function AdminBookingsPage(): React.ReactElement {
     const serviceIds = selectedLines.map((l) => l.service_id);
 
     setSessionRows((prev) =>
-      prev.map((r) => ({ ...r, slotsLoading: true }))
+      prev.map((r) => ({ ...r, slotsLoading: true, slotsError: null }))
     );
 
     void (async () => {
       const results = await Promise.all(
         sessionRows.map(async (row) => {
           if (!row.date) {
-            return { rowId: row.rowId, slots: [] as SlotItem[] };
+            return { rowId: row.rowId, slots: [] as SlotItem[], error: null };
           }
           try {
             const res = await fetchAvailableSlots({
@@ -367,9 +442,9 @@ export default function AdminBookingsPage(): React.ReactElement {
               service_ids: serviceIds,
               staff_id: modalStaffId || null,
             });
-            return { rowId: row.rowId, slots: res.slots };
+            return { rowId: row.rowId, slots: res.slots, error: null };
           } catch {
-            return { rowId: row.rowId, slots: [] as SlotItem[] };
+            return { rowId: row.rowId, slots: [] as SlotItem[], error: "Không tải được khung giờ. Kiểm tra kết nối và thử lại." };
           }
         })
       );
@@ -387,7 +462,9 @@ export default function AdminBookingsPage(): React.ReactElement {
           const slots = found ? found.slots : [];
           let nextSelected = row.selectedSlotStart;
 
-          if (slots.length === 0) {
+          if (found?.error) {
+            // Retain the draft choice for retry, but never permit submission.
+          } else if (slots.length === 0) {
             nextSelected = "";
           } else if (!slots.some((s) => s.start_time === nextSelected)) {
             const matchingTimeSlot = firstPreferredTime
@@ -402,6 +479,8 @@ export default function AdminBookingsPage(): React.ReactElement {
             ...row,
             slots,
             slotsLoading: false,
+            slotsError: found?.error || null,
+            slotsScope: sessionSlotScope(row),
             selectedSlotStart: nextSelected,
           };
         });
@@ -412,52 +491,15 @@ export default function AdminBookingsPage(): React.ReactElement {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen, selectedServiceIdsKey, modalStaffId, sessionDatesKey]);
+  }, [modalOpen, selectedServiceIdsKey, modalStaffId, sessionDatesKey, slotsAttempt]);
 
-  // Load available slots when Reschedule Modal is open
-  React.useEffect(() => {
-    if (!rescheduleTarget || !rescheduleDate) {
-      setRescheduleSlots([]);
-      setRescheduleSlotStart("");
-      return;
-    }
-
-    let cancelled = false;
-    setRescheduleSlotsLoading(true);
-    setRescheduleSlots([]);
-    setRescheduleSlotStart("");
-
-    void (async () => {
-      try {
-        const res = await fetchAvailableSlots({
-          date: rescheduleDate,
-          service_ids: rescheduleTarget.items.map((i) => i.service_id),
-          staff_id: rescheduleStaffId || null,
-        });
-        if (!cancelled) {
-          setRescheduleSlots(res.slots);
-          const preferredTime = formatTimeVN(rescheduleTarget.start_time);
-          const sameTimeSlot = res.slots.find(
-            (s) => formatTimeVN(s.start_time) === preferredTime
-          );
-          setRescheduleSlotStart(
-            sameTimeSlot?.start_time || res.slots[0]?.start_time || ""
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setRescheduleSlots([]);
-          setRescheduleSlotStart("");
-        }
-      } finally {
-        if (!cancelled) setRescheduleSlotsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [rescheduleTarget, rescheduleDate, rescheduleStaffId]);
+  const { slots: rescheduleSlots, loading: rescheduleSlotsLoading, error: rescheduleSlotsError,
+    retry: retryRescheduleSlots, selectedStart: rescheduleSlotStart, select: setRescheduleSlotStart } = useAvailableSlots({
+    date: rescheduleDate, serviceIds: rescheduleTarget?.items.map((item) => item.service_id) || [],
+    staffId: rescheduleStaffId || null, enabled: Boolean(rescheduleTarget && user),
+    preferredStart: rescheduleTarget?.start_time,
+    bookingId: rescheduleTarget?.id,
+  });
 
   const openRescheduleModal = (booking: BookingRecord): void => {
     if (!canReschedule) return;
@@ -473,12 +515,15 @@ export default function AdminBookingsPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (rescheduleFlight.current) return;
     if (!rescheduleTarget || !rescheduleSlotStart) {
       setRescheduleError("Vui lòng chọn khung giờ trống mới.");
       return;
     }
 
+    rescheduleFlight.current = true;
     setRescheduleSaving(true);
+    calendarReturnPosition.current = { scope: scopeKey, x: window.scrollX, y: window.scrollY };
     setRescheduleError(null);
     try {
       await rescheduleBooking(rescheduleTarget.id, {
@@ -491,6 +536,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       setRescheduleTarget(null);
       await refreshAfterMutation();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) retryRescheduleSlots();
       setRescheduleError(
         err instanceof Error
           ? err.message
@@ -498,6 +544,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       );
       await refreshAfterMutation();
     } finally {
+      rescheduleFlight.current = false;
       setRescheduleSaving(false);
     }
   };
@@ -507,9 +554,14 @@ export default function AdminBookingsPage(): React.ReactElement {
     nextStatus: BookingStatus
   ): Promise<void> => {
     setStatusBusyId(bookingId);
+    calendarReturnPosition.current = { scope: scopeKey, x: window.scrollX, y: window.scrollY };
     setError(null);
     try {
-      await updateBookingStatus(bookingId, nextStatus);
+      const updated = await updateBookingStatus(bookingId, nextStatus);
+      if (mounted.current && referenceScopeRef.current === referenceScope) {
+        setDetailTarget((previous) => previous?.id === updated.id ? updated : previous);
+        setStatusConfirmation(null);
+      }
       await refreshAfterMutation();
     } catch (err) {
       // A failed response may still follow a committed write. Reconcile the
@@ -527,6 +579,7 @@ export default function AdminBookingsPage(): React.ReactElement {
 
   const openCreateModal = (): void => {
     if (!referencesReady) return;
+    if (manualUncertain) { setModalOpen(true); return; }
     setModalError(null);
     setQuickNewCustomer(false);
     setModalCustomerId(customers[0]?.id || "");
@@ -618,6 +671,7 @@ export default function AdminBookingsPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (creatingBooking || manualUncertain) return;
     setModalError(null);
 
     if (!referencesReady) {
@@ -631,7 +685,7 @@ export default function AdminBookingsPage(): React.ReactElement {
     }
 
     for (let i = 0; i < sessionRows.length; i++) {
-      if (!sessionRows[i].date || !sessionRows[i].selectedSlotStart) {
+      if (!sessionRows[i].date || !sessionSlotVerified(sessionRows[i])) {
         setModalError(
           `Vui lòng chọn khung giờ trống hợp lệ cho Buổi ${i + 1} (ngày ${sessionRows[i].date || "chưa chọn"}).`
         );
@@ -659,89 +713,17 @@ export default function AdminBookingsPage(): React.ReactElement {
       return;
     }
 
-    setCreatingBooking(true);
-    try {
-      let customerId = modalCustomerId;
-      if (quickNewCustomer) {
-        if (!newCustomerName.trim() || !newCustomerPhone.trim()) {
-          setModalError("Vui lòng nhập họ tên và số điện thoại khách mới.");
-          setCreatingBooking(false);
-          return;
-        }
-        const createdCust = await createCustomer({
-          full_name: newCustomerName.trim(),
-          phone_number: newCustomerPhone.trim(),
-          notes: newCustomerNotes.trim() || null,
-        });
-        if (mounted.current && referenceScopeRef.current === referenceScope) {
-          setReferenceData((previous) => previous.scope === referenceScope
-            ? { ...previous, customers: [createdCust, ...previous.customers] } : previous);
-        }
-        customerId = createdCust.id;
-      }
-
-      if (!customerId) {
-        setModalError("Vui lòng chọn khách hàng.");
-        setCreatingBooking(false);
-        return;
-      }
-
-      // If any selected service is a multi-session package (is_package=true) without an existing customer_package_id,
-      // automatically issue a new CustomerPackage for the customer so all sessions track under that package!
-      const resolvedItems: SelectedServiceLine[] = [];
-      for (const line of selectedLines) {
-        const svc = serviceMap.get(line.service_id);
-        if (svc && svc.is_package && !line.customer_package_id) {
-          const issuedPkg = await issueCustomerPackage({
-            customer_id: customerId,
-            service_id: svc.id,
-            package_name: svc.name,
-            total_sessions: svc.total_sessions,
-          });
-          resolvedItems.push({
-            service_id: svc.id,
-            customer_package_id: issuedPkg.id,
-          });
-        } else {
-          resolvedItems.push(line);
-        }
-      }
-
-      const sortedRows = [...sessionRows].sort(
-        (a, b) =>
-          new Date(a.selectedSlotStart).getTime() -
-          new Date(b.selectedSlotStart).getTime()
-      );
-
-      for (let i = 0; i < sortedRows.length; i++) {
-        const row = sortedRows[i];
-        const sessionPrefix =
-          sortedRows.length > 1
-            ? `[Buổi ${i + 1}/${sortedRows.length}]`
-            : "";
-        const combinedNote = [sessionPrefix, modalNote.trim()]
-          .filter(Boolean)
-          .join(" ");
-
-        await createBooking({
-          customer_id: customerId,
-          staff_id: modalStaffId || null,
-          start_time: row.selectedSlotStart,
-          note: combinedNote || null,
-          items: resolvedItems,
-        });
-      }
-
-      setModalOpen(false);
-      await refreshAfterMutation();
-    } catch (err) {
-      await refreshAfterMutation();
-      setModalError(
-        err instanceof Error ? err.message : "Tạo lịch hẹn thất bại"
-      );
-    } finally {
-      setCreatingBooking(false);
+    if (quickNewCustomer && (!newCustomerName.trim() || !newCustomerPhone.trim())) {
+      setModalError("Vui lòng nhập tên và số điện thoại khách mới."); return;
     }
+    if (!quickNewCustomer && !modalCustomerId) return;
+    calendarReturnPosition.current = { scope: scopeKey, x: window.scrollX, y: window.scrollY };
+    await manualBatch.submit({
+      ...(quickNewCustomer ? { new_customer: { full_name: newCustomerName.trim(),
+        phone_number: newCustomerPhone.trim(), notes: newCustomerNotes.trim() || null } } : { customer_id: modalCustomerId }),
+      staff_id: modalStaffId || null, items: selectedLines,
+      start_times: sessionRows.map((row) => row.selectedSlotStart), note: modalNote.trim() || null,
+    });
   };
 
   const activeServices = React.useMemo(
@@ -749,7 +731,12 @@ export default function AdminBookingsPage(): React.ReactElement {
     [services]
   );
 
-  const renderBookingCard = (booking: BookingRecord, compact = false): React.ReactElement => {
+  const requestStatusChange = (booking: BookingRecord, next: BookingStatus): void => {
+    if (["COMPLETED", "CANCELLED", "NO_SHOW"].includes(next)) {
+      setDetailTarget(booking); setStatusConfirmation(next);
+    } else void handleStatusChange(booking.id, next);
+  };
+  const renderBookingCard = (booking: BookingRecord, compact = false, full = false): React.ReactElement => {
     const meta = BOOKING_STATUS_META[booking.status];
     const customer = customerMap.get(booking.customer_id);
     const staff = booking.staff_id ? staffMap.get(booking.staff_id) : undefined;
@@ -761,7 +748,7 @@ export default function AdminBookingsPage(): React.ReactElement {
     return (
       <div
         key={booking.id}
-        data-testid={`booking-card-${booking.id}`}
+        data-testid={`${full ? "booking-detail" : "booking-card"}-${booking.id}`}
         data-layout-card="booking"
         className={cn(
           "min-w-0 max-w-full rounded-lg border border-border p-3.5 shadow-xs transition hover:shadow-md [overflow-wrap:anywhere]",
@@ -788,18 +775,12 @@ export default function AdminBookingsPage(): React.ReactElement {
             </div>
             <p className="mt-1 text-sm font-semibold text-foreground">
               Khách:{" "}
-              {customer
-                ? compact ? customer.full_name : `${customer.full_name} (${customer.phone_number})`
-                : referenceData.customersReady ? "Chưa có tên khách trong danh sách tải về" : "Đang thiếu tên khách"}
+              {booking.customer_name || customer?.full_name || "Chưa có tên khách"}
             </p>
             <p className="text-xs text-slate-600">
               KTV thực hiện:{" "}
               <strong>
-                {staff
-                  ? staff.full_name
-                  : booking.staff_id
-                    ? `KTV #${booking.staff_id.slice(0, 6)}`
-                    : "Chưa gán"}
+                {booking.staff_name || staff?.full_name || (booking.staff_id ? "Chưa có tên KTV" : "Chưa gán")}
               </strong>
             </p>
           </div>
@@ -821,7 +802,7 @@ export default function AdminBookingsPage(): React.ReactElement {
 
         <DetailContainer>
         {compact && <summary className="mt-2 min-h-11 cursor-pointer rounded-md py-3 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          Chi tiết và thao tác
+          Thông tin dịch vụ
         </summary>}
         {compact && <p className="mt-2 text-xs text-muted-foreground">
           {booking.total_duration_minutes} phút{customer ? ` • SĐT: ${customer.phone_number}` : ""}
@@ -834,7 +815,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 key={item.id}
                 className="inline-block max-w-full whitespace-normal rounded bg-white/80 px-2 py-0.5 text-[11px] text-slate-700 border border-border [overflow-wrap:anywhere]"
               >
-                {svc ? svc.name : referenceData.servicesReady ? "Dịch vụ" : "Chưa tải danh mục"} ({item.duration_minutes}p •{" "}
+                {item.service_name || svc?.name || "Chưa có tên dịch vụ"} ({item.duration_minutes}p •{" "}
                 {item.customer_package_id
                   ? "Dùng 1 buổi trong thẻ"
                   : formatCurrency(item.price)}
@@ -849,39 +830,43 @@ export default function AdminBookingsPage(): React.ReactElement {
             Ghi chú: {booking.note}
           </p>
         )}
+        </DetailContainer>
 
-        {((meta.next.length > 0) || (booking.status === "PENDING" || booking.status === "CONFIRMED")) && (
+        {(!full || meta.next.length > 0) && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] font-medium text-muted-foreground mr-1">
                 Trạng thái:
               </span>
-              {meta.next.map((nextSt) => {
+              {(full ? meta.next : meta.next.slice(0, 1)).map((nextSt) => {
                 const nextMeta = BOOKING_STATUS_META[nextSt];
                 return (
-                  <button
+                  <Button
                     key={nextSt}
                     type="button"
-                    disabled={statusBusyId === booking.id}
-                    onClick={() => void handleStatusChange(booking.id, nextSt)}
+                    disabled={!!statusBusyId || (full && !!statusConfirmation)}
+                    onClick={() => requestStatusChange(booking, nextSt)}
                     className={cn(
-                      "rounded-md border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-85 disabled:opacity-50",
+                      "h-auto min-h-11 whitespace-normal rounded-md border px-3 py-2 text-sm font-semibold transition disabled:opacity-50",
                       nextMeta.badgeClass
                     )}
                   >
                     → {nextMeta.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
 
-            {(user?.role === "ADMIN" || user?.role === "STAFF") &&
+            {!full && <Button type="button" variant="outline" onClick={() => { setDetailTarget(booking); setStatusConfirmation(null); }}>
+              Chi tiết lịch hẹn
+            </Button>}
+            {full && (user?.role === "ADMIN" || user?.role === "STAFF") &&
               (booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                 <button
                   type="button"
-                  disabled={!canReschedule}
-                  onClick={() => openRescheduleModal(booking)}
-                  className="inline-flex items-center gap-1 rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                  disabled={!canReschedule || !!statusBusyId || !!statusConfirmation}
+                  onClick={() => { setDetailTarget(null); setStatusConfirmation(null); openRescheduleModal(booking); }}
+                  className="inline-flex min-h-11 items-center gap-1 rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
                   title="Dời lịch sang ngày/giờ khác hoặc đổi KTV"
                 >
                   <CalendarClock className="h-3.5 w-3.5" />
@@ -890,13 +875,13 @@ export default function AdminBookingsPage(): React.ReactElement {
               )}
           </div>
         )}
-        </DetailContainer>
       </div>
     );
   };
 
   return (
     <div className="min-w-0 max-w-full space-y-5">
+      {manualNotice.scope === referenceScope && manualNotice.text && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 [overflow-wrap:anywhere]">{manualNotice.text}</p>}
       {/* Header & Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1038,6 +1023,13 @@ export default function AdminBookingsPage(): React.ReactElement {
           {bookingLoadError && <Button className="ml-2" variant="outline" size="sm" onClick={() => void loadBookings()}>Thử tải lại lịch</Button>}
         </div>
       )}
+      {!loading && !bookingLoadError && <div className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">
+        <span>Đã tải {bookings.length} lịch trong khoảng đang xem{bookingPage.scope === scopeKey && bookingPage.nextOffset !== null ? "; còn dữ liệu" : ""}.</span>
+        {bookingPage.scope === scopeKey && bookingPage.nextOffset !== null && <Button variant="outline" disabled={bookingPage.loading} onClick={() => void loadBookings(true)}>
+          {bookingPage.loading ? "Đang tải thêm..." : "Tải thêm lịch"}
+        </Button>}
+        {bookingPage.scope === scopeKey && bookingPage.error && <p role="alert">{bookingPage.error} — Nhấn tải thêm để thử lại.</p>}
+      </div>}
       {referenceData.scope === referenceScope && referenceData.errors.length > 0 && (
         <div role="alert" data-testid="calendar-reference-error" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           Chưa tải được: {referenceData.errors.join(", ")}. Lịch đã tải vẫn có thể xem; thao tác cần thông tin này tạm khóa.
@@ -1133,20 +1125,54 @@ export default function AdminBookingsPage(): React.ReactElement {
       )}
 
       {/* Manual Booking Modal */}
+      <Modal open={!!detailTarget} title="Chi tiết lịch hẹn" pending={!!statusBusyId}
+        onClose={() => { setDetailTarget(null); setStatusConfirmation(null); }} maxWidthClass="max-w-xl">
+        {error && <p role="alert" className="mb-3 text-sm text-rose-700">{error}</p>}
+        {detailTarget && <>
+          <p className="mb-3 text-sm">{formatDateTimeVN(detailTarget.start_time)}</p>
+          {renderBookingCard(detailTarget, false, true)}
+          {statusConfirmation && <section aria-label="Xác nhận đổi trạng thái" className="mt-4 space-y-3 rounded-xl border p-4">
+            <p className="font-semibold">Xác nhận: {BOOKING_STATUS_META[statusConfirmation].label}</p>
+            <p className="text-sm">{detailTarget.customer_name || customerMap.get(detailTarget.customer_id)?.full_name || "Chưa có tên khách"} • {formatDateTimeVN(detailTarget.start_time)}</p>
+            <p className="text-sm">{statusConfirmation === "COMPLETED" && detailTarget.items.some((item) => item.customer_package_id)
+              ? "Hoàn thành sẽ ghi nhận sử dụng buổi trong thẻ liệu trình." : "Kiểm tra đúng khách và giờ hẹn trước khi xác nhận."}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={!!statusBusyId} onClick={() => void handleStatusChange(detailTarget.id, statusConfirmation)}>Xác nhận đổi trạng thái</Button>
+              <Button disabled={!!statusBusyId} variant="outline" onClick={() => setStatusConfirmation(null)}>Giữ trạng thái hiện tại</Button>
+            </div>
+          </section>}
+        </>}
+      </Modal>
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        pending={creatingBooking || manualUncertain}
+        dirty={selectedLines.length > 0 || quickNewCustomer || !!modalNote || !!modalStaffId || sessionRows.length > 1}
+        historyGuard
         title="Tạo lịch hẹn thủ công tại quầy"
         description="Hỗ trợ đặt lịch đơn lẻ hoặc lên lịch hẹn nhiều ngày liên tiếp cho gói lộ trình nhiều buổi."
         maxWidthClass="max-w-3xl"
+        footer={manualUncertain ? <div className="space-y-2">
+          <p role="alert" className="text-sm">Chưa xác định kết quả. Hệ thống giữ mã chống lặp; không tạo khách, thẻ hay lịch mới khi kiểm tra.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" disabled={creatingBooking} onClick={() => void manualBatch.check()}>Kiểm tra kết quả</Button>
+            {manualBatch.canRetry && <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => void manualBatch.retry()}>Thử lại cùng yêu cầu</Button>}
+            <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => setModalOpen(false)}>Kiểm tra sau</Button>
+          </div>
+        </div> : <Button type="submit" form="manual-booking-form" className="w-full sm:w-auto"
+          disabled={creatingBooking || !referencesReady || (!quickNewCustomer && (customerPage.loading || !modalCustomerId)) || selectedLines.length === 0 || sessionRows.some((row) => !sessionSlotVerified(row))}>
+          {creatingBooking ? "Đang lưu lịch..." : sessionRows.length > 1 ? `Xác nhận tạo ${sessionRows.length} buổi hẹn` : "Xác nhận tạo lịch"}
+        </Button>}
       >
         <form
+          id="manual-booking-form"
+          ref={(element) => { element?.toggleAttribute("inert", creatingBooking || manualUncertain); }}
           onSubmit={(e) => void handleCreateManualBooking(e)}
           className="space-y-4"
         >
-          {modalError && (
+          {(modalError || manualBatch.error) && (
             <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-              {modalError}
+              {modalError || manualBatch.error}
             </div>
           )}
 
@@ -1188,7 +1214,15 @@ export default function AdminBookingsPage(): React.ReactElement {
                 />
               </div>
             ) : (
+              <div className="space-y-2">
+                <Label htmlFor="manualCustomerSearch">Tìm khách theo tên hoặc số điện thoại</Label>
+                <div className="flex min-w-0 gap-2">
+                  <Input id="manualCustomerSearch" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} />
+                  <Button type="button" variant="outline" disabled={customerPage.loading} onClick={() => void searchCustomers()}>Tìm khách</Button>
+                </div>
               <select
+                aria-label="Khách đặt lịch"
+                disabled={customerPage.loading}
                 value={modalCustomerId}
                 onChange={(e) => {
                   setModalCustomerId(e.target.value);
@@ -1196,7 +1230,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                     prev.filter((l) => l.customer_package_id === null)
                   );
                 }}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
                 required
               >
                 <option value="">-- Chọn khách hàng --</option>
@@ -1206,6 +1240,10 @@ export default function AdminBookingsPage(): React.ReactElement {
                   </option>
                 ))}
               </select>
+                <p className="text-xs text-muted-foreground">Đã tải {customers.length} khách{customerPage.nextOffset !== null ? "; còn kết quả — tìm theo tên/SĐT hoặc tải thêm" : ""}.</p>
+                {customerPage.nextOffset !== null && <Button type="button" variant="outline" disabled={customerPage.loading} onClick={() => void searchCustomers(true)}>Tải thêm khách</Button>}
+                {customerPage.error && <p role="alert">{customerPage.error} — Nhấn tìm khách để thử lại.</p>}
+              </div>
             )}
           </div>
 
@@ -1289,7 +1327,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-foreground truncate">{svc.name}</p>
+                          <p className="text-foreground [overflow-wrap:anywhere]">{svc.name}</p>
                           {svc.is_package && (
                             <Badge variant="default" className="text-[10px] px-1.5 py-0">
                               Lộ trình {svc.total_sessions} buổi
@@ -1318,7 +1356,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 id="modalStaff"
                 value={modalStaffId}
                 onChange={(e) => setModalStaffId(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
               >
                 <option value="">✨ Spa tự sắp xếp KTV rảnh</option>
                 {staffList
@@ -1340,7 +1378,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                   id="intervalSelect"
                   value={intervalDays}
                   onChange={(e) => setIntervalDays(Number(e.target.value))}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
                 >
                   <option value={1}>Mỗi ngày (Cách 1 ngày)</option>
                   <option value={2}>Cách 2 ngày / buổi</option>
@@ -1468,7 +1506,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {row.selectedSlotStart && (
+                        {sessionSlotVerified(row) && (
                           <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
                             Đã chọn: {formatTimeVN(row.selectedSlotStart)} (
                             {row.date})
@@ -1488,10 +1526,14 @@ export default function AdminBookingsPage(): React.ReactElement {
                       </div>
                     </div>
 
-                    {row.slotsLoading ? (
+                    {(row.slotsLoading || (selectedLines.length > 0 && row.slotsScope !== sessionSlotScope(row))) ? (
                       <p className="rounded-md border border-border p-2.5 text-center text-xs text-muted-foreground">
                         Đang tìm khung giờ trống cho ngày {row.date}...
                       </p>
+                    ) : row.slotsError ? (
+                      <div role="alert" className="space-y-2 rounded-md border p-3 text-center text-sm">
+                        <p>{row.slotsError}</p><Button type="button" variant="outline" onClick={() => setSlotsAttempt((previous) => previous + 1)}>Thử lại khung giờ</Button>
+                      </div>
                     ) : row.slots.length === 0 ? (
                       <p className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-center text-xs text-amber-800">
                         Không còn khung giờ trống nào trong ngày {row.date} phù
@@ -1513,7 +1555,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                                 )
                               }
                               className={cn(
-                                "flex flex-col items-center rounded border px-2 py-1 text-xs font-medium transition",
+                                "flex min-h-11 flex-col items-center justify-center rounded border px-2 py-1 text-xs font-medium transition",
                                 active
                                   ? "border-primary bg-primary text-primary-foreground shadow-xs"
                                   : "border-border bg-card text-foreground hover:bg-accent"
@@ -1552,37 +1594,16 @@ export default function AdminBookingsPage(): React.ReactElement {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setModalOpen(false)}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                creatingBooking || !referencesReady ||
-                selectedLines.length === 0 ||
-                sessionRows.some((r) => !r.selectedSlotStart)
-              }
-            >
-              {creatingBooking
-                ? "Đang lưu lịch..."
-                : sessionRows.length > 1
-                  ? `Xác nhận tạo ${sessionRows.length} buổi hẹn`
-                  : "Xác nhận tạo lịch"}
-            </Button>
-          </div>
         </form>
       </Modal>
 
       {/* Reschedule / Edit Booking Modal */}
       <Modal
         open={Boolean(rescheduleTarget)}
+        pending={rescheduleSaving}
         onClose={() => setRescheduleTarget(null)}
         title="Chỉnh sửa & Dời lịch hẹn"
+        dirty={Boolean(rescheduleTarget && (rescheduleNote !== (rescheduleTarget.note || "") || rescheduleDate !== formatDateISOInVN(new Date(rescheduleTarget.start_time)) || rescheduleStaffId !== (rescheduleTarget.staff_id || "") || (rescheduleSlotStart && new Date(rescheduleSlotStart).getTime() !== new Date(rescheduleTarget.start_time).getTime()) || transferCustomer))}
         description="Thay đổi ngày hẹn, khung giờ trống hoặc Kỹ thuật viên phụ trách. Suất thẻ liệu trình (nếu có) được bảo lưu nguyên vẹn."
       >
         {rescheduleTarget && (
@@ -1590,6 +1611,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             onSubmit={(e) => void handleConfirmReschedule(e)}
             className="space-y-4"
           >
+            <fieldset disabled={rescheduleSaving} className="space-y-4">
             {rescheduleError && (
               <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
                 {rescheduleError}
@@ -1602,8 +1624,8 @@ export default function AdminBookingsPage(): React.ReactElement {
               </p>
               <p className="text-muted-foreground">
                 Khách hàng:{" "}
-                {customerMap.get(rescheduleTarget.customer_id)?.full_name ||
-                  rescheduleTarget.customer_id}
+                {rescheduleTarget.customer_name || customerMap.get(rescheduleTarget.customer_id)?.full_name ||
+                  "Chưa có tên khách"}
               </p>
               <p className="text-muted-foreground">
                 Dịch vụ:{" "}
@@ -1635,6 +1657,8 @@ export default function AdminBookingsPage(): React.ReactElement {
                   disabled={user?.role === "STAFF"}
                 >
                   <option value="">✨ Spa tự sắp xếp KTV rảnh</option>
+                  {rescheduleTarget.staff_id && !staffList.some((person) => person.id === rescheduleTarget.staff_id && person.is_active) &&
+                    <option value={rescheduleTarget.staff_id}>{rescheduleTarget.staff_name || "KTV hiện tại"}</option>}
                   {staffList
                     .filter((s) => s.is_active)
                     .map((s) => (
@@ -1658,10 +1682,17 @@ export default function AdminBookingsPage(): React.ReactElement {
             )}
             <div className="space-y-2">
               <Label>3. Chọn khung giờ trống mới</Label>
+              <ReschedulePreview booking={rescheduleTarget} start={rescheduleSlotStart}
+                staffName={rescheduleStaffId ? (rescheduleStaffId === rescheduleTarget.staff_id ? rescheduleTarget.staff_name : staffMap.get(rescheduleStaffId)?.full_name) || "Chưa có tên KTV" : "Spa tự sắp xếp"}
+                transfer={transferCustomer} />
               {rescheduleSlotsLoading ? (
                 <p className="rounded-lg border border-border p-3 text-center text-xs text-muted-foreground">
                   Đang tìm khung giờ trống ngày {rescheduleDate}...
                 </p>
+              ) : rescheduleSlotsError ? (
+                <div role="alert" className="space-y-2 rounded-lg border p-3 text-center text-sm">
+                  <p>{rescheduleSlotsError}</p><Button type="button" variant="outline" onClick={retryRescheduleSlots}>Thử lại khung giờ</Button>
+                </div>
               ) : rescheduleSlots.length === 0 ? (
                 <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-center text-xs text-amber-800">
                   Không còn khung giờ trống nào trong ngày {rescheduleDate}. Vui lòng chọn ngày khác.
@@ -1711,13 +1742,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRescheduleTarget(null)}
-              >
-                Hủy
-              </Button>
+              
               <Button
                 type="submit"
                 disabled={rescheduleSaving || rescheduleSlotsLoading || !rescheduleSlotStart || !canReschedule}
@@ -1725,6 +1750,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 {rescheduleSaving ? "Đang lưu..." : "Xác nhận đổi lịch"}
               </Button>
             </div>
+          </fieldset>
           </form>
         )}
       </Modal>

@@ -28,7 +28,18 @@ class AdminBookingCalendarPage(BasePage):
             "div.rounded-lg.border", has_text=customer_name
         ).first
         expect(card).to_be_visible(timeout=10000)
+        if card.get_by_role("button", name=button_label).count() == 0:
+            card.get_by_role("button", name="Chi tiết lịch hẹn", exact=True).click()
+            card = self.page.get_by_role("dialog")
         btn = card.get_by_role("button", name=button_label)
-        with self.page.expect_response(lambda r: "/bookings/" in r.url and r.url.endswith("/status") and r.request.method == "PATCH") as response:
+        if button_label in ("→ Hoàn thành", "→ Đã hủy", "→ Vắng mặt"):
+            btn.click()
+            confirmation = self.page.get_by_role("button", name="Xác nhận đổi trạng thái", exact=True)
+            with self.page.expect_response(lambda r: r.url.endswith("/status") and r.request.method == "PATCH") as response:
+                confirmation.click()
+            assert response.value.status == 200
+            self.page.get_by_role("dialog").get_by_role("button", name="Đóng", exact=True).click()
+            return
+        with self.page.expect_response(lambda r: r.url.endswith("/status") and r.request.method == "PATCH") as response:
             btn.click()
         assert response.value.status == 200

@@ -306,6 +306,17 @@ class OwnerProvision(TimestampMixin, TenantOwnedMixin, Base):
     branch_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
+class ManualBookingBatch(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "manual_booking_batches"
+    __table_args__ = (UniqueConstraint("tenant_id", "actor_id", "request_id", name="uq_manual_batch_request"),)
+    actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    package_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+    booking_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+
+
 class DeploymentBranding(TimestampMixin, Base):
     """Public deployment appearance; contains no tenant business data."""
     __tablename__ = "deployment_branding"

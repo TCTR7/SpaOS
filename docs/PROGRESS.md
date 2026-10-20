@@ -263,3 +263,226 @@ Lệnh kiểm chứng production tại root (QA riêng, tự cleanup):
 ```powershell
 & automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_bookings automation_test/features/ui_quality automation_test/features/customer_regressions automation_test/features/client_pwa_booking automation_test/reviews/layout_probe.py automation_test/reviews/layout_stress.py -q -s --tb=short
 ```
+
+## Nhóm C — Dialog, form dài, thao tác lịch và thu tiền — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T05a/T05b/T03b/T06: tổng 11/29 task, còn 18. Kết quả production cuối ghi dưới đây thay cho các lượt đang sửa/lỗi trước đó.
+- Modal dùng native dialog/portal, accessible name/description, focus trap/restore (có ref opener khi nút bị khóa hoặc fallback), khóa scroll và nền, dirty/pending policy; manual/payment có history guard. Header/footer riêng, body cuộn, safe area cho customer nav; giữ màu shell khi portal.
+- Manual booking có CTA ngoài vùng cuộn, giữ field khi 409; khi response không rõ hoặc đã có một phần thay đổi, chặn gửi lại và yêu cầu đối chiếu lịch. Có thể xem danh sách rồi mở lại draft cùng state trong trang. Không giải quyết tự động batch/idempotency/khôi phục qua reload của T01; không đổi API hoặc transaction.
+- Lịch có một trạng thái tiếp theo và mở chi tiết dùng Modal; hoàn thành/hủy/vắng mặt yêu cầu xác nhận đúng khách/giờ, hoàn thành thẻ vẫn kiểm tra số buổi qua API. Thu tiền mở một ledger trong Modal, giữ key/payload/UUID khi resize và retry; CTA có tiền, tìm kiếm toàn hàng mobile và có return-focus ref cho dòng thu.
+- Đã cập nhật POM/selector và thêm features/ui_quality/tests/test_dialog_workflows.py, mở rộng test retry/row30 payments. Layout regression chỉ tạo PNG/JSON khi assertion lỗi; không chạy collector/stress chụp hàng loạt trong nhóm C.
+- Dev baseline 758557ad: 27 PASS (96.88s). Dev fc90225d: 14 PASS/2 FAIL/1 teardown ERROR (79.47s), phát hiện focus khi opener bị khóa và transient ApiError import trong lúc HMR; đã sửa. Production 67a1b62b: 69 PASS/2 FAIL (206.76s), gồm một lỗi prepare UI chưa sẵn sàng và theme portal còn từ bản build trước chỉnh sửa. Đã bổ sung readiness trước fault injection và chạy build mới; chưa coi lượt lỗi này là PASS.
+- [x] Unit harness 23/23 PASS (0.753s). Production bbdb6b74-dd12-4dd6-a02a-8eb8e25ad0b8: 71/71 PASS (182.15s). Focused dev 1122b223-a067-42fd-b850-6487c10b5918: 2 PASS/17 deselected (22.92s), kiểm tra thu một phần ở row30 rồi đóng và reload không replay draft.
+- [x] Bổ sung giữ vị trí cuộn sau mutation lịch khi cùng scope, bỏ khôi phục nếu đã đổi ngày/bộ lọc; regression dùng 30 booking thật, tôn trọng ca/buffer và xác minh trạng thái server. Sau thay đổi này chạy production mới 05e51f6a-7512-4a87-8c72-137fc391bf81: **build PASS, 73/73 PASS (171.35s), không xfail/skip/setup error**. Phạm vi admin_bookings/admin_payments/ui_quality/customer_regressions/client_pwa_booking. Gồm 13 ca dialog/long form, 19 UI acceptance/calibration, 16 calendar loading, trạng thái/trừ thẻ, 7 payment và quyền/PWA. Không chạy backend suite vì không đổi backend/API.
+- Artifacts cuối: automation_test/artifacts/qa/05e51f6a-7512-4a87-8c72-137fc391bf81/ (logs và isolation proof). Không chạy collector/stress ảnh toàn bộ trong đợt này; layout regression đã đổi sang chỉ lưu PNG/JSON khi assertion lỗi. Không xóa bằng chứng lịch sử.
+- Giới hạn: draft manual chỉ giữ trong trang, reload không khôi phục và không tự gửi; guard đối chiếu thủ công không giải quyết batch/recovery tự động của T01. Caller ngoài nhóm C tiếp tục áp dụng policy nghiệp vụ ở T09/T10; Safari/iPhone/keyboard ảo/screen reader/zoom còn T12. Popup 320px vẫn T11c; QA-04 chưa đóng nguyên nhân, DecodeError cuối run là invalid-token chủ ý.
+- Runner dọn QA frontend/container/DB, không mở/tắt cổng 3000 hoặc seed DB ứng dụng. Nhóm tiếp theo D: T07a/T07b/T07c, cần review ranh giới phiên/quyền; không coi nhóm C PASS là release đã sẵn sàng.
+
+Lệnh kiểm chứng production nhóm C tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_bookings automation_test/features/admin_payments automation_test/features/ui_quality automation_test/features/customer_regressions automation_test/features/client_pwa_booking -q --tb=short
+```
+
+## Nhóm D — Phiên đăng nhập, tenant và tải khung giờ — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T07a/T07b/T07c: tổng 14/29 task, còn 15. Các lượt phát triển bên dưới là lịch sử; kết quả cuối ghi rõ riêng từng source/build.
+- Admin/Customer phân biệt lỗi xác minh 503/offline với 401: giữ token khi lỗi tạm thời, ẩn dữ liệu/chặn thao tác và có Thử lại. Không coi lỗi tải danh sách chi nhánh là danh sách quyền rỗng đã xác minh.
+- Request được gắn với phiên và lượt xác minh; phản hồi cũ không ghi user, lưu lại token hoặc xóa token phiên mới. Đăng xuất xóa UI ngay; dọn push dùng credentials đã chụp, không xóa phiên vừa đăng nhập lại. Đổi slug tạo state riêng; đổi phiên gỡ cả dialog portal chứa dữ liệu cũ. Đăng nhập nhanh từ khách chưa đăng nhập giữ draft đặt lịch trong trang.
+- Public tenant: chỉ 404 là không tìm thấy, 503/offline có retry. Slots: tách lỗi mạng khỏi 200 rỗng, khóa submit khi scope ngày/dịch vụ/KTV chưa được xác minh; retry giữ lựa chọn nếu vẫn hợp lệ. Áp dụng wizard, đổi lịch Customer/Admin và từng dòng đặt lịch thủ công.
+- Bổ sung test_session_recovery.py và test_slots_recovery.py, fault injection tại browser HTTP boundary, không chụp ảnh hàng loạt. Backend/JWT/RLS/API contract không thay đổi.
+- Baseline dev ebc346ca: 16/16 PASS (79.10s). Lượt phát triển c9d9a804: 6 PASS/9 FAIL do selector trùng và cách giữ route trong test, đã sửa test. Production trung gian 5e017c9c: build PASS, 30 PASS/7 FAIL (101.89s), lỗi selector role alert đụng Next route announcer và so sánh xuống dòng; không coi là nghiệm thu. Đang chạy lại và bổ sung kiểm tra dialog/cleanup/đăng nhập nhanh.
+- Dev 53c5e794: 33 PASS/1 FAIL (172.89s); ca cuối dùng sai tên nút đăng nhập nhanh, đã sửa thành tên UI thực tế. Unit harness 23/23 PASS (0.977s). Đã bổ sung version của phiên theo slug để phân biệt cả đăng nhập lại có cùng JWT ở tab khác; không lưu thêm credentials. Production cuối đang chạy với toàn bộ nhóm A/B/C/D và auth/branches.
+- Production 285de710-1bac-4d1a-992e-21c98e2399d2: **build/TypeScript PASS, 114/114 PASS (273.94s)**, không skip/xfail/setup error. Gồm 73 ca nhóm C, 35 ca mới về phiên/tenant/slots và 6 ca auth/branches hiện có. Bao gồm cùng JWT ở tab khác, response me/401 đến muộn, dọn push chậm, dialog riêng tư và giữ draft sau inline login. DecodeError là ca token sai chủ ý; không đóng QA-04 từ kết quả không tái hiện.
+- Rà lại phát hiện dropdown có thể còn busy khi bỏ qua response đổi branch cũ; đã thêm finally mở khóa và bỏ qua cả lỗi cũ trong context. Bổ sung regression 200/503 đến muộn sau khi đã xác minh branch khác. Bản build mới đang chạy 8 ca auth/branch liên quan; kết quả 114 ở trên là trước bản vá nhỏ này, không gộp thành một lượt chạy cùng source.
+- [x] Production sau bản vá cuối bfc064b8-f064-484e-9d46-166ef1a59aa6: **build/TypeScript PASS, 8/8 PASS (17.06s)**. Kiểm tra 2 biến thể switch cũ 200/503 không thay token/branch mới, không hiện lỗi cũ, dropdown vẫn dùng được; 3 ca login và 3 ca đa chi nhánh hiện có. Không chạy lại collector/stress ảnh. Tổng các ca mới hiện tại là 36 (thêm biến thể switch lỗi sau lượt 114), không gọi các lượt trên là một run 115 ca.
+- Review ranh giới quyền: giữ namespace token Admin/Customer/operator và theo slug; header Customer vẫn X-Tenant-Slug; JWT/RLS/quyền Backend không đổi. Khi phiên chưa xác minh không hiển thị dữ liệu riêng hoặc enable thao tác ghi. Guard trước/sau các await của switch/push cleanup; logout hoặc đổi phiên gỡ dialog chứa dữ liệu cũ. Không tự retry mutation hoặc nới JWT leeway để làm test xanh.
+- QA chạy trong backend/DB tạm và frontend 3001 do runner sở hữu; không seed DB ứng dụng hoặc mở/tắt port 3000. Logs/isolation proof ở hai run production trên; không có PNG layout hàng loạt. Không chạy backend suite vì không sửa backend/contract. Thiết bị thật T12, popup 320px T11c, recovery T01 và QA-04 vẫn theo backlog. Tiếp theo E: T08a chốt contract rồi T08b triển khai/kiểm tra tên hiển thị, nguồn KTV công khai và phân trang.
+
+Lệnh kiểm chứng nhóm D tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_bookings automation_test/features/admin_payments automation_test/features/ui_quality automation_test/features/customer_regressions automation_test/features/client_pwa_booking automation_test/features/admin_auth automation_test/features/admin_branches -q --tb=short
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_session_recovery.py::test_late_branch_switch_cannot_replace_a_new_verified_branch automation_test/features/admin_auth automation_test/features/admin_branches -q --tb=short
+```
+
+## Nhóm E — Tên hiển thị, nguồn KTV và phân trang — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T08a/T08b: tổng 16/29 task, còn 13. Các lượt trung gian bên dưới giữ làm lịch sử; không gọi chúng là một full run xanh trên cùng source.
+- Contract tại API_CONTRACT mục T08: Booking thêm customer_name/staff_name, item thêm service_name nullable; lấy theo lô sau lọc quyền, không trả thêm hồ sơ/số điện thoại. PublicTenant.staff chỉ id/full_name STAFF active, theo slug/tenant và độc lập slots. GET bookings/customers giữ body mảng, thêm X-Has-More/X-Next-Offset, lấy limit+1; thứ tự có ID để phân trang ổn định. Không thay RLS/transaction hoặc thêm migration.
+- QA backend lần đầu bị automatic approval review chặn vì chưa có bằng chứng DB tạm; đã kiểm tra runner thay URL của child process sang DB UUID tạm và bổ sung autouse guard từ chối database ứng dụng trước mọi fixture. Lệnh cùng runner sau kiểm chứng được duyệt; không đổi sang chạy test trên DB chính hoặc nới quyền.
+- Backend qua scripts.test_isolated: scoped display/pagination/ownership 12/12 PASS (35.69s); toàn suite **78/78 PASS (193.76s)**. Bao gồm hơn 200 khách/lịch thật trong DB QA, quyền STAFF/tenant/customer, public DTO không có phone/notes, tên lịch/dịch vụ inactive và query count không tăng theo số card. Runner đã dọn DB tạm.
+- UI đang nối dữ liệu tên, phân trang theo người dùng yêu cầu và tìm khách bằng q/limit=50; không gọi một API cho từng card hoặc tự quét toàn CRM. Regression mới test_display_pagination.py phân biệt test dữ liệu QA thật (>200 khách) với response giả lập tại HTTP boundary cho paging/stale/fault của UI. Không tạo ảnh hàng loạt.
+- Dev cebc2b86-4b6f-4aed-8661-57ea8c07c3f9: **55/55 PASS (336.90s)** cho lịch, slots, customer safety và dialog. Build 95d411c7 bị TypeScript chặn MapIterator theo target hiện tại; đã sửa bằng Array.from, không đổi strict/target để né kiểm tra. Chưa chạy browser ở lượt build lỗi này.
+- Phạm vi T08 UI: calendar, customer appointments, wizard KTV và bộ chọn khách tạo lịch. Trang CRM chính vẫn giới hạn 100 dòng tại admin/customers/page.tsx:92; đã thêm yêu cầu phân trang vào T10a (màn này chưa nghiệm thu), không gọi toàn bộ danh sách trong ứng dụng là đã hết giới hạn.
+- Unit QA harness 23/23 PASS (1.877s). Đã sửa fallback tên thiếu thành câu dễ hiểu, bỏ UUID trong dời lịch; callback tìm khách/slots có type=button để không submit form. Khi tìm khách mới xóa selection/thẻ cũ và chặn response thẻ cũ; lỗi trang kế tiếp giữ những lịch đã tải. Bổ sung min-width/wrap cho tên KTV/dịch vụ dài trên thẻ Customer và regression range bounds; lượt production đang chạy 122 ca, cần phân biệt source trước/sau chỉnh CSS cuối nếu chạy bổ sung.
+- Production 0a0ec6f2-1983-4009-bdfd-709e9eab2509: build/TypeScript PASS, **120 PASS/2 FAIL (660.51s)**. Ca tên KTV dài fail trên build trước min-width/wrap cuối; ca late_resource_401 Admin fail ở assert held=[] do header đã sẵn sàng nhưng request CRM chưa bắt đầu. Đã thêm barrier đợi request bị giữ thực sự, không sleep/retry/nới JWT. Không gọi lượt này là full PASS; production build mới đang chạy 7 ca T08 cùng 2 ca resource-401 Customer/Admin.
+- [x] Production source cuối **376d1a89-63c7-48f6-9b20-3c560e1c603d: build/TypeScript PASS, 9/9 PASS (95.50s)**. Gồm 7 ca T08: hơn 200 khách QA thật và tìm đúng khách/thẻ, tên lịch không phụ thuộc trang CRM đầu, calendar 200+5/tải thêm lỗi/response cũ 200 hoặc 503, KTV hôm nay nghỉ vẫn chọn được cho ngày mai, history 50+5 với tên thường/tên dài không vượt biên. Hai ca resource-401 Customer/Admin xác nhận test readiness và bảo vệ token mới. Các ca phân trang lịch giả lập HTTP được phân biệt với 205 lịch thật/backend query-count test.
+- Review ranh giới quyền: tên được chiếu theo lô từ lịch đã lọc actor/tenant; public staff chỉ id/full_name, không phone/notes/customer. Has-more được tính sau lọc quyền. Các query mới đều lọc tenant_id từ dependency/slug đã xác minh; không tin tenant_id từ body, không thay JWT/RLS/locking/thẻ/thu tiền. Pagination là live offset, dedup ID, reset trang đầu sau đổi scope/mutation; không tuyên bố snapshot toàn bộ dữ liệu.
+- Giới hạn còn lại: CRM chính limit=100 ở T10a; STAFF phụ trách A1 với lịch do A2 làm cần preview/option KTV cũ ở T09; batch recovery T01, popup 320px T11c, QA-04 và thiết bị thật T12 chưa đóng. Không chạy collector/stress ảnh hoặc tạo PNG/JSON layout hàng loạt; logs/isolation proof ở các run nêu trên. QA chỉ dùng DB/container tạm và port 3001 do runner sở hữu; không mở/tắt port 3000 hoặc seed DB ứng dụng.
+
+Lệnh kiểm chứng nhóm E:
+
+```powershell
+docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_display_pagination.py automation_test/features/customer_regressions/tests/test_session_recovery.py::test_late_resource_401_does_not_clear_replacement_session -q --tb=short
+```
+
+## T09b/T09c — Gợi ý giờ và UI dời lịch — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T09b/T09c; tổng 18/29 task, còn 11. Làm T09b/T09c trước T09a để sửa đúng contract dời lịch. Wizard 3 bước T09a chưa triển khai, chưa cộng vào task nghiệm thu và là task tiếp theo.
+- API GET /bookings/{id}/available-slots đã chốt tại API_CONTRACT: kiểm tra actor/tenant trước exclude chính booking đó, duration theo snapshot và giờ cũ hợp lệ được giữ cả khi lệch grid 15 phút. Không nhận exclude ID qua public endpoint; gợi ý không khóa và không thay kiểm tra dưới khóa của PATCH. PATCH bỏ staff_id giữ KTV hiện tại, explicit null mới tự sắp xếp. Không thay khóa/giao dịch/số buổi.
+- Backend isolated: **21/21 scoped PASS (48.74s)** (gợi ý/ownership/concurrency); **81/81 toàn suite PASS (166.18s)**. Runner đã dọn database tạm, không seed DB ứng dụng.
+- UI dùng API snapshot cho cả Admin/Customer, mặc định giữ KTV/giờ cũ nếu hợp lệ; đổi ngày không tự chọn giờ đầu. Có preview trước/sau, giữ duration/giá/quyền hồ sơ; Admin chuyển chủ hồ sơ mặc định tắt. STAFF A1 phụ trách khách nhưng A2 làm buổi hẹn có option hiển thị đúng A2; không tự chuyển sang A1/auto khi sửa note.
+- Form dời lịch có pending/dirty policy của Modal, khóa fieldset khi gửi và chốt ref chống hai submit trước khi React commit. 409 tải lại gợi ý (GET), giữ ghi chú/form/lịch gốc; không retry mutation. Đã cập nhật POM/route intercept cho endpoint riêng; test retry ngày mới yêu cầu chọn giờ rõ ràng thay vì dựa vào auto-select.
+- Test mới test_reschedule_snapshot.py kiểm tra ba vai trò, menu đổi duration/inactive, sửa note giữ snapshot/ID/KTV/thẻ, submit nhanh hai lần chỉ một PATCH, Escape khi pending, đổi ngày/dirty note và lịch đã COMPLETED chặn gợi ý/gửi tiếp. Lỗi nghiệp vụ 4xx hiển thị thông báo server; lỗi mạng/5xx vẫn phân biệt với danh sách giờ rỗng.
+- Production trung gian f5bdee11-3cf6-4cb7-9fc5-b566f7984e64: build PASS, 22 PASS/3 FAIL (86.90s). Ba lỗi cùng do test tìm nút theo tên cũ trong khi UI pending đã đổi thành “Đang lưu...”; đã dùng selector submit ổn định và barrier request thực để kiểm chứng double-submit. Không nới retry/sleep/JWT để làm xanh.
+- Production cuối a15b5244-054b-4ab7-af1a-a3a152917a66: **build/TypeScript PASS, 55/55 PASS (152.34s)**, không skip/xfail/setup error. Gồm snapshot 6, ownership/reschedule 4, slots recovery 16, calendar loading 16 và dialog workflows 13. Đây là phạm vi hồi quy liên quan, không phải full release suite hoặc nghiệm thu thiết bị thật T12.
+- Runner dọn frontend 3001/backend/database QA tạm; không mở/tắt port 3000 hoặc seed database ứng dụng. Chỉ lưu logs/isolation proof; không chạy collector/stress ảnh. T01, T09a, T10/T11/T12 và nguyên nhân QA-04 còn theo backlog.
+
+Lệnh kiểm chứng UI đợt T09b/T09c tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_reschedule_snapshot.py automation_test/features/customer_regressions/tests/test_ownership_reschedule.py automation_test/features/customer_regressions/tests/test_slots_recovery.py automation_test/features/admin_bookings/tests/test_calendar_loading.py automation_test/features/ui_quality/tests/test_dialog_workflows.py -q --tb=short
+```
+
+## T09a — Wizard đặt lịch 3 bước — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T09a: tổng 19/29 task, còn 10. Gộp KTV/ngày giờ thành một bước: Dịch vụ/thẻ → Ngày giờ/KTV → Xác nhận. Stepper chỉ cho tới xác nhận khi đã có giờ được xác minh; chặn ngày quá khứ cả input và mũi tên.
+- Wizard yêu cầu tự chọn giờ; hook có tùy chọn autoSelect=false chỉ cho wizard, giữ mặc định caller khác và hành vi snapshot T09b/c. Back giữ dịch vụ/KTV/giờ hợp lệ/ghi chú; nguồn KTV độc lập slots. Card chọn dịch vụ/thẻ/auto trở thành button dùng bàn phím được; nhãn dài xuống dòng và stepper 3 cột.
+- Chốt ref chống hai submit trong cùng lượt React, khóa Back/stepper/ghi chú khi pending; thành công giữ khóa đến chuyển trang. 409 trở về chọn giờ, tải lại gợi ý bằng GET và giữ draft; không retry POST. Không thay API/backend/RLS/JWT hoặc giá/số buổi server.
+- POM và regression đổi theo 3 bước, không còn phụ thuộc auto-select. Thêm ca 360/390/1366px kiểm tra tràn ngang với tên dịch vụ/KTV dài, Back và nhảy bước; ca thẻ giữ một buổi, hai click chỉ một POST. PRD đồng bộ ba bước; không thêm endpoint/payload.
+- Production 9685143a-cf19-475b-9dac-2bc324fe94bc: **build/TypeScript PASS, 70/70 PASS (253.08s)**, không skip/xfail/setup error. Phạm vi customer_regressions (67 ca) + client_pwa_booking (3 ca), gồm 4 ca mới, inline login giữ draft, server 409 và chọn lại, phân trang/quyền/phiên/slots/dời lịch và đặt bằng thẻ. Không chạy lại backend suite vì không sửa backend/API.
+- Runner đã dọn frontend 3001/backend/database QA tạm; không seed DB ứng dụng hoặc mở/tắt port 3000. Chỉ log/isolation proof, không collector/stress ảnh. DecodeError thuộc ca invalid-token chủ ý; QA-04 chưa đóng nguyên nhân. Chromium các viewport trên chưa thay nghiệm thu thiết bị thật T12; không chốt full release từ lượt này.
+- Tiếp theo nhóm F: T01a tái hiện thành công một phần/mất response và chốt recovery/idempotency trước T01b; sau đó T10/T11 và gate T12.
+
+Lệnh kiểm chứng T09a tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions automation_test/features/client_pwa_booking -q --tb=short
+```
+
+## Nhóm F — T01a/T01b, tạo nhiều buổi và khôi phục — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T01a/T01b trong QA cô lập: tổng 21/29 task, còn 8. Luồng cũ handleCreateManualBooking tạo khách, cấp thẻ và từng booking bằng các request riêng; test tái hiện buổi 2 lỗi để lại khách/thẻ/buổi 1. Luồng mới thay bằng atomic batch; guard đối chiếu thủ công nhóm C được thay bằng UUID và API kiểm tra kết quả.
+- Đã chốt quyết định T01 tại API_CONTRACT: POST /bookings/manual-batches atomically tạo khách/thẻ/1–20 buổi, UUID chống lặp theo tenant/actor; GET kết quả cùng actor và quyền khách hiện tại. Ghi hash + IDs, không ghi payload hồ sơ; migration 0008 có tenant FK và ENABLE/FORCE RLS. Không tự migrate database ứng dụng.
+- Backend tái dùng kiểm tra booking hiện hành với commit=False nội bộ, prelock toàn bộ thẻ rồi tập KTV cố định theo ID trước các buổi, chỉ commit một lần cùng request record. Lỗi rollback toàn bộ, cùng UUID/nội dung trả IDs cũ, khác nội dung 409; không xóa bù hoặc retry tự động.
+- UI thay chuỗi POST bằng một batch. Khi không rõ kết quả có Kiểm tra kết quả (GET) và Thử lại cùng yêu cầu (cùng UUID/body). sessionStorage chỉ UUID theo tenant/actor; reload không replay POST hoặc khôi phục PII. GET 404 không có kết quả cho sửa lại nhưng giữ UUID để POST tới muộn không tạo batch thứ hai; 404 mất quyền không mở khóa. Guard generation không cho response chi nhánh/phiên cũ thay UI mới.
+- Backend scoped ban đầu **4/4 PASS (15.73s)**. Toàn suite tại mốc đó **85/85 PASS (269.55s)**. Bổ sung test sau đó và chạy scoped **8/8 PASS (36.31s)**: 7 ca manual batch + RLS gate, gồm tái hiện chuỗi cũ để lại một khách/một thẻ/buổi 1, hai batch khác UUID tranh KTV auto chỉ một thành công, STAFF replay bị chặn sau Admin chuyển chủ hồ sơ, không context không thấy bảng và ENABLE/FORCE RLS. Không gọi các lượt là một full run 88 ca trên cùng test tree.
+- Production trung gian 52e27132-ff51-4ac4-8dd7-e5d8624f1a1e: **build/TypeScript PASS, 49/49 PASS (196.63s)**, gồm 4 ca recovery mới + 13 dialog + 16 slots + 16 calendar loading. Đã xác minh commit thành công rồi mất phản hồi, cùng body/UUID khi retry, GET không POST, reload chỉ giữ UUID không PII, giữ một khách/một thẻ/3 lịch. Sau đó bổ sung thông báo số buổi và Kiểm tra sau; đang kiểm chứng build mới, chưa coi lượt trước là kết quả source cuối.
+- Production 7a2fd9a6-6d78-4851-a6d3-29eb754f2aa6: build/TypeScript PASS, **36 PASS/1 FAIL (136.48s)**. 20 ca session và 13 dialog PASS; ca check mới tìm Kiểm tra sau không có trong bản build đã compile trước khi bổ sung nút. Không coi lượt này là nghiệm thu; đang build lại source cuối và chạy 4 recovery + 13 dialog, không nới selector/retry để bỏ qua nút cần kiểm tra.
+- Production cuối **9f4d3b45-125e-4c09-ba11-3d0b120e5026: build/TypeScript PASS, 17/17 PASS (51.29s)**, không skip/xfail/setup error. Gồm 4 recovery + 13 dialog, có Kiểm tra sau đóng/mở giữ draft, thông báo đúng 3 buổi đã lưu, retry cùng body/UUID và reload đối chiếu bằng GET. Không gộp các lượt thành full suite release xanh trên source cuối.
+- Runner đã dọn frontend 3001/backend/DB QA tạm; không mở/tắt port 3000, seed hoặc migrate DB ứng dụng. RELEASE_RUNBOOK bổ sung triển khai đồng bộ frontend/backend + migration 0008, giữ request record trong backup và giới hạn mất tham chiếu khi xóa sessionStorage/đóng tab. QA-04 và nghiệm thu thiết bị thật/full release T12 chưa đóng.
+- Tiếp theo nhóm G: T10a CRM/nhân sự (CRM chính còn limit=100), T10b báo cáo, T10c thẻ theo dependency; sau đó nhóm H và T12.
+
+Lệnh kiểm chứng nhóm F tại root:
+
+```powershell
+docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
+docker-compose exec -T backend python -m scripts.test_isolated tests/test_manual_batches.py tests/test_audit_regressions.py::test_all_business_tables_force_rls -q --tb=short
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_manual_batch_recovery.py automation_test/features/ui_quality/tests/test_dialog_workflows.py -q --tb=short
+```
+- Lượt ghi file trước từng bị hệ thống auto-review dừng vì hết quota, không phải đánh giá action không an toàn; đã tiếp tục sau chỉ thị PO và quyền công cụ hoạt động trở lại. Không có server 3000 hoặc seed DB ứng dụng.
+
+## T10a — CRM và nhân sự trên mobile — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T10a: tổng 22/29 task, còn 7. T10b dịch vụ/báo cáo và T10c trang thẻ khách chưa triển khai trong đợt này, là nhóm tiếp theo.
+- CRM dùng GET customers limit=50 + header phân trang hiện có, có Đã tải/còn kết quả/Tải thêm, bỏ trùng ID, response tìm kiếm cũ không ghi đè kết quả mới. Tải thêm giữ selection; mutation hồ sơ tải lại query để tránh offset sai khi tên/thứ tự thay đổi, tạo mới tìm theo SĐT vừa tạo.
+- Mobile CRM/nhân sự dùng danh sách → chi tiết với Quay lại, giữ DOM/từ khóa/scroll/focus bằng use-list-detail.ts. Desktop giữ hai cột, không nhân đôi form/ID. Lựa chọn là button tách khỏi nút sửa; tên dài xuống dòng, giờ ca làm co theo chiều rộng khả dụng.
+- Tải thẻ/ca làm phân biệt lỗi với danh sách rỗng, có retry; guard ID/request chống phản hồi khách/KTV cũ. Ca làm lỗi không hiện mặc định để lưu đè, khóa Lưu cho tới GET thành công. Back giữ draft ca làm; đổi KTV có xác nhận bỏ thay đổi. Form sửa/tạo/cấp thẻ có pending/dirty và chốt chống submit nhanh hai lần.
+- Production baseline ebc01326-439f-407e-86cc-183b67fed806: build/TypeScript PASS, 5 PASS/1 FAIL (51.52s). Ca chuyển quyền chưa mở chi tiết mobile trước khi chọn KTV; cập nhật test theo luồng mới, giữ assert quyền API và người cũ không xem/sửa được. Đang chạy 6 ca mới + 6 hồi quy liên quan; không sửa backend/API hoặc chạy suite backend không liên quan. Không collector/stress ảnh hoặc chạm port 3000/DB ứng dụng.
+- Production efeed967-a200-49b8-9576-077e5791ee3c: build/TypeScript PASS, 9 PASS/3 FAIL (39.10s). Xác nhận tên dài gây overflow header CRM hai cột ở PC; đã thêm min-width/wrap. Hai lỗi khác là selector alert bắt Next route announcer, đã giới hạn main. Bổ sung retry danh mục thẻ, khóa lịch mặc định ngay khi chọn KTV và giữ Quay lại khi sửa khách khiến kết quả tìm kiếm không còn khớp.
+- Production 489fe800-ed03-4432-baf1-f5fb29af1274: **build/TypeScript PASS, 15/15 PASS (50.34s)**, gồm 9 ca mới và 6 hồi quy cấp thẻ/ca làm/ownership. Sau review thêm phát hiện modal cấp thẻ dùng selectedCustomer có thể đổi khi search đang chờ: đã pin issueTarget tại lúc mở, chờ kiểm chứng thêm ca POST đúng khách. Dirty so với giá trị ban đầu để đóng form chưa sửa không hỏi bỏ thay đổi; đang chạy build cuối với 16 ca, chưa nghiệm thu từ run trước.
+- Production cuối **ace45b5b-a6d5-463d-b2a8-ef1099eac35f: build/TypeScript PASS, 16/16 PASS (51.39s)**, không skip/xfail/setup error. 10 ca mới: 105 khách ở 360/390/1366px, Back giữ scroll/focus/query, search cũ, thẻ lỗi/retry, ca làm lỗi/chặn lưu/draft/đổi KTV, thẻ/ca làm response cũ, sửa tên không khớp query vẫn Quay lại được, cấp thẻ pin đúng ID khách khi search hoàn tất. 6 ca hiện có xác minh cấp thẻ, lưu ca và quyền/dời lịch.
+- Không thay endpoint/payload/backend/RLS; không chạy lại backend suite không liên quan. Runner dọn frontend 3001/backend/DB QA tạm; không mở/tắt 3000 hoặc seed/migrate DB ứng dụng, không chạy collector/stress ảnh. Các viewport Chromium không thay nghiệm thu thiết bị thật T12; QA-04 và full release gate chưa đóng.
+
+Lệnh kiểm chứng T10a tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_crm_staff_mobile.py automation_test/features/admin_crm_packages automation_test/features/admin_catalog/tests/test_staff_schedules.py automation_test/features/customer_regressions/tests/test_ownership_reschedule.py -q --tb=short
+```
+
+## T10b/T10c — Dịch vụ, báo cáo và trang thẻ khách — 19/10/2026
+
+- [x] ĐÃ NGHIỆM THU phạm vi T10b/T10c: tổng 24/29 task, còn 5 (T11a/b/c/d, T12). Dịch vụ/báo cáo dùng cùng một DOM table: mobile từng dòng là thẻ có nhãn, desktop giữ bảng; không nhân đôi form/ID/nút thao tác. Tên/ghi chú/giá dài xuống dòng, không che overflow toàn trang.
+- Báo cáo phân biệt giá trị dịch vụ COMPLETED với thực thu và hoa hồng ước tính; không thêm API/chỉ số hoặc tính lại tổng server. Guard request bỏ response kỳ báo cáo cũ, ẩn tổng cũ khi đổi bộ lọc/lỗi, retry báo cáo/danh sách KTV; chặn ngày kết thúc trước bắt đầu, tỷ lệ 0–100. Form dịch vụ có pending/dirty/ref chống double-submit và lỗi hiện trong modal.
+- Thẻ khách phân biệt ACTIVE khả dụng, giữ chỗ hết buổi, dùng hết và hết hạn (kể cả ACTIVE nhưng expiry_date đã qua); CTA chỉ khi server còn buổi và chưa hết hạn. Không suy số buổi thành đã thu tiền, có giải thích đối chiếu với spa. GET lỗi có retry và giữ phân biệt với rỗng.
+- Customer shell rộng hơn trên PC cho trang hồ sơ/danh mục, nav cùng độ rộng; form book/login/register giữ chiều rộng đọc được. Home/profile dùng grid hai cột trên màn rộng, giữ phone một cột. Không thay token/quyền/API/backend/RLS hoặc thao tác tiền/thẻ.
+- Đang build production và chạy các ca mới ở 360/390/768/1366px cùng regression dịch vụ/báo cáo/PWA/thẻ/409. Chưa chốt kết quả từ build PASS. Không collector/stress ảnh, không mở/tắt 3000 hoặc seed/migrate DB ứng dụng.
+- Production 0c71b0a2-f8bc-43f4-b2cf-7a191eb93ccf: build/TypeScript PASS, **30 PASS/1 FAIL (78.85s)**. 12 ca mới đều PASS; ca cũ so toàn bộ alert bằng một chuỗi nên không tính nút retry vừa thêm. Đã kiểm tra riêng thông báo lỗi exact và bấm retry thay reload. Rà lại sửa nhãn cột cuối desktop thành Hoa hồng ước tính, bổ sung assertion nhãn ở cả bốn viewport. Đang chạy lại 31 ca trên build/source cuối; không coi run này là nghiệm thu.
+- Production cuối **f1eedaa1-b440-48bd-a5c7-1a7b11ac675e: build/TypeScript PASS, 31/31 PASS (74.35s)**, không skip/xfail/setup error. Gồm 12 ca mới (4 viewport dịch vụ/báo cáo, stale report 200/503, lỗi/ngày báo cáo, 4 viewport trạng thái thẻ/PC width, retry thẻ) và 19 ca hiện có dịch vụ/báo cáo/PWA/khách/wizard. Kiểm tra tiền lớn/tên không khoảng trắng, số buổi dùng/giữ/khả dụng, ACTIVE quá hạn không đặt được, hoa hồng ước tính và không nhân đôi input. DecodeError thuộc invalid-token chủ ý; không đóng QA-04 từ lượt không tái hiện.
+- Không sửa API/backend/RLS hoặc logic ghi tiền/số buổi, không chạy lại backend suite không liên quan. Runner dọn frontend 3001/backend/DB QA tạm; không mở/tắt 3000 hoặc seed/migrate DB ứng dụng, không collector/stress ảnh. Chromium không thay nghiệm thu iPhone/Android thật T12. Nhóm tiếp theo H: T11a điều hướng/safe area → T11b guard chuyển chi nhánh (cần review phiên/giao dịch), rồi T11c/T11d; cuối cùng gate T12.
+
+Lệnh kiểm chứng T10b/T10c tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_catalog_reports_packages.py automation_test/features/admin_catalog/tests/test_services.py automation_test/features/admin_reports automation_test/features/client_pwa_booking automation_test/features/customer_regressions/tests/test_customer_safety.py automation_test/features/customer_regressions/tests/test_three_step_wizard.py -q --tb=short
+```
+
+### 19/10/2026 — T11a: điều hướng mobile, Back và focus
+
+- [x] T11a đạt phạm vi Chromium; **25/29 task**, còn T11b/T11c/T11d/T12. Admin mobile: Tổng quan/Lịch hẹn/Khách/Thu tiền/Thêm; STAFF: Lịch hẹn/Khách/Thêm, phần bổ sung chỉ dịch vụ. Giữ sidebar desktop và route/quyền hiện hành. Thêm dùng Modal chung, browser Back đóng menu/trả focus; chọn mục gỡ entry dialog trước điều hướng, Back không mở lại menu. Resize desktop đóng menu. Header bỏ hamburger trùng, bộ chọn chi nhánh co vừa; main đệm thanh dưới/safe area. Customer giữ 4 mục, aria-current và vùng chạm 48px. File: admin-shell.tsx, customer-shell.tsx.
+- Thêm test_mobile_navigation.py: 9 ca gồm 320/360/390px, landscape 667x375, resize 844x390, khách PC 1366px; deep link/reload, active tab, quyền, Back/Escape/focus, đủ route, không overflow, padding và modal/action footer không bị nav chiếm tương tác.
+- Run đầu 2bfcfed5-2a3f-4068-abb0-9f1755c8413d: build PASS, **35 PASS/7 FAIL (138.70s)**. Cả 9 ca mới và 13 dialog PASS. Sáu lỗi session_recovery tìm heading hồ sơ tự mở đã đổi ở T10a thành list/detail mobile; helper nay xác minh đúng nút khách đã tải. Một lỗi assert held trước request thẻ; thêm barrier theo request thực, không sleep/retry/nới xác thực. Không sửa source auth để làm xanh.
+- Run cuối **0f2f8f4c-60a9-4a3b-899c-31f2452d5bbc: build production/TypeScript PASS, 42/42 PASS (105.39s)**, không skip/xfail/setup error: 9 điều hướng + 13 dialog + 20 phiên (hai tab, late me/401/switch, cùng JWT đăng nhập mới, push cleanup). Không coi các regression phiên này là đã triển khai T11b.
+- Không thay API/backend/RLS/token hoặc vòng đời payload ghi tiền/manual batch. Không collector/stress ảnh; runner chỉ giữ log/proof QA. Không mở/tắt 3000, không seed/migrate DB ứng dụng. Thiết bị thật/keyboard/safe area vẫn T12; QA-04 chưa đóng nguyên nhân.
+- Tiếp theo **T11b**: bảo vệ dirty/pending ở form inline và modal; manual batch chưa rõ kết quả dù modal đã đóng, payment attempt/voidAttempt/refreshFailed; hai tab và response muộn. Giữ xóa UI riêng tư khi phiên thay đổi từ tab khác, không lưu draft/payload khách trong localStorage. Sau đó T11c/T11d và gate T12.
+- Cleanup cuối: runner exit 0, port 3001 không còn listener và không còn container spaos-ui-qa; không đụng server 3000.
+
+Lệnh kiểm chứng T11a tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_mobile_navigation.py automation_test/features/ui_quality/tests/test_dialog_workflows.py automation_test/features/customer_regressions/tests/test_session_recovery.py -q --tb=short
+```
+
+### 19/10/2026 — T11b/T11c/T11d và phần tự động của T12
+
+- [x] T11b/T11c/T11d đạt phạm vi Chromium, **28/29 task**. T12 chưa hoàn tất vì QA-04 chưa đóng nguyên nhân, chưa có nghiệm thu thiết bị thật và pilot. Không đồng nghĩa sẵn sàng release.
+- T11b: `frontend/src/lib/branch-guard.ts:30` đăng ký dirty/pending trong bộ nhớ; `:38` giữ shared Web Lock trong request ghi, `:46` chỉ cho đổi chi nhánh khi lấy được exclusive lock. Tab khác còn form/giao dịch thì bị chặn; không hàng đợi gửi lại mutation sau đổi phiên. `api.ts:112` kiểm tra identity trước fetch. Không chứa token/draft/PII trong tên khóa hoặc lưu payload vào localStorage; đây là guard UX, backend JWT/RLS/transaction vẫn là ranh giới bảo mật.
+- Caller gồm Modal quản trị, PaymentLedger (attempt/voidAttempt/refreshFailed), manual batch (busy/uncertain kể cả Kiểm tra sau), cấu hình, ca làm, cấp quyền chi nhánh, lựa chọn KTV phụ trách CRM và Push đang chờ quyền. Provider giữ guard UUID manual batch đúng tenant/user khi chuyển trang/reload, không khóa nhầm yêu cầu của tài khoản khác. Dirty có Tiếp tục chỉnh sửa/Bỏ thay đổi và chuyển; pending không cho bỏ để đổi branch. Giữ xóa UI giữa các tab khi phiên thực sự đổi. Trình duyệt không có Web Locks bị chặn đổi branch với thông báo rõ; kiểm chứng HTTPS/trình duyệt thực thuộc T12.
+- T11c: cả hai bell dùng Modal chung, vừa màn hình, Back/Escape/focus/scroll; không còn popup rộng cố định tràn ở 320px. GET lỗi khác danh sách rỗng, có làm mới; request cũ không thay kết quả mới. Dashboard đưa lịch/thu tiền lên trước metrics, tổng chi nhánh chỉ xem, không có quick action thu tiền từ tổng hợp. Scope và dropdown đồng bộ query URL/Back/Forward; thêm Suspense theo yêu cầu build Next.js, không bỏ strict hoặc thay kiến trúc. Không thêm API/chỉ số báo cáo.
+- T11d: kiểm chứng chọn chi nhánh, Admin login, customer login/register, branches/settings, Operator login/page và branding ở 320/390/768/1366px. Bổ sung wrap tên/lỗi dài, retry GET chi nhánh/cấu hình/Operator/branding, label và giữ luồng cấp tài khoản riêng. Operator retry giữ UUID/payload, ref chặn submit lặp; không remount attempt khi đổi viewport. **UX-28 đã sửa:** settings GET lỗi không còn cho lưu mặc định; handler chặn khi chưa có baseline, có retry.
+- Thêm `test_branch_work_guard.py` (10 ca), `test_final_mobile_routes.py` (15 ca), `operator_portal/tests/test_operator_mobile.py` (4 ca). Giữ regression mất phản hồi thu tiền/manual batch, quyền KTV, stale response và hai tab. Chỉnh test phân trang chỉ đếm `/api/v1/customers?`, không đếm RSC prefetch; sáu ca màu/copy bỏ bước Tiếp tục dư theo wizard cũ, vẫn chọn slot rõ ràng và giữ assertion màu/số tiền.
+- Lịch sử chưa nghiệm thu: build `39a79f49`/`161ba572` lỗi kiểu Map/Web Locks cũ, sửa tương thích không nới strict; `07edaaaf` thiếu Suspense, đã sửa. Run `f5a26bdb-baa5-4576-ad51-1a3e352d1141`: **65 PASS/9 FAIL/1 ERROR (202.59s)**; lỗi selector trùng Next announcer/header và setup JWT ImmatureSignatureError. Run full `0e8ad9f4-d1cd-4e0a-a2f1-0e89254d4e0c`: **195 PASS/7 FAIL (757.23s)**, do prefetch bị đếm là query CRM và test wizard cũ; các ca hiệu chuẩn layout PASS. Run `88f18048-962f-456c-8504-93ef08436745`: **45 PASS/1 FAIL (130.79s)**, test mới xác minh bằng GET customer detail không tồn tại (405), đã dùng API tìm khách đúng contract. Không đổi API để chiều test, không skip/xfail/tăng timeout/sleep/nới JWT.
+- **Production cuối `86d9eaf7-ae95-42eb-ae99-d6d658765eeb`: build/TypeScript PASS, full E2E 204/204 PASS (554.89s)**, không skip/xfail/setup error. Bao gồm cả 2 ca bổ sung KTV phụ trách/Push chờ quyền, Back/Forward dashboard, 7 ca đã lỗi và các regression lịch/thẻ/tiền/tenant/phiên/Operator/layout. DecodeError là invalid-token chủ ý; không dùng lượt xanh để đóng QA-04.
+- **Backend isolated 88/88 PASS (196.27s)**, UUID database QA đã dọn; **unit QA harness 23/23 PASS (0.620s)**. Không sửa backend/API contract/RLS/JWT hoặc áp migration vào DB ứng dụng. Migration 0008 vẫn chờ quy trình release.
+- QA-04 đã tái hiện ở setup run f5a26bdb, chưa sửa nguyên nhân. Probe chỉ đọc đồng hồ 240s ở container của run 0e8ad9f4 ghi nhận bước tiến wall time so monotonic tối đa 0.811517s, bước lùi tối đa 0.000028s. Không đo cùng lần JWT lỗi, không chứng minh nguyên nhân; không đổi leeway hay claim. Cần đối chiếu iat/đồng hồ runtime và kiểm chứng staging trước pilot.
+- Cleanup cuối: runner exit 0, **3001 không còn listener, không còn container spaos-e2e-qa**. Không mở/tắt 3000 hoặc seed/migrate database ứng dụng. Không chạy collector/stress ảnh; chỉ log/proof QA thông thường.
+- T12 còn: Android Chrome/iPhone Safari thật (portrait/landscape, bàn phím ảo, safe area, zoom 200%, touch/Back/offline/Push); chủ spa/KTV/khách thử luồng thực tế và ghi bấm nhầm/trợ giúp/thời gian; đóng QA-04. Không gán PASS cho các phần chưa kiểm chứng, không chốt pilot/release từ test tự động.
+
+Lệnh kiểm chứng cuối tại root:
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features -q --tb=short --maxfail=1
+docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
+& automation_test/.venv/Scripts/python.exe -B -m unittest discover -s automation_test/harness_tests -v
+```
+
+### 19/10/2026 — T12: điều tra QA-04, regression và điều kiện nghiệm thu còn thiếu
+
+- PO yêu cầu hoàn tất T12; khi làm đã xác nhận **chưa có staging HTTPS/thiết bị thật**. Không đánh dấu nghiệm thu Android/iPhone/pilot hoặc đổi kế hoạch thành 29/29. Trạng thái hiện tại **28/29**, phần tự động đã kiểm chứng; T12 chờ môi trường, thiết bị/pilot và kết luận QA-04.
+- Thêm `backend/scripts/qa_clock_probe.py`: chỉ chạy ENVIRONMENT=test, tạo/kiểm tra JWT với ID ngẫu nhiên không tồn tại trong DB, không truy cập DB hoặc mạng, không in token/claims định danh. Mỗi lần từ chối được giữ nguyên kết quả, không retry để thành PASS. Giới hạn thời lượng/tần suất; container chạy override entrypoint, không chạy migration/seed/server.
+- Probe 120.004s: **21.761 mẫu, 0 từ chối**; iat ahead tối đa -0.000230s, bước tiến wall-vs-monotonic tối đa +0.895351s, bước lùi tối đa -0.000148s. Tám phép đo Windows/container có khoảng lệch nằm trong -0.598..-0.067s với RTT 0.254..0.506s, không ghi nhận lệch quá 2s trong cửa sổ này. Không đo đúng lần JWT lỗi nên **không chứng minh nguyên nhân và không đóng QA-04**.
+- `backend/app/core/security.py:21`, `:67`: thêm log số liệu khi strict decoder từ chối ImmatureSignatureError: server_unix, iat/nbf ahead (chỉ số hữu hạn), utc-vs-wall và wall-vs-monotonic. Giới hạn parse metadata 8KiB; không log token/sub/tenant/SĐT/payload, không dùng metadata để xác thực. Không tắt verify, sửa iat, tăng leeway hoặc đổi response 401. Token sai chữ ký không phát log claim clock.
+- Thêm 4 test probe và 6 test metadata/riêng tư. Focused trước sửa log: **6/6 PASS (1.15s)**. Full backend isolated sau sửa: **98/98 PASS (201.24s)**; database QA UUID đã dọn, không thay DB ứng dụng.
+- Production regression sau sửa log: **9c4b7634-752b-4cde-9222-d0dd0395c6f2 — build/TypeScript PASS, 44/44 E2E PASS (116.05s)**, không skip/xfail/setup error. Gồm Admin auth, branches, Operator, session recovery và branch work guard (hai tab/request muộn/uncertain payment/manual batch/Push). Không tái hiện QA-04; không coi vậy là bản sửa nguyên nhân. Full UI 204/204 và QA harness 23/23 là lượt trước; frontend và harness không đổi nên không chạy lại toàn bộ chỉ vì thêm log/chẩn đoán backend.
+- Cleanup: các process exit 0, port 3001 không có listener, không còn container E2E/probe; không mở/tắt server 3000. Không collector/screenshot/JSON layout, không seed/migrate DB ứng dụng. API contract, JWT policy, tenant/RLS và giao dịch giữ nguyên.
+- Phần cần tiếp tục khi có môi trường: thu log thời gian **cùng lần** JWT bị từ chối và đối chiếu clock runtime/host; xác nhận nguyên nhân/khắc phục, kiểm chứng staging. Sau đó Android Chrome/iPhone Safari thật với keyboard/safe area/zoom/Back/touch/offline/Push và pilot ba vai trò có ghi expected/actual. Chưa có các bằng chứng này thì T12 vẫn mở.
+
+### QA-04 — đồng bộ giờ runtime và ngừng ghi file log (19/10/2026)
+
+- **Chỉ thị mới của PO: không ghi file log nữa.** Chỉ thị này thay các hướng dẫn lưu log/proof cũ: runner QA không tạo `pytest.log`, `frontend.log`, `isolation.json` hoặc thư mục artifact của run. Docker container QA dùng logging driver `none` qua Compose override trong bộ nhớ; thông báo xác thực được chuyển trực tiếp ra console. Tắt pytest cache; chặn collector ghi ảnh/JSON khi chạy qua runner. Không xóa các artifact cũ. Build/config tạm cần để chạy frontend vẫn được tạo, không phải log.
+- Sửa `run_ui_qa.py`, `common_setup/qa_frontend.py`, `qa_backend.py`, `layout_evidence.py`; stream stdout qua pipe để kết quả pytest/build vẫn hiển thị trên Windows khi dùng CREATE_NO_WINDOW. Harness **25/25 PASS (0.106s)**, gồm kiểm tra không tạo artifact và override Docker không lưu log. Không lấy dòng kết quả giả lập trong unit test làm số E2E thực.
+- Kiểm tra HTTP thật trên API/DB QA riêng: **400/400** lượt đăng nhập rồi gọi `/auth/me` bằng token vừa cấp PASS trong 136.031s, không retry hoặc file log. Đây là cửa sổ không tái hiện, chưa chứng minh đã sửa QA-04.
+- Bằng chứng runtime: Windows W32Time đang chạy nhưng Leap Indicator=3, Stratum=0, Source=Local CMOS Clock, Last Successful Sync Time=unspecified. Ubuntu trên WSL2 đồng thời bật `systemd-timesyncd`, NTP=yes, poll 32s; Docker dùng clocksource Hyper-V. Journal có **14 thông báo Clock change detected** trong chính cửa sổ run lỗi `f5a26bdb` (13:23:30–13:26:53 UTC ngày 19/10). Xác nhận môi trường có điều chỉnh giờ liên tục; **nghi ngờ hai cơ chế đồng bộ giờ cạnh tranh**, chưa có số iat/clock delta của chính token lỗi để khẳng định toàn bộ chuỗi nguyên nhân.
+- NTP `time.windows.com` phản hồi 3 mẫu stripchart, offset +0.871..+0.883s. `w32tm /resync /rediscover` bị **Access is denied (0x80070005)**: terminal hiện tại không có quyền Administrator. Đã yêu cầu PO chạy lệnh này trong PowerShell Administrator; chưa đổi server NTP, tắt NTP Ubuntu, khởi động lại WSL/Docker hoặc thay đồng hồ toàn máy.
+- Bước còn lại: xác nhận Windows thực sự đồng bộ thành công, sau đó xử lý NTP riêng của Ubuntu theo runbook và kiểm chứng lại clock/JWT trên console. Không tăng leeway, bỏ verify, sửa iat hoặc thêm retry/sleep để che lỗi. **QA-04/T12 vẫn mở; tổng 28/29.**
+- Kiểm chứng cuối harness mới trên production frontend cô lập: **46b61dcb-79ae-41e5-9416-3f182c872152 — build/TypeScript PASS, 23/23 E2E PASS (49.23s)**, gồm Admin auth và session recovery, không skip/setup error. Kết quả đã stream trực tiếp trên console, không lưu output/proof/ảnh vào file. Đây là xác nhận runner hoạt động, không phải nghiệm thu sửa clock. Lượt trước `9650604f` exit 0 nhưng stdout con không hiển thị trên Windows nên không dùng lượt đó làm bằng chứng số test; đã sửa chuyển tiếp pipe và kiểm chứng lại bằng lượt 23/23 này.
+
+Lệnh kiểm chứng T12 tại root:
+
+```powershell
+docker-compose run --rm --no-deps -e ENVIRONMENT=test --entrypoint python backend -B -m scripts.qa_clock_probe --seconds 120
+docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/admin_auth automation_test/features/admin_branches automation_test/features/operator_portal automation_test/features/customer_regressions/tests/test_session_recovery.py automation_test/features/customer_regressions/tests/test_branch_work_guard.py -q --tb=short --maxfail=1
+```

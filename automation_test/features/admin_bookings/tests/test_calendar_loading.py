@@ -25,7 +25,10 @@ def prepare(s):
     a = datetime.fromisoformat(first["start_time"].replace("Z", "+00:00")).astimezone(zone).date().isoformat()
     b = start.astimezone(zone).date().isoformat()
     page = s["page"](s["admin"], True)
-    page.goto(config.frontend_url + "/admin/bookings")
+    # Verify auth/hydration/calendar readiness before arming fault injection.
+    with page.expect_response(lambda r: r.request.method == "GET" and "/bookings?" in r.url):
+        page.goto(config.frontend_url + "/admin/bookings")
+    expect(page.locator("input[type=date]").first).to_be_visible()
     return page, first, second, a, b
 
 

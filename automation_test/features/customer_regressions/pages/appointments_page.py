@@ -9,7 +9,7 @@ class CustomerAppointmentsPage:
     def choose_new_date(self, day):
         self.page.get_by_role("button", name="Đổi ngày/giờ", exact=True).click()
         with self.page.expect_response(
-            lambda r: "/bookings/available-slots?" in r.url and "date=" + day in r.url
+            lambda r: "/available-slots?" in r.url and "date=" + day in r.url
         ) as pending:
             self.page.locator("#rescheduleDate").fill(day)
         response = pending.value

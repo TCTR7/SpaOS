@@ -25,6 +25,8 @@ export default function OperatorPage(): React.ReactElement {
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState("");
   const [success, setSuccess] = React.useState<OwnerProvision | null>(null);
+  const createFlight = React.useRef(false);
+  const [loadAttempt, setLoadAttempt] = React.useState(0);
   const locked = busy || attempt !== null;
   const load = async (page = offset): Promise<void> => setRows(await operatorRequest<OwnerProvision[]>("/owners?limit=50&offset="+page));
   React.useEffect(() => {
@@ -33,11 +35,12 @@ export default function OperatorPage(): React.ReactElement {
       .then(([identity, records]) => { if (!cancelled) { setOperator(identity); setRows(records); } })
       .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Không tải được trang quản trị"); });
     return () => { cancelled = true; };
-  }, [offset]);
+  }, [offset, loadAttempt]);
   const create = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault(); if (busy) return;
+    e.preventDefault(); if (createFlight.current || busy) return;
     if (!attempt && password !== confirm) { setError("Mật khẩu nhập lại không khớp."); return; }
     const body = attempt || {request_id: crypto.randomUUID(), branch_name: branch.trim(), owner_full_name: name.trim(), phone_number: phone.trim(), password, theme_color: ownerColor || branding.theme_color};
+    createFlight.current = true;
     setAttempt(body); setBusy(true); setError(null); setSuccess(null); setMessage("");
     try {
       const record = await operatorRequest<OwnerProvision>("/owners", body);
@@ -48,10 +51,10 @@ export default function OperatorPage(): React.ReactElement {
     } catch (e) {
       if (e instanceof OperatorError && e.status < 500) setAttempt(null);
       setError(e instanceof Error ? e.message : "Chưa rõ kết quả. Thử lại cùng yêu cầu để tránh tạo trùng.");
-    } finally { setBusy(false); }
+    } finally { createFlight.current = false; setBusy(false); }
   };
-  return <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
-    <div className="flex items-center justify-between gap-3"><h1 className="text-xl font-bold">Cấp tài khoản chủ spa</h1>
+  return <main className="mx-auto min-w-0 [overflow-wrap:anywhere] max-w-3xl space-y-5 px-4 py-8">
+    <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-bold">Cấp tài khoản chủ spa</h1>
       {operator && <Button variant="outline" disabled={locked} onClick={async () => {
         setBusy(true); setError(null);
         try { await operatorRequest("/logout", {}); clearOperatorToken(); window.location.assign("/operator/login"); }
@@ -59,7 +62,7 @@ export default function OperatorPage(): React.ReactElement {
       }}>Đăng xuất</Button>}
     </div>
     {operator && <p className="text-sm text-muted-foreground">Quản trị: {operator.full_name}</p>}
-    {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+    {error && <div role="alert" className="space-y-2 text-sm text-rose-700"><p>{error}</p><Button variant="outline" disabled={locked} onClick={() => { setError(null); setLoadAttempt((v) => v+1); }}>Thử tải lại danh sách</Button></div>}
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
     {success && <div className="rounded-xl border bg-card p-4 text-sm" data-testid="owner-created">
       <p><strong>{success.owner_name}</strong> • {success.phone_number}</p><p>Chi nhánh: {success.branch_name}</p>

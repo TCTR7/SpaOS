@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +43,7 @@ async def _get_customer(db: AsyncSession, tenant_id: uuid.UUID, customer_id: uui
 
 @customers_router.get("", response_model=List[UserDetailOut])
 async def list_customers(
+    response: Response,
     q: Optional[str] = Query(default=None, description="Tìm theo SĐT hoặc họ tên"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -61,8 +62,11 @@ async def list_customers(
                 User.phone_number.contains(term, autoescape=True),
             )
         )
-    stmt = stmt.order_by(User.full_name).limit(limit).offset(offset)
-    return list((await db.execute(stmt)).scalars().all())
+    stmt = stmt.order_by(User.full_name, User.id).limit(limit + 1).offset(offset)
+    rows = list((await db.execute(stmt)).scalars().all())
+    response.headers["X-Has-More"] = str(len(rows) > limit).lower()
+    response.headers["X-Next-Offset"] = str(offset + limit) if len(rows) > limit else ""
+    return rows[:limit]
 
 
 @customers_router.post("", response_model=UserDetailOut, status_code=status.HTTP_201_CREATED)

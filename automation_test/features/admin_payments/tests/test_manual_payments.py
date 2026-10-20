@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from playwright.sync_api import expect
 from common_setup.config import config
+from common_setup.api_helper import random_phone
 from features.admin_payments.pages.payments_page import PaymentsPage
 
 
@@ -24,6 +25,7 @@ def test_admin_partial_full_and_void_receipt_ui(scenario):
     expect(page.get_by_test_id("invoice-status")).to_have_text("Đã thu một phần")
     expect(page.get_by_test_id("payment-entry")).to_have_count(3)
     expect(page.get_by_test_id("payment-summary")).to_contain_text("150.000")
+    page.get_by_role("dialog").get_by_role("button", name="Đóng", exact=True).click()
     page.get_by_role("button", name="Lịch sử thao tác", exact=True).click()
     events = page.get_by_test_id("audit-event").filter(has_text="Hoàn tác ghi nhận")
     expect(events).to_have_count(1)
@@ -52,9 +54,15 @@ def test_retry_after_lost_response_does_not_duplicate_payment(scenario):
     page.route(path, lose_first_response)
     page.get_by_role("checkbox", name="Nhập số tiền khác").check()
     page.locator("#receiptAmount").fill("12345.67")
-    page.get_by_role("region", name="Xác nhận thu tiền", exact=True).get_by_role("button", name="Xác nhận đã thu", exact=True).click()
+    page.get_by_role("region", name="Xác nhận thu tiền", exact=True).get_by_role("button", name="Xác nhận đã thu", exact=False).click()
     expect(page.get_by_role("button", name="Thử lại xác nhận", exact=True)).to_be_enabled()
     expect(page.locator("#receiptAmount")).to_be_disabled()
+    page.set_viewport_size({"width": 1366, "height": 768})
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("dialog")).to_be_visible()
+    expect(page.get_by_role("status").filter(has_text="Đang xử lý hoặc cần đối chiếu")).to_be_visible()
+    page.set_viewport_size({"width": 320, "height": 480})
+    expect(page.locator("#receiptAmount")).to_have_value("12345.67")
     with page.expect_response(lambda r: r.url.endswith("/receipts")) as result:
         page.get_by_role("button", name="Thử lại xác nhận", exact=True).click()
     assert result.value.status == 201
@@ -123,9 +131,43 @@ def test_refresh_failure_after_receipt_requires_reload_not_second_collection(sce
     page.route(path, lambda route: route.abort("failed"))
     payments.receive("100000")
     expect(page.get_by_role("button", name="Tải lại số tiền", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Xác nhận đã thu", exact=True).first).to_be_disabled()
+    expect(page.get_by_role("region", name="Xác nhận thu tiền").get_by_role("button", name="Xác nhận đã thu", exact=False)).to_be_disabled()
     page.unroute(path)
     page.get_by_role("button", name="Tải lại số tiền", exact=True).click()
     expect(page.get_by_test_id("invoice-status")).to_have_text("Đã thu một phần")
     expect(page.get_by_role("button", name="Tải lại số tiền", exact=True)).to_have_count(0)
     assert Decimal(s["call"]("GET", "/payments/invoices/" + invoice["id"])["amount_paid"]) == 100000
+
+
+def test_thirtieth_collection_opens_correct_customer_and_restores_scroll(scenario):
+    s = scenario
+    for index in range(29):
+        customer = s["call"]("POST", "/customers", json={"full_name": f"QA Collection {index:02}",
+                             "phone_number": random_phone(), "password": "Customer@123"})
+        s["call"]("POST", "/customer-packages", json={"customer_id": customer["id"],
+                  "service_id": s["service"]["id"], "package_name": f"QA Card {index:02}", "total_sessions": 1})
+    page = s["page"](s["admin"], True)
+    page.set_viewport_size({"width": 320, "height": 480})
+    page.goto(config.frontend_url + "/admin/payments")
+    rows = page.locator('[data-testid^="collection-"]')
+    expect(rows).to_have_count(30)
+    expect(rows.last).to_have_attribute("data-testid", "collection-" + s["package"]["id"])
+    target = page.get_by_test_id("collection-" + s["package"]["id"])
+    target.scroll_into_view_if_needed()
+    before = page.evaluate("scrollY")
+    with page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/payments/invoices")) as opened:
+        target.get_by_role("button", name="Xác nhận đã thu", exact=True).click()
+    invoice = opened.value.json()
+    assert invoice["customer_id"] == s["customer"]["id"]
+    assert invoice["customer_package_id"] == s["package"]["id"]
+    modal = page.get_by_role("dialog", name="Xác nhận thu tiền", exact=True)
+    expect(modal.get_by_text("QA Customer", exact=True)).to_be_visible()
+    expect(modal.get_by_role("button", name="Xác nhận đã thu", exact=False)).to_contain_text("250.000")
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.set_viewport_size({"width": 320, "height": 480})
+    PaymentsPage(page, config.frontend_url).receive("100000")
+    assert Decimal(s["call"]("GET", "/payments/invoices/" + invoice["id"])["amount_paid"]) == 100000
+    modal.get_by_role("button", name="Đóng", exact=True).click()
+    expect(modal).to_have_count(0)
+    assert abs(page.evaluate("scrollY") - before) <= 3
+    expect(target.get_by_role("button", name="Xác nhận đã thu", exact=True)).to_be_focused()

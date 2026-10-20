@@ -22,7 +22,7 @@ def test_collect_layout_evidence(scenario):
                                   role="CUSTOMER" if "customer" in label else "ADMIN",
                                   dataset={"bookings": 1, "longNoteLength": 280 if "long-note" in label else 0},
                                   card_selector=selector,
-                                  intentional_vertical_scroll_selectors=(selector,) if label.startswith("booking-modal") else (),
+                                  intentional_vertical_scroll_selectors=('[data-modal-scroll]',) if label.startswith("booking-modal") else (),
                                   intentional_scroll_selectors=('[data-calendar-scroll]',))
         # Collection completion proves coverage, not that every screen is fixed.
         # Preserve any measured violations for the tasks owning those screens.

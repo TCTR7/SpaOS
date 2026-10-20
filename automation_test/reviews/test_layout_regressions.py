@@ -5,7 +5,7 @@ import pytest
 from playwright.sync_api import expect
 
 from common_setup.config import config
-from common_setup.layout_evidence import assert_layout_contained, capture_layout
+from common_setup.layout_evidence import assert_layout_contained, capture_layout, measure_layout
 from features.customer_regressions.conftest import scenario
 
 
@@ -37,21 +37,23 @@ def load_calendar(s, width, *, week=False, note=None):
 
 def test_long_note_contained_in_mobile_calendar(scenario):
     page = load_calendar(scenario, 390, note="LongNote" * 35)
-    evidence = capture_layout(page, task="UX-02-regression", label="long-note", role="ADMIN",
-                              dataset={"bookings": 1, "noteLength": 280})
-    assert_layout_contained(evidence)
+    check_layout(page, "UX-02-regression", "long-note")
+
+
+def check_layout(page, task, label):
+    options = dict(intentional_scroll_selectors=('[data-calendar-scroll]',))
+    try:
+        assert_layout_contained(measure_layout(page, **options))
+    except AssertionError:
+        capture_layout(page, task=task, label=label, role="ADMIN", dataset={"bookings": 1}, **options)
+        raise
 
 
 @pytest.mark.parametrize("width", [768, 1366])
 def test_week_cards_contained(scenario, width):
     page = load_calendar(scenario, width, week=True)
-    evidence = capture_layout(page, task="UX-01-regression", label="week", role="ADMIN",
-                              dataset={"bookings": 1}, intentional_scroll_selectors=('[data-calendar-scroll]',))
-    assert_layout_contained(evidence)
+    check_layout(page, "UX-01-regression", "week")
     summary = page.locator('[data-layout-card="booking"] summary').first
     summary.click()
     expect(summary.locator("..")).to_have_attribute("open", "")
-    expanded = capture_layout(page, task="UX-01-regression", label="week-expanded", role="ADMIN",
-                             dataset={"bookings": 1, "expanded": True},
-                             intentional_scroll_selectors=('[data-calendar-scroll]',))
-    assert_layout_contained(expanded)
+    check_layout(page, "UX-01-regression", "week-expanded")

@@ -11,7 +11,7 @@ export default function OperatorLoginPage(): React.ReactElement {
   const [ready, setReady] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => { setReady(true); }, []);
-  return <main className="mx-auto max-w-md space-y-5 px-4 py-12">
+  return <main className="mx-auto min-w-0 [overflow-wrap:anywhere] max-w-md space-y-5 px-4 py-12">
     <h1 className="text-2xl font-bold">Quản trị triển khai SpaOS</h1>
     <p className="text-sm text-muted-foreground">Dành cho đơn vị triển khai và cấp tài khoản chủ spa.</p>
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}

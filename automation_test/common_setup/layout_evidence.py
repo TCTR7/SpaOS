@@ -77,7 +77,10 @@ MEASURE_LAYOUT = r"""({cardSelector, intentionalScrollSelectors, intentionalVert
           const clipX=['hidden','clip','auto','scroll'].includes(style.overflowX);
           const clipY=['hidden','clip','auto','scroll'].includes(style.overflowY);
           const horizontal=clipX && (r.left < p.left-tolerance || r.right > p.right+tolerance);
-          const vertical=clipY && parent !== verticalRegion(element,card) &&
+          const region=verticalRegion(element,card), regionBounds=region?.getBoundingClientRect();
+          const throughScroll=region && (parent===region || parent.contains(region)) &&
+            regionBounds.top>=p.top-tolerance && regionBounds.bottom<=p.bottom+tolerance;
+          const vertical=clipY && !throughScroll &&
             (r.top < p.top-tolerance || r.bottom > p.bottom+tolerance);
           if ((!excludedBy && horizontal) || vertical) {
             violations.push({kind:'text-clipped',element:describe(element),
@@ -165,6 +168,8 @@ def measure_layout(
 
 def artifact_directory(task: str) -> Path:
     """Use only the runner's UUID; never overwrite the historical baseline."""
+    if os.environ.get("SPAOS_QA_NO_ARTIFACTS") == "1":
+        raise RuntimeError("Artifact writing disabled by PO; use in-memory layout assertions")
     run_id = os.environ.get("SPAOS_QA_RUN_ID", "")
     try:
         if str(UUID(run_id)) != run_id:

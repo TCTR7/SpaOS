@@ -2,7 +2,7 @@ from common_setup.base_page import BasePage
 
 
 class BookingWizardPage(BasePage):
-    """Page Object for Customer 4-Step Booking Wizard /[tenant_slug]/book."""
+    """Page Object for Customer 3-Step Booking Wizard /[tenant_slug]/book."""
 
     DATE_INPUT = "#wizDate"
     NOTE_INPUT = "#wizNote"
@@ -18,9 +18,8 @@ class BookingWizardPage(BasePage):
     def step2_choose_auto_assign_staff(self) -> None:
         self.wait_for_text("Spa tự sắp xếp Kỹ thuật viên")
         self.click_by_text("Spa tự sắp xếp Kỹ thuật viên")
-        self.click_by_text("Tiếp tục")
 
-    def step3_select_date_and_first_slot(self, date_iso: str) -> None:
+    def step2_select_date_and_first_slot(self, date_iso: str) -> None:
         with self.page.expect_response(
             lambda response: "/bookings/available-slots?" in response.url
             and f"date={date_iso}" in response.url
@@ -32,7 +31,7 @@ class BookingWizardPage(BasePage):
         slot_btn.click()
         self.click_by_text("Tiếp tục")
 
-    def step4_confirm_booking(self, note: str) -> None:
+    def step3_confirm_booking(self, note: str) -> None:
         self.wait_for_text("Xác nhận lịch hẹn")
         self.fill_field(self.NOTE_INPUT, note)
         self.click_by_text("Xác nhận Đặt lịch")

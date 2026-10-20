@@ -54,6 +54,7 @@ export interface PublicTenantResponse {
   close_time: string;
   buffer_minutes: number;
   services: ServiceItem[];
+  staff?: { id: string; full_name: string }[];
 }
 
 export interface UserDetail {
@@ -110,6 +111,7 @@ export type BookingStatus =
 export interface BookingItemDetail {
   id: string;
   service_id: string;
+  service_name?: string | null;
   customer_package_id: string | null;
   duration_minutes: number;
   price: string;
@@ -119,7 +121,9 @@ export interface BookingRecord {
   id: string;
   tenant_id: string;
   customer_id: string;
+  customer_name?: string | null;
   staff_id: string | null;
+  staff_name?: string | null;
   start_time: string;
   end_time: string;
   total_duration_minutes: number;

@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useBranchGuard } from "@/lib/branch-guard";
+import { useListDetail } from "@/lib/use-list-detail";
 import {
   Edit2,
   Lock,
@@ -16,7 +18,7 @@ import {
   fetchStaffList,
   assignCustomer,
   fetchCustomerPackages,
-  fetchCustomers,
+  fetchCustomerPage,
   fetchServices,
   issueCustomerPackage,
   updateCustomer,
@@ -42,6 +44,18 @@ import { Modal } from "@/components/ui/modal";
 
 export default function AdminCustomersPage(): React.ReactElement {
   const { user } = useAdminAuth();
+  const detail = useListDetail();
+  const customerRequest = React.useRef(0);
+  const packageRequest = React.useRef(0);
+  const selectedId = React.useRef<string | null>(null);
+  const listQuery = React.useRef("");
+  const [nextOffset, setNextOffset] = React.useState<number | null>(null);
+  const [moreLoading, setMoreLoading] = React.useState(false);
+  const [packagesError, setPackagesError] = React.useState<string | null>(null);
+  const [servicesError, setServicesError] = React.useState<string | null>(null);
+  const customerFlight = React.useRef(false);
+  const packageFlight = React.useRef(false);
+
   const [owners, setOwners] = React.useState<UserDetail[]>([]);
   const [ownerId, setOwnerId] = React.useState<string>("");
   const [assigning, setAssigning] = React.useState(false);
@@ -52,9 +66,12 @@ export default function AdminCustomersPage(): React.ReactElement {
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<UserDetail | null>(null);
+  useBranchGuard(!!selectedCustomer && ownerId !== (selectedCustomer.assigned_staff_id || ""), assigning);
   const selectCustomer = React.useCallback((customer: UserDetail | null): void => {
     // Initialize the owner in the same render as the selected profile. A later
     // effect could overwrite a selection the user has already made.
+    if (selectedId.current !== (customer?.id || null)) { setPackages([]); setPackagesError(null); setPackagesLoading(!!customer); }
+    selectedId.current = customer?.id || null;
     setSelectedCustomer(customer);
     setOwnerId(customer?.assigned_staff_id || "");
   }, []);
@@ -78,82 +95,70 @@ export default function AdminCustomersPage(): React.ReactElement {
 
   // Issue Package Modal
   const [pkgModalOpen, setPkgModalOpen] = React.useState<boolean>(false);
+  const [issueTarget, setIssueTarget] = React.useState<UserDetail | null>(null);
   const [pkgServiceId, setPkgServiceId] = React.useState<string>("");
   const [pkgName, setPkgName] = React.useState<string>("");
   const [pkgSessions, setPkgSessions] = React.useState<number>(10);
   const [pkgExpiry, setPkgExpiry] = React.useState<string>("");
   const [savingPackage, setSavingPackage] = React.useState<boolean>(false);
 
-  const loadCustomers = React.useCallback(
-    async (q?: string): Promise<void> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const allowedList = await fetchCustomers({ q: q ?? searchQuery, limit: 100 });
-        const lockedIds = new Set<string>();
-
-        setOtherStaffCustomerIds(lockedIds);
-        setCustomers(allowedList);
-        if (allowedList.length > 0) {
-          if (
-            !selectedCustomer ||
-            !allowedList.some((c) => c.id === selectedCustomer.id)
-          ) {
-            selectCustomer(allowedList[0]);
-          }
-        } else {
-          selectCustomer(null);
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Không thể tải danh sách khách hàng"
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [searchQuery, selectedCustomer, user, selectCustomer]
-  );
+  const loadCustomers = React.useCallback(async (q = "", append = false): Promise<void> => {
+    const request = ++customerRequest.current;
+    if (append) setMoreLoading(true);
+    else { setLoading(true); setCustomers([]); setNextOffset(null); listQuery.current = q; }
+    setError(null);
+    try {
+      const page = await fetchCustomerPage({ q, limit: 50, offset: append ? nextOffset || 0 : 0 });
+      if (request !== customerRequest.current) return;
+      setCustomers((previous) => Array.from(new Map([...(append ? previous : []), ...page.items].map((c) => [c.id, c])).values()));
+      setNextOffset(page.nextOffset);
+      if (!append) selectCustomer(page.items.find((c) => c.id === selectedId.current) || page.items[0] || null);
+    } catch (err) {
+      if (request === customerRequest.current) setError(err instanceof Error ? err.message : "Không tải được khách hàng");
+    } finally {
+      if (request === customerRequest.current) { setLoading(false); setMoreLoading(false); }
+    }
+  }, [nextOffset, selectCustomer]);
 
   const loadPackageServices = React.useCallback(async (): Promise<void> => {
+    setServicesError(null);
     try {
       const svcs = await fetchServices({ is_active: true, is_package: true });
       setPackageServices(svcs);
-    } catch {
-      // ignore
+    } catch (err) {
+      setServicesError(err instanceof Error ? err.message : "Không tải được danh mục thẻ");
     }
   }, []);
 
-  const loadSelectedCustomerPackages = React.useCallback(
-    async (customerId: string): Promise<void> => {
-      setPackagesLoading(true);
-      try {
-        const list = await fetchCustomerPackages(customerId);
-        setPackages(list);
-      } catch {
-        setPackages([]);
-      } finally {
-        setPackagesLoading(false);
-      }
-    },
-    []
-  );
+  const loadSelectedCustomerPackages = React.useCallback(async (customerId: string): Promise<void> => {
+    if (selectedId.current !== customerId) return;
+    const request = ++packageRequest.current;
+    setPackagesLoading(true); setPackagesError(null); setPackages([]);
+    try {
+      const list = await fetchCustomerPackages(customerId);
+      if (request === packageRequest.current && selectedId.current === customerId) setPackages(list);
+    } catch (err) {
+      if (request === packageRequest.current && selectedId.current === customerId)
+        setPackagesError(err instanceof Error ? err.message : "Không tải được thẻ liệu trình");
+    } finally {
+      if (request === packageRequest.current && selectedId.current === customerId) setPackagesLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     void loadCustomers("");
     void loadPackageServices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { customerRequest.current += 1; packageRequest.current += 1; };
   }, []);
 
   React.useEffect(() => {
     if (selectedCustomer) {
       void loadSelectedCustomerPackages(selectedCustomer.id);
     } else {
-      setPackages([]);
+      packageRequest.current += 1; setPackages([]); setPackagesError(null); setPackagesLoading(false);
     }
-  }, [selectedCustomer, loadSelectedCustomerPackages]);
+  }, [selectedCustomer?.id, loadSelectedCustomerPackages]);
 
   React.useEffect(() => {
     if (user?.role === "ADMIN") void fetchStaffList().then(setOwners).catch(() => setOwners([]));
@@ -165,7 +170,7 @@ export default function AdminCustomersPage(): React.ReactElement {
     setError(null);
     try {
       const updated = await assignCustomer(selectedCustomer.id, ownerId || null);
-      selectCustomer(updated);
+      if (selectedId.current === updated.id) selectCustomer(updated);
       setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể chuyển người phụ trách");
@@ -194,6 +199,7 @@ export default function AdminCustomersPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (customerFlight.current) return;
     if (
       editingCustomer &&
       user?.role === "STAFF" &&
@@ -205,6 +211,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       return;
     }
 
+    customerFlight.current = true;
     setSavingCustomer(true);
     setError(null);
     try {
@@ -219,6 +226,7 @@ export default function AdminCustomersPage(): React.ReactElement {
         if (selectedCustomer?.id === updated.id) {
           selectCustomer(updated);
         }
+        await loadCustomers(listQuery.current);
       } else {
         const created = await createCustomer({
           full_name: fullName.trim(),
@@ -226,8 +234,9 @@ export default function AdminCustomersPage(): React.ReactElement {
           notes: notes.trim() || null,
           password: password.trim() || undefined,
         });
-        setCustomers((prev) => [created, ...prev]);
-        selectCustomer(created);
+        setSearchQuery(created.phone_number);
+        await loadCustomers(created.phone_number);
+        selectCustomer(created); detail.open();
       }
       setCustomerModalOpen(false);
     } catch (err) {
@@ -235,11 +244,14 @@ export default function AdminCustomersPage(): React.ReactElement {
         err instanceof Error ? err.message : "Lưu thông tin khách hàng thất bại"
       );
     } finally {
+      customerFlight.current = false;
       setSavingCustomer(false);
     }
   };
 
   const openIssuePackageModal = (): void => {
+    if (!selectedCustomer) return;
+    setIssueTarget(selectedCustomer);
     if (
       selectedCustomer &&
       user?.role === "STAFF" &&
@@ -262,11 +274,11 @@ export default function AdminCustomersPage(): React.ReactElement {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
-    if (!selectedCustomer || !pkgServiceId) return;
+    if (packageFlight.current || !issueTarget || !pkgServiceId) return;
 
     if (
       user?.role === "STAFF" &&
-      otherStaffCustomerIds.has(selectedCustomer.id)
+      otherStaffCustomerIds.has(issueTarget.id)
     ) {
       setError(
         "Bảo mật quyền riêng tư: Bạn không có quyền cấp thẻ liệu trình cho khách hàng của Kỹ thuật viên khác."
@@ -274,6 +286,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       return;
     }
 
+    packageFlight.current = true;
     setSavingPackage(true);
     setError(null);
     try {
@@ -281,25 +294,26 @@ export default function AdminCustomersPage(): React.ReactElement {
         ? new Date(`${pkgExpiry}T23:59:59+07:00`).toISOString()
         : null;
       await issueCustomerPackage({
-        customer_id: selectedCustomer.id,
+        customer_id: issueTarget.id,
         service_id: pkgServiceId,
         package_name: pkgName.trim() || undefined,
         total_sessions: pkgSessions,
         expiry_date: expiryISO,
       });
       setPkgModalOpen(false);
-      await loadSelectedCustomerPackages(selectedCustomer.id);
+      await loadSelectedCustomerPackages(issueTarget.id);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Cấp thẻ liệu trình thất bại"
       );
     } finally {
+      packageFlight.current = false;
       setSavingPackage(false);
     }
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">
@@ -317,7 +331,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+        <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
           {error}
         </div>
       )}
@@ -333,7 +347,7 @@ export default function AdminCustomersPage(): React.ReactElement {
 
       <div className="grid gap-5 lg:grid-cols-12">
         {/* Left column: Customer Search & List */}
-        <Card className="lg:col-span-5">
+        <div ref={detail.listRef} className={cn("min-w-0 lg:col-span-5", detail.detailOpen && "hidden lg:block")}><Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Danh sách Khách hàng</CardTitle>
             <form
@@ -343,7 +357,7 @@ export default function AdminCustomersPage(): React.ReactElement {
               }}
               className="mt-2 flex gap-2"
             >
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Tìm theo Tên hoặc Số điện thoại..."
@@ -357,11 +371,13 @@ export default function AdminCustomersPage(): React.ReactElement {
               </Button>
             </form>
           </CardHeader>
-          <CardContent className="max-h-[540px] overflow-y-auto divide-y divide-border pt-0">
+          <CardContent data-list-scroll className="max-h-[540px] overflow-y-auto divide-y divide-border pt-0">
             {loading ? (
               <p className="py-8 text-center text-xs text-muted-foreground">
                 Đang tải khách hàng...
               </p>
+            ) : error && customers.length === 0 ? (
+              <Button variant="outline" onClick={() => void loadCustomers(listQuery.current)}>Thử tải lại khách</Button>
             ) : customers.length === 0 ? (
               <p className="py-8 text-center text-xs text-muted-foreground">
                 Không tìm thấy khách hàng nào.
@@ -372,7 +388,6 @@ export default function AdminCustomersPage(): React.ReactElement {
                 return (
                   <div
                     key={c.id}
-                    onClick={() => selectCustomer(c)}
                     className={cn(
                       "flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-3 transition",
                       isSelected
@@ -380,19 +395,21 @@ export default function AdminCustomersPage(): React.ReactElement {
                         : "hover:bg-muted/60"
                     )}
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">
+                    <button type="button" aria-pressed={isSelected}
+                      onClick={(event) => { selectCustomer(c); detail.open(event.currentTarget); }}
+                      className="min-w-0 flex-1 text-left py-1">
+                      <p className="text-sm font-semibold text-foreground">
                         {c.full_name}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         SĐT: {c.phone_number}
                       </p>
                       {c.notes && (
-                        <p className="mt-0.5 truncate text-[11px] text-slate-600">
+                        <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-600">
                           Ghi chú: {c.notes}
                         </p>
                       )}
-                    </div>
+                    </button>
                     {(!user || user.role === "ADMIN" || !otherStaffCustomerIds.has(c.id)) && (
                       <Button
                         variant="ghost"
@@ -410,11 +427,16 @@ export default function AdminCustomersPage(): React.ReactElement {
                 );
               })
             )}
+            {!loading && <div className="space-y-2 pt-3 text-sm">
+              <p>Đã tải {customers.length} khách{nextOffset !== null ? " — còn kết quả" : ""}.</p>
+              {nextOffset !== null && <Button type="button" variant="outline" disabled={moreLoading} onClick={() => void loadCustomers(listQuery.current, true)}>{moreLoading ? "Đang tải thêm..." : "Tải thêm khách"}</Button>}
+            </div>}
           </CardContent>
-        </Card>
+        </Card></div>
 
         {/* Right column: Selected Customer Profile & Treatment Packages */}
-        <Card className="lg:col-span-7">
+        <Card className={cn("min-w-0 lg:col-span-7", !detail.detailOpen && "hidden lg:block")}>
+          <div className="p-3 pb-0 lg:hidden"><Button variant="outline" onClick={detail.back}>Quay lại danh sách khách</Button></div>
           {!selectedCustomer ? (
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <UserIcon className="h-10 w-10 text-muted-foreground" />
@@ -424,10 +446,10 @@ export default function AdminCustomersPage(): React.ReactElement {
             </CardContent>
           ) : (
             <>
-              <CardHeader className="flex flex-col gap-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
-                <div>
+              <CardHeader className="flex min-w-0 flex-col gap-3 border-b border-border sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <CardTitle className="text-lg">
+                    <CardTitle className="min-w-0 max-w-full text-lg [overflow-wrap:anywhere]">
                       {selectedCustomer.full_name}
                     </CardTitle>
                     {user?.role === "STAFF" && otherStaffCustomerIds.has(selectedCustomer.id) && (
@@ -455,7 +477,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                     Chỉ xem (Không được sửa)
                   </Badge>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -464,7 +486,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                       <Edit2 className="h-3.5 w-3.5" />
                       Sửa hồ sơ
                     </Button>
-                    <Button size="sm" onClick={openIssuePackageModal}>
+                    <Button size="sm" disabled={!!servicesError} onClick={openIssuePackageModal}>
                       <PackagePlus className="h-4 w-4" />
                       Cấp thẻ liệu trình
                     </Button>
@@ -473,11 +495,12 @@ export default function AdminCustomersPage(): React.ReactElement {
               </CardHeader>
 
               <CardContent className="pt-4 space-y-3">
+                {servicesError && <div role="alert"><p>{servicesError}</p><Button variant="outline" onClick={() => void loadPackageServices()}>Thử tải lại danh mục thẻ</Button></div>}
                 {user?.role === "ADMIN" && (
                   <div className="space-y-2">
                     <Label htmlFor="customerOwner">KTV phụ trách hồ sơ</Label>
                     <select id="customerOwner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}
-                      className="h-9 w-full rounded-md border px-3 text-sm">
+                      className="h-11 min-w-0 w-full rounded-md border px-3 text-base sm:h-9 sm:text-sm">
                       <option value="">Chưa phân công</option>
                       {owners.filter((staff) => staff.is_active).map((staff) => (
                         <option key={staff.id} value={staff.id}>{staff.full_name}</option>
@@ -498,6 +521,8 @@ export default function AdminCustomersPage(): React.ReactElement {
                   <p className="py-6 text-center text-xs text-muted-foreground">
                     Đang tải thẻ liệu trình...
                   </p>
+                ) : packagesError ? (
+                  <div role="alert"><p>{packagesError}</p><Button variant="outline" onClick={() => void loadSelectedCustomerPackages(selectedCustomer.id)}>Thử tải lại thẻ</Button></div>
                 ) : packages.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
                     Khách hàng này chưa có thẻ liệu trình nào. Nhấn &ldquo;Cấp
@@ -577,6 +602,8 @@ export default function AdminCustomersPage(): React.ReactElement {
       <Modal
         open={customerModalOpen}
         onClose={() => setCustomerModalOpen(false)}
+        pending={savingCustomer}
+        dirty={editingCustomer ? fullName !== editingCustomer.full_name || notes !== (editingCustomer.notes || "") : !!fullName || !!phoneNumber || !!notes || !!password}
         title={
           editingCustomer
             ? "Cập nhật hồ sơ Khách hàng"
@@ -638,13 +665,6 @@ export default function AdminCustomersPage(): React.ReactElement {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCustomerModalOpen(false)}
-            >
-              Hủy
-            </Button>
             <Button type="submit" disabled={savingCustomer}>
               {savingCustomer ? "Đang lưu..." : "Lưu thông tin"}
             </Button>
@@ -656,7 +676,9 @@ export default function AdminCustomersPage(): React.ReactElement {
       <Modal
         open={pkgModalOpen}
         onClose={() => setPkgModalOpen(false)}
-        title={`Cấp thẻ liệu trình mới — ${selectedCustomer?.full_name ?? ""}`}
+        pending={savingPackage}
+        dirty={pkgServiceId !== (packageServices[0]?.id || "") || pkgName !== (packageServices.find((svc) => svc.id === pkgServiceId)?.name || "") || pkgSessions !== (packageServices.find((svc) => svc.id === pkgServiceId)?.total_sessions || 10) || !!pkgExpiry}
+        title={`Cấp thẻ liệu trình mới — ${issueTarget?.full_name ?? ""}`}
         description="Chọn dịch vụ gói (is_package = true) để khởi tạo thẻ liệu trình cho khách."
       >
         <form onSubmit={(e) => void handleIssuePackage(e)} className="space-y-4">
@@ -734,13 +756,6 @@ export default function AdminCustomersPage(): React.ReactElement {
           )}
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPkgModalOpen(false)}
-            >
-              Hủy
-            </Button>
             <Button
               type="submit"
               disabled={savingPackage || packageServices.length === 0}

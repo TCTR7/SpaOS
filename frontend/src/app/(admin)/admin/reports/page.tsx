@@ -32,6 +32,8 @@ export default function AdminReportsPage(): React.ReactElement {
   const [staffId, setStaffId] = React.useState<string>("");
   const [commissionRate, setCommissionRate] = React.useState<number>(10);
 
+  const [staffError, setStaffError] = React.useState<string | null>(null);
+  const [staffAttempt, setStaffAttempt] = React.useState(0);
   const [staffList, setStaffList] = React.useState<UserDetail[]>([]);
   const [report, setReport] = React.useState<StaffPerformanceReport | null>(
     null
@@ -39,7 +41,13 @@ export default function AdminReportsPage(): React.ReactElement {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  const reportRequest = React.useRef(0);
   const loadReport = React.useCallback(async (): Promise<void> => {
+    const request = ++reportRequest.current;
+    setReport(null);
+    if (!startDate || !endDate || endDate < startDate) {
+      setLoading(false); setError("Ngày kết thúc phải bằng hoặc sau ngày bắt đầu."); return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -48,44 +56,45 @@ export default function AdminReportsPage(): React.ReactElement {
         end_date: endDate,
         staff_id: staffId || undefined,
       });
-      setReport(data);
+      if (request === reportRequest.current) setReport(data);
     } catch (err) {
+      if (request !== reportRequest.current) return;
       setError(
         err instanceof Error
           ? err.message
           : "Không thể tải báo cáo hiệu suất Kỹ thuật viên"
       );
     } finally {
-      setLoading(false);
+      if (request === reportRequest.current) setLoading(false);
     }
   }, [startDate, endDate, staffId]);
 
   React.useEffect(() => {
-    void (async () => {
-      try {
-        const list = await fetchStaffList();
-        setStaffList(list);
-      } catch {
-        // ignore
-      }
-    })();
-  }, []);
+    let cancelled = false;
+    setStaffError(null);
+    void fetchStaffList().then((list) => { if (!cancelled) setStaffList(list); })
+      .catch((err: unknown) => { if (!cancelled) setStaffError(err instanceof Error ? err.message : "Không tải được danh sách KTV"); });
+    return () => { cancelled = true; };
+  }, [staffAttempt]);
 
   React.useEffect(() => {
     void loadReport();
+    return () => { reportRequest.current += 1; };
   }, [loadReport]);
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
       <div>
         <h1 className="text-xl font-bold text-foreground">
           Báo cáo Hiệu suất & Hoa hồng Kỹ thuật viên
         </h1>
         <p className="text-xs text-muted-foreground">
           Thống kê tổng số lịch hoàn thành (COMPLETED), số buổi dịch vụ lẻ /
-          liệu trình và doanh thu mang lại theo múi giờ Asia/Ho_Chi_Minh
+          liệu trình và giá trị dịch vụ hoàn thành theo múi giờ Asia/Ho_Chi_Minh
         </p>
       </div>
+
+      <p className="text-sm text-muted-foreground">Giá trị dịch vụ hoàn thành không phải tiền đã thu. Xem Thu tiền để đối chiếu thực thu. Hoa hồng chỉ là ước tính, chưa phải khoản lương đã chốt.</p>
 
       {/* Filters */}
       <Card>
@@ -95,7 +104,7 @@ export default function AdminReportsPage(): React.ReactElement {
               e.preventDefault();
               void loadReport();
             }}
-            className="grid gap-3 sm:grid-cols-5 items-end"
+            className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-5 items-end [&>div]:min-w-0"
           >
             <div className="space-y-1">
               <Label htmlFor="repStart">Từ ngày</Label>
@@ -125,7 +134,7 @@ export default function AdminReportsPage(): React.ReactElement {
                 id="repStaff"
                 value={staffId}
                 onChange={(e) => setStaffId(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs font-medium"
+                className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base font-medium sm:h-9 sm:text-sm"
               >
                 <option value="">Tất cả Kỹ thuật viên</option>
                 {staffList.map((st) => (
@@ -145,7 +154,7 @@ export default function AdminReportsPage(): React.ReactElement {
                 max={100}
                 value={commissionRate}
                 onChange={(e) =>
-                  setCommissionRate(parseFloat(e.target.value || "0"))
+                  setCommissionRate(Math.min(100, Math.max(0, Number(e.target.value) || 0)))
                 }
               />
             </div>
@@ -159,16 +168,18 @@ export default function AdminReportsPage(): React.ReactElement {
       </Card>
 
       {error && (
-        <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+        <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
           {error}
         </div>
       )}
+
+      {staffError && <div role="alert" className="space-y-2 text-sm"><p>{staffError}</p><Button variant="outline" onClick={() => setStaffAttempt((v) => v + 1)}>Thử tải lại KTV</Button></div>}
 
       {/* Summary Cards */}
       {report && (
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
-            <CardContent className="flex items-center gap-4 p-5">
+            <CardContent className="flex min-w-0 flex-wrap items-center gap-4 p-5">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                 <CheckCircle2 className="h-6 w-6" />
               </div>
@@ -184,7 +195,7 @@ export default function AdminReportsPage(): React.ReactElement {
           </Card>
 
           <Card>
-            <CardContent className="flex items-center gap-4 p-5">
+            <CardContent className="flex min-w-0 flex-wrap items-center gap-4 p-5">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
                 <Sparkles className="h-6 w-6" />
               </div>
@@ -200,13 +211,13 @@ export default function AdminReportsPage(): React.ReactElement {
           </Card>
 
           <Card>
-            <CardContent className="flex items-center gap-4 p-5">
+            <CardContent className="flex min-w-0 flex-wrap items-center gap-4 p-5">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
                 <Coins className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Tổng doanh thu dịch vụ
+                  Giá trị dịch vụ hoàn thành
                 </p>
                 <p className="text-2xl font-bold text-primary">
                   {formatCurrency(report.totals.total_revenue)}
@@ -228,39 +239,39 @@ export default function AdminReportsPage(): React.ReactElement {
             Khoảng thời gian: {startDate} → {endDate}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className="min-w-0 p-0">
           {loading ? (
             <p className="p-10 text-center text-xs text-muted-foreground">
               Đang tổng hợp dữ liệu...
             </p>
+          ) : error ? (
+            <Button variant="outline" onClick={() => void loadReport()}>Thử tải lại báo cáo</Button>
           ) : !report || report.staff.length === 0 ? (
             <p className="p-10 text-center text-xs text-muted-foreground">
               Không có dữ liệu Kỹ thuật viên trong khoảng thời gian này.
             </p>
           ) : (
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
+            <table className="block w-full text-left text-sm lg:table lg:text-xs">
+              <thead className="hidden lg:table-header-group border-b border-border bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Kỹ thuật viên</th>
-                  <th className="px-4 py-3 text-center">Lịch hoàn thành</th>
-                  <th className="px-4 py-3 text-center">Tổng dịch vụ đã làm</th>
-                  <th className="px-4 py-3 text-center">
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell">Kỹ thuật viên</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell text-center">Lịch hoàn thành</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell text-center">Tổng dịch vụ đã làm</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell text-center">
                     Chi tiết (Lẻ / Thẻ liệu trình)
                   </th>
-                  <th className="px-4 py-3 text-right">Doanh thu mang lại</th>
-                  <th className="px-4 py-3 text-right">
-                    Hoa hồng ({commissionRate}%)
-                  </th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell text-right">Giá trị dịch vụ</th>
+                  <th className="block min-w-0 px-4 py-3 lg:table-cell text-right">Hoa hồng ước tính ({commissionRate}%)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="block space-y-3 p-3 lg:table-row-group lg:space-y-0 lg:divide-y lg:divide-border lg:p-0">
                 {report.staff.map((item) => {
                   const rev = parseFloat(item.total_revenue) || 0;
                   const commission = (rev * commissionRate) / 100;
                   return (
-                    <tr key={item.staff_id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                    <tr key={item.staff_id} className="grid min-w-0 grid-cols-2 rounded-xl border border-border lg:table-row lg:rounded-none lg:border-0 lg:hover:bg-muted/30">
+                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
                           <Award className="h-4 w-4 text-primary" />
                           <div>
                             <p className="font-semibold text-foreground text-sm">
@@ -275,13 +286,15 @@ export default function AdminReportsPage(): React.ReactElement {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center font-semibold">
+                      <td className="block min-w-0 px-4 py-3 lg:table-cell text-center font-semibold">
+                        <span className="block text-xs font-normal text-muted-foreground lg:hidden">Lịch hoàn thành</span>
                         {item.completed_bookings_count}
                       </td>
-                      <td className="px-4 py-3 text-center font-bold text-foreground">
+                      <td className="block min-w-0 px-4 py-3 lg:table-cell text-center font-bold text-foreground">
+                        <span className="block text-xs font-normal text-muted-foreground lg:hidden">Dịch vụ đã làm</span>
                         {item.completed_services_count}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="block min-w-0 px-4 py-3 lg:table-cell text-center">
                         <span className="text-slate-700">
                           {item.single_services_count} lẻ
                         </span>{" "}
@@ -290,10 +303,12 @@ export default function AdminReportsPage(): React.ReactElement {
                           {item.package_sessions_count} buổi thẻ
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-foreground">
+                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell text-right font-bold text-foreground">
+                        <span className="block text-xs font-normal text-muted-foreground lg:hidden">Giá trị dịch vụ</span>
                         {formatCurrency(rev)}
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-emerald-700">
+                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell text-right font-bold text-emerald-700">
+                        <span className="block text-xs font-normal text-muted-foreground lg:hidden">Hoa hồng ước tính ({commissionRate}%)</span>
                         {formatCurrency(commission)}
                       </td>
                     </tr>

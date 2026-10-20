@@ -32,6 +32,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -55,7 +56,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
 
   return (
     <div className="py-4">
-      <Card className="shadow-md">
+      <Card className="min-w-0 shadow-md [overflow-wrap:anywhere]">
         <CardHeader className="text-center space-y-1">
           <CardTitle className="text-lg font-bold">
             Đăng nhập Khách hàng
@@ -68,7 +69,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
         <CardContent>
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+              <div role="alert" className="min-w-0 [overflow-wrap:anywhere] rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
                 {error}
               </div>
             )}

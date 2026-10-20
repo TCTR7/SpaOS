@@ -74,11 +74,12 @@ def test_empty_selector_is_not_zero_violations_pass(unauthenticated_page):
 
 def test_vertical_scroll_exemption_does_not_hide_horizontal_or_nested_clipping(unauthenticated_page):
     page = unauthenticated_page
-    page.set_content('<main><article data-layout-card="modal" style="width:250px;height:100px;overflow-y:auto">'
+    page.set_content('<main><article data-layout-card="modal" style="width:250px;height:160px;overflow:hidden">'
+                     '<div data-modal-scroll style="height:100px;overflow-y:auto">'
                      '<div style="height:200px">Top</div><p>Reachable by scrolling</p>'
-                     '</article></main>')
+                     '</div></article></main>')
     options = dict(card_selector='[data-layout-card="modal"]',
-                   intentional_vertical_scroll_selectors=('[data-layout-card="modal"]',))
+                   intentional_vertical_scroll_selectors=('[data-modal-scroll]',))
     assert_layout_contained(measure_layout(page, **options))
     page.locator("p").evaluate("e => {e.style.whiteSpace = 'nowrap'; e.textContent = 'X'.repeat(100);}")
     with pytest.raises(AssertionError):

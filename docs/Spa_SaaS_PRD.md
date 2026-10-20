@@ -50,9 +50,8 @@ Hệ thống bắt buộc phải thiết kế theo kiến trúc **Multi-tenant (
     *   Chi tiết dịch vụ: Tên, Mô tả, Hình ảnh, Thời lượng (phút), Giá tiền.
 *   **Hệ thống Đặt lịch Đa dịch vụ (Booking Flow):**
     *   Bước 1: Chọn **1 hoặc nhiều dịch vụ** trong cùng 1 lần đặt (hoặc chọn đặt lịch trừ vào **Thẻ liệu trình** đang có). Hệ thống tự cộng dồn tổng thời gian thực hiện (`total_duration`).
-    *   Bước 2: Chọn Kỹ thuật viên (tùy chọn) hoặc "Spa tự sắp xếp".
-    *   Bước 3: Chọn Ngày & Giờ (Thuật toán chỉ hiển thị các slot khả dụng dựa trên Ca làm việc của KTV và các lịch đã đặt).
-    *   Bước 4: Xác nhận đặt lịch.
+    *   Bước 2: Chọn Ngày & Giờ cùng Kỹ thuật viên (tùy chọn) hoặc "Spa tự sắp xếp". Thuật toán chỉ hiển thị slot khả dụng theo ca làm và lịch đã đặt; khách tự chọn giờ, không tự chọn slot đầu. Không cho chọn ngày quá khứ.
+    *   Bước 3: Xác nhận đặt lịch; khách chưa đăng nhập có thể đăng nhập/đăng ký nhanh và giữ lựa chọn trong trang. Quay lại giữ dữ liệu hợp lệ; xung đột 409 cho chọn lại giờ trong cùng luồng. Cập nhật UX theo T09a ngày 19/10/2026; trạng thái kiểm chứng thực tế xem PROGRESS.
 *   **Quản lý Lịch hẹn:**
     *   Tab "Sắp tới": Các lịch hẹn chưa diễn ra.
     *   Tab "Lịch sử": Lịch đã hoàn thành, đã hủy.
@@ -176,7 +175,7 @@ Hệ thống bắt buộc phải thiết kế theo kiến trúc **Multi-tenant (
 *   **Prompt mẫu để gõ vào AI:**
     > "Thực hiện **Sprint 6** dựa trên `Spa_SaaS_PRD.md`:
     > 1. Xây dựng phân hệ Khách hàng theo Dynamic Route `/[tenant_slug]` tối ưu giao diện Mobile-first và cấu hình `manifest.json` chuẩn PWA.
-    > 2. Xây dựng luồng Đặt lịch 4 bước (Wizard): Chọn 1 hoặc nhiều dịch vụ (hoặc chọn dùng Thẻ liệu trình đang có) -> Chọn Kỹ thuật viên -> Chọn Ngày & Giờ trống -> Xác nhận.
+    > 2. Xây dựng luồng Đặt lịch 3 bước (Wizard, cập nhật T09a 19/10/2026): Chọn dịch vụ/thẻ -> Chọn Ngày giờ/Kỹ thuật viên -> Xác nhận. Không tự chọn giờ hoặc nhảy bước khi thiếu dữ liệu.
     > 3. Xây dựng trang Cá nhân của khách: Xem lịch hẹn Sắp tới (cho phép Hủy nếu trước giờ quy định), Lịch sử làm đẹp, và Xem số buổi còn lại trong Thẻ liệu trình."
 
 ### Sprint 7: Xây dựng Bộ Kiểm thử Tự động E2E (`automation_test/`)

@@ -16,12 +16,13 @@ export function OperatorBranding({disabled=false}: {disabled?:boolean}): React.R
   const [busy,setBusy] = React.useState(false);
   const [error,setError] = React.useState<string|null>(null);
   const [message,setMessage] = React.useState("");
+  const [attempt,setAttempt] = React.useState(0);
   React.useEffect(() => {
     let cancelled = false;
     void operatorRequest<Branding>("/branding").then((value) => { if (!cancelled) { setColor(value.theme_color); setReady(true); } })
       .catch((e:unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Không tải được màu thương hiệu"); });
     return () => {cancelled=true;};
-  },[]);
+  },[attempt]);
   return <form className="space-y-4 rounded-xl border bg-card p-5" onSubmit={async (e) => {
     e.preventDefault(); if (busy || disabled) return; setBusy(true); setError(null); setMessage("");
     try {
@@ -34,7 +35,7 @@ export function OperatorBranding({disabled=false}: {disabled?:boolean}): React.R
     <h2 className="font-bold">Màu thương hiệu của spa</h2>
     <p className="text-sm text-muted-foreground">Áp dụng cho các chi nhánh, trang quản trị và trang đặt lịch.</p>
     <BrandColorPicker id="deploymentColor" value={color} onChange={(value) => {setColor(value); setDirty(true);}} disabled={!ready || busy || disabled} />
-    {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+    {error && <div role="alert" className="space-y-2 text-sm text-rose-700"><p>{error}</p>{!ready && <Button variant="outline" type="button" onClick={() => {setError(null);setAttempt((v)=>v+1);}}>Thử tải lại màu</Button>}</div>}
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
     <Button type="submit" disabled={!ready || busy || disabled || !/^#[0-9a-f]{6}$/i.test(color)}>{busy ? "Đang lưu màu..." : "Lưu màu thương hiệu"}</Button>
   </form>;

@@ -27,7 +27,7 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
         : tenant.services;
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
       {/* Hero Banner */}
       <div
         className="rounded-2xl p-5 text-white shadow-md space-y-3"
@@ -97,7 +97,7 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
       </div>
 
       {/* Services List */}
-      <div className="space-y-3">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
         {visibleServices.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-xs text-muted-foreground">
@@ -111,8 +111,8 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
               className="overflow-hidden transition hover:shadow-md"
             >
               <CardContent className="p-4 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       {svc.is_package ? (
                         <Badge variant="default" className="gap-1">

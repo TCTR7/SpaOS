@@ -4,7 +4,9 @@ Ngày: 18/10/2026. Trạng thái: đề xuất thiết kế từ review, CHƯA t
 
 ## 1. Mục tiêu trải nghiệm
 
-Trạng thái 19/10/2026: đã sửa và nghiệm thu lại T00c/T02/T04b, đóng R7-01–04; nhóm A/B có 7/29 task đạt phạm vi, còn 22. T00c xác nhận công cụ đo đúng, không thay nghiệm thu mọi màn UI; popup Admin 320px vẫn cần sửa ở T11c. Kết quả/giới hạn theo PROGRESS và UI_UX_EXECUTION_PLAN; các mục còn lại dưới đây vẫn là UX đích.
+Trạng thái mới nhất 19/10/2026: T11b/T11c/T11d đã nghiệm thu phạm vi Chromium: 28/29 task, còn T12. Guard dirty/pending đổi chi nhánh cả hai tab, giữ UUID/payload giao dịch; dashboard đúng scope/Back/Forward, thông báo vừa màn hình/có retry và coverage các route còn lại. Production cuối 86d9eaf7-ae95-42eb-ae99-d6d658765eeb: build/TypeScript và full E2E 204/204 PASS (554.89s); backend isolated 88/88, unit QA harness 23/23 PASS. T12 mới đạt phần tự động; thiết bị thật/bàn phím/safe area/zoom 200% và pilot CHƯA KIỂM CHỨNG. QA-04 đã tái hiện ở run trung gian f5a26bdb, chưa đóng nguyên nhân; không nới JWT hoặc coi lượt xanh là đã sửa. Migration 0008 chưa áp dụng DB ứng dụng; chưa chốt pilot/release. Xem PROGRESS cho source, run lỗi, lệnh và cleanup. Các nhận xét trước là lịch sử/thiết kế đích.
+
+T12 bổ sung 19/10/2026: PO xác nhận chưa có staging HTTPS/thiết bị thật. Đã thêm probe JWT chỉ đọc và log clock an toàn; backend isolated 98/98, production regression phiên/đa chi nhánh/Operator 44/44 PASS (9c4b7634). Probe 21.761 mẫu/120s không tái hiện, chưa đóng nguyên nhân QA-04. Full UI 204/204 là lượt trước, frontend không đổi. T12 vẫn mở, không nghiệm thu giả lập thay điện thoại/pilot thật; xem PROGRESS và RELEASE_RUNBOOK.
 Chủ spa dùng nhanh khi đang tiếp khách; KTV nhận biết lịch và khách trong phạm vi của mình; khách tự đặt đúng dịch vụ/ngày/giờ và hiểu số buổi thẻ. Thiết kế theo tác vụ, không chỉ thu nhỏ màn hình PC.
 
 Mỗi màn hình có một hành động chính nổi bật. Thông tin giờ/khách/số tiền đứng trước mô tả và nhật ký. Giảm lượng thông tin hiển thị bằng mở chi tiết, không giảm font để nhét vừa. Không che overflow bằng cắt cả trang.

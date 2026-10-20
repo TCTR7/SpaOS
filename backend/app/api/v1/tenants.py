@@ -6,7 +6,7 @@ from app.api.deps import get_current_tenant, get_tenant_db, require_roles
 from app.api.utils import apply_patch, commit_and_refresh
 from app.core.database import get_db, set_tenant_context
 from app.models.models import Service, Tenant, User, UserRole
-from app.schemas.admin import PublicTenantOut, ServiceOut, TenantDetailOut, TenantUpdate
+from app.schemas.admin import PublicStaffOut, PublicTenantOut, ServiceOut, TenantDetailOut, TenantUpdate
 
 public_router = APIRouter(prefix="/public", tags=["public"])
 tenants_router = APIRouter(prefix="/tenants", tags=["tenants"])
@@ -30,6 +30,9 @@ async def get_public_tenant_info(slug: str, db: AsyncSession = Depends(get_db)) 
     ).scalars().all()
     from app.services.branding_service import get_branding
     branding = await get_branding(db)
+    staff = (await db.execute(select(User.id, User.full_name).where(
+        User.tenant_id == tenant.id, User.role == UserRole.STAFF, User.is_active.is_(True)
+    ).order_by(User.full_name, User.id))).all()
     return PublicTenantOut(
         id=tenant.id,
         slug=tenant.slug,
@@ -40,6 +43,7 @@ async def get_public_tenant_info(slug: str, db: AsyncSession = Depends(get_db)) 
         close_time=tenant.close_time,
         buffer_minutes=tenant.buffer_minutes,
         services=[ServiceOut.model_validate(s) for s in services],
+        staff=[PublicStaffOut(id=row.id, full_name=row.full_name) for row in staff],
     )
 
 

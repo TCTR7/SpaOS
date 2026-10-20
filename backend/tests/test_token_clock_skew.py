@@ -35,6 +35,37 @@ def test_management_token_accepts_small_clock_skew_but_preserves_validation(monk
         decode_access_token(signed(claims, "unrelated-qa-key-with-at-least-thirty-two-bytes"))
 
 
+def test_future_token_logs_numeric_clock_metadata_but_no_private_claims(monkeypatch, caplog):
+    now = freeze_jwt_clock(monkeypatch)
+    token = signed({"iat": now + 10, "exp": now + 60, "sub": "PRIVATE-CUSTOMER",
+                    "tenant_id": "PRIVATE-BRANCH", "phone": "PRIVATE-PHONE"})
+    with pytest.raises(jwt.ImmatureSignatureError):
+        decode_access_token(token)
+    assert "Authentication clock validation rejected" in caplog.text
+    assert "server_unix" in caplog.text and "iat_ahead_seconds" in caplog.text
+    assert token not in caplog.text
+    assert "PRIVATE-" not in caplog.text
+
+
+def test_bad_signature_does_not_emit_claim_clock_diagnostics(monkeypatch, caplog):
+    now = freeze_jwt_clock(monkeypatch)
+    token = signed({"iat": now + 10, "exp": now + 60}, "unrelated-qa-key-with-at-least-thirty-two-bytes")
+    with pytest.raises(jwt.InvalidSignatureError):
+        decode_access_token(token)
+    assert "Authentication clock validation rejected" not in caplog.text
+
+
+@pytest.mark.parametrize("claims", [[], {"iat": {"private": "PRIVATE"}}, {"iat": float("inf")}, {"iat": "PRIVATE"}])
+def test_clock_diagnostics_never_return_non_numeric_claim_values(claims):
+    import base64
+    import json
+    from app.core.security import _clock_metadata
+    encoded = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode()
+    result = _clock_metadata("header." + encoded + ".signature")
+    assert "iat_ahead_seconds" not in result
+    assert "PRIVATE" not in str(result)
+
+
 @pytest.mark.asyncio
 async def test_operator_clock_skew_preserves_expiry_scope_and_version(operator_env, monkeypatch):
     client, _ = operator_env

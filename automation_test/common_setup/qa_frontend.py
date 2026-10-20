@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import threading
 import time
 from uuid import uuid4
 
@@ -53,7 +54,7 @@ def qa_environment(backend_url, frontend_url, run_id):
                 BACKEND_URL=backend_url, BACKEND_INTERNAL_URL=backend_url,
                 FRONTEND_URL=frontend_url, NEXT_PUBLIC_API_URL="/api/v1",
                 NEXT_TELEMETRY_DISABLED="1", HEADLESS="true", SLOW_MO="0",
-                PYTHONDONTWRITEBYTECODE="1", PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
+                PYTHONDONTWRITEBYTECODE="1", PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8", SPAOS_QA_NO_ARTIFACTS="1")
 
 
 def write_qa_tsconfig(run_id):
@@ -80,11 +81,11 @@ def qa_frontend(backend_url, *, mode="production", port=3001, artifact_root=None
     run_id = str(uuid4())
     frontend_url = "http://127.0.0.1:" + str(port)
     artifacts = (artifact_root or ROOT / "automation_test" / "artifacts" / "qa") / run_id
-    artifacts.mkdir(parents=True, exist_ok=False)
     env = qa_environment(backend_url, frontend_url, run_id)
     env["NODE_ENV"] = "production" if mode == "production" else "development"
     before = source_fingerprints()
     owned = []
+    readers = []
     reservation = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
@@ -93,41 +94,50 @@ def qa_frontend(backend_url, *, mode="production", port=3001, artifact_root=None
         write_qa_tsconfig(run_id)
         cli = ["node", str(FRONTEND / "node_modules" / "next" / "dist" / "bin" / "next")]
         flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-        with (artifacts / "frontend.log").open("w", encoding="utf-8") as log:
-            def launch(args):
-                process = subprocess.Popen(cli + args, cwd=FRONTEND, env=env,
-                                           stdout=log, stderr=subprocess.STDOUT,
-                                           creationflags=flags)
-                owned.append(process)
-                return process
-            if mode == "production":
-                print("QA: building isolated production frontend", flush=True)
-                build = launch(["build"])
-                if build.wait(timeout=600) != 0:
-                    raise RuntimeError("QA frontend build failed; see " + str(artifacts / "frontend.log"))
-                check_sources_unchanged(before)
-            reservation.close()
-            command = "start" if mode == "production" else "dev"
-            process = launch([command, "--hostname", "127.0.0.1", "--port", str(port)])
-            deadline = time.monotonic() + 180
-            while True:
-                if process.poll() is not None:
-                    raise RuntimeError("QA frontend exited before readiness; see " + str(artifacts / "frontend.log"))
-                try:
-                    verify_frontend(frontend_url, run_id)
-                    break
-                except FrontendPreflightError:
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError("QA frontend not ready; see " + str(artifacts / "frontend.log")) from None
-                    time.sleep(0.25)
+        def launch(args):
+            process = subprocess.Popen(cli + args, cwd=FRONTEND, env=env,
+                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       text=True, encoding="utf-8", errors="replace",
+                                       creationflags=flags)
+            owned.append(process)
+            def forward_console():
+                for line in process.stdout:
+                    print(line, end="", flush=True)
+            reader = threading.Thread(target=forward_console, daemon=True)
+            readers.append((reader, process))
+            reader.start()
+            return process
+        if mode == "production":
+            print("QA: building isolated production frontend", flush=True)
+            build = launch(["build"])
+            if build.wait(timeout=600) != 0:
+                raise RuntimeError("QA frontend build failed; see console output")
             check_sources_unchanged(before)
-            print("QA: frontend verified at " + frontend_url, flush=True)
-            yield dict(env=env, run_id=run_id, frontend_url=frontend_url, artifacts=artifacts)
+        reservation.close()
+        command = "start" if mode == "production" else "dev"
+        process = launch([command, "--hostname", "127.0.0.1", "--port", str(port)])
+        deadline = time.monotonic() + 180
+        while True:
+            if process.poll() is not None:
+                raise RuntimeError("QA frontend exited before readiness; see console output")
+            try:
+                verify_frontend(frontend_url, run_id)
+                break
+            except FrontendPreflightError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("QA frontend not ready; see console output") from None
+                time.sleep(0.25)
+        check_sources_unchanged(before)
+        print("QA: frontend verified at " + frontend_url, flush=True)
+        yield dict(env=env, run_id=run_id, frontend_url=frontend_url, artifacts=artifacts)
     finally:
         reservation.close()
         try:
             for process in reversed(owned):
                 stop_owned_process(process)
+            for reader, process in readers:
+                reader.join(timeout=5)
+                process.stdout.close()
         finally:
             check_sources_unchanged(before)
 

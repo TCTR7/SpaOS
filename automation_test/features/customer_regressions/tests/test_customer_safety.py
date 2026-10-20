@@ -51,10 +51,10 @@ def test_package_load_error_is_visible_and_recovers(scenario):
     pattern = "**/api/v1/customer-packages/me"
     page.route(pattern, lambda route: route.fulfill(status=503, json={"detail": "QA temporarily unavailable"}))
     page.goto(s["url"] + "/profile")
-    expect(page.get_by_role("main").get_by_role("alert")).to_have_text("QA temporarily unavailable")
+    expect(page.get_by_role("main").get_by_role("alert").get_by_text("QA temporarily unavailable", exact=True)).to_be_visible()
     expect(page.get_by_text("QA One Session", exact=True)).to_have_count(0)
     page.unroute(pattern)
-    page.reload()
+    page.get_by_role("button", name="Thử tải lại thẻ", exact=True).click()
     expect(page.get_by_text("QA One Session", exact=True)).to_be_visible()
     expect(page.get_by_role("main").get_by_role("alert")).to_have_count(0)
 
@@ -157,10 +157,14 @@ def test_slot_taken_before_confirmation_shows_conflict(scenario, api_helper):
     rival = api_helper.create_booking(s["token"], start, [{"service_id": s["service"]["id"]}])
     try:
         with page.expect_response(lambda r: r.url.endswith("/bookings") and r.request.method == "POST") as response:
-            wizard.step4_confirm_booking("QA stale slot")
+            wizard.step3_confirm_booking("QA stale slot")
         assert response.value.status == 409
         expect(page.get_by_text(response.value.json()["detail"], exact=True)).to_be_visible()
-        expect(page.get_by_role("button", name="Xác nhận Đặt lịch", exact=True)).to_be_enabled()
+        expect(page.locator("#wizDate")).to_be_visible()
+        expect(page.get_by_role("button", name="Tiếp tục", exact=True)).to_be_disabled()
+        page.locator("button:has-text('KTV trống')").first.click()
+        page.get_by_role("button", name="Tiếp tục", exact=True).click()
+        expect(page.locator("#wizNote")).to_have_value("QA stale slot")
         records = s["call"]("GET", "/bookings")
         assert [b["id"] for b in records] == [rival["id"]]
     finally:

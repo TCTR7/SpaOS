@@ -104,7 +104,7 @@ async def test_concurrent_subscription_is_idempotent(client):
 
 @pytest.mark.asyncio
 async def test_all_business_tables_force_rls(client):
-    tables = {"users", "staff_schedules", "services", "customer_packages", "bookings", "booking_items", "push_subscriptions", "notifications"}
+    tables = {"users", "staff_schedules", "services", "customer_packages", "bookings", "booking_items", "push_subscriptions", "notifications", "manual_booking_batches"}
     async with AsyncSessionLocal() as session:
         rows = (await session.execute(text("SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'public'::regnamespace"))).all()
         assert {name for name, enabled, forced in rows if enabled and forced} >= tables

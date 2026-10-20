@@ -23,6 +23,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
   const [loadingPkgs, setLoadingPkgs] = React.useState<boolean>(false);
 
   const [packageError, setPackageError] = React.useState<string | null>(null);
+  const [attempt, setAttempt] = React.useState(0);
 
   React.useEffect(() => {
     setPackageError(null);
@@ -44,7 +45,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
       }
     })();
     return () => { cancelled = true; };
-  }, [slug, user]);
+  }, [slug, user, attempt]);
 
   if (!tenant) return null;
   const themeColor = "var(--brand-color)";
@@ -87,18 +88,18 @@ export default function CustomerProfilePage(): React.ReactElement | null {
   if (!user) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 [overflow-wrap:anywhere]">
       {/* Personal Profile Card */}
       <Card>
-        <CardContent className="p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <CardContent className="p-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <div
-              className="flex h-12 w-12 items-center justify-center rounded-full text-white font-bold text-base shadow-xs"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white font-bold text-base shadow-xs"
               style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
             >
               {user.full_name.slice(0, 1).toUpperCase()}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
                 <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
                 {user.full_name}
@@ -107,7 +108,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                 <Phone className="h-3.5 w-3.5" />
                 {user.phone_number}
               </p>
-              <Badge variant="secondary" className="mt-1">
+              <Badge variant="secondary" className="mt-1 max-w-full whitespace-normal">
                 Thành viên {tenant.name}
               </Badge>
             </div>
@@ -126,12 +127,13 @@ export default function CustomerProfilePage(): React.ReactElement | null {
       </Card>
 
       {/* Treatment Packages Section */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        <div className="space-y-2 md:col-span-2">
           <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
             <Ticket className="h-4 w-4" style={{ color: "var(--brand-text)" }} />
             Thẻ liệu trình đang sở hữu ({packages.length})
           </h2>
+          <p className="text-xs text-muted-foreground">Số buổi trong thẻ không xác nhận tình trạng thanh toán. Liên hệ spa để đối chiếu tiền đã thu.</p>
         </div>
 
         {loadingPkgs ? (
@@ -141,7 +143,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
             </CardContent>
           </Card>
         ) : packageError ? (
-          <p role="alert" className="text-sm text-rose-700">{packageError}</p>
+          <div role="alert" className="space-y-2 text-sm text-rose-700"><p>{packageError}</p><Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>Thử tải lại thẻ</Button></div>
         ) : packages.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center space-y-2">
@@ -166,10 +168,13 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                 (pkg.used_sessions / Math.max(pkg.total_sessions, 1)) * 100
               )
             );
-            const canBookWithPkg =
-              pkg.status === "ACTIVE" && pkg.available_sessions > 0;
+            const exhausted = pkg.status === "COMPLETED" || pkg.used_sessions >= pkg.total_sessions;
+            const expired = pkg.status === "EXPIRED" || Boolean(pkg.expiry_date && new Date(pkg.expiry_date).getTime() <= Date.now());
+            const held = !exhausted && !expired && pkg.status === "ACTIVE" && pkg.available_sessions === 0 && pkg.reserved_sessions > 0;
+            const canBookWithPkg = pkg.status === "ACTIVE" && !exhausted && !expired && pkg.available_sessions > 0;
+            const stateLabel = exhausted ? "Đã dùng hết" : expired ? "Đã hết hạn" : held ? "Đã giữ chỗ hết buổi" : "Đang sử dụng";
             return (
-              <Card key={pkg.id} data-layout-card="customer-package">
+              <Card key={pkg.id} data-layout-card="customer-package" className="min-w-0">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -183,15 +188,9 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                       </p>
                     </div>
                     <Badge
-                      variant={
-                        pkg.status === "ACTIVE"
-                          ? "success"
-                          : pkg.status === "COMPLETED"
-                            ? "secondary"
-                            : "danger"
-                      }
+                      variant={expired ? "danger" : exhausted || held ? "secondary" : "success"}
                     >
-                      {{ ACTIVE: "Đang sử dụng", COMPLETED: "Đã dùng hết", EXPIRED: "Đã hết hạn" }[pkg.status]}
+                      {stateLabel}
                     </Badge>
                   </div>
 
@@ -224,7 +223,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                   <p className="text-xs text-muted-foreground">
                     Chưa dùng: {pkg.remaining_sessions} buổi • Đã đặt lịch: {pkg.reserved_sessions} buổi
                   </p>
-                  {pkg.status === "ACTIVE" && pkg.available_sessions === 0 && pkg.reserved_sessions > 0 && (
+                  {held && (
                     <p className="text-xs text-muted-foreground">Các buổi còn lại đã được đặt lịch. Xem mục Lịch hẹn để kiểm tra hoặc thay đổi.</p>
                   )}
                   {canBookWithPkg && (

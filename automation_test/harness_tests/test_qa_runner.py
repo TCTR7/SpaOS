@@ -1,6 +1,8 @@
 """Lifecycle regression: all processes, network and database contexts are fake."""
 from contextlib import contextmanager
 from pathlib import Path
+import io
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -13,6 +15,7 @@ from automation_test.common_setup.frontend_preflight import FrontendPreflightErr
 class FrontendLifecycleTests(unittest.TestCase):
     def exercise(self, *, build_code=0, ready_error=None, body_error=None):
         build, server = Mock(name="owned-build"), Mock(name="owned-server")
+        build.stdout, server.stdout = io.StringIO(""), io.StringIO("")
         build.wait.return_value = build_code
         server.poll.return_value = None
         with tempfile.TemporaryDirectory() as folder, \
@@ -34,6 +37,9 @@ class FrontendLifecycleTests(unittest.TestCase):
                 self.assertEqual([c.args[0] for c in stop.call_args_list], expected)
                 socket.return_value.bind.assert_called_once_with(("127.0.0.1", 3001))
                 self.assertEqual(launch.call_args_list[0].args[0][-1], "build")
+                self.assertEqual(list(Path(folder).iterdir()), [], "QA must not create artifact/log directories")
+                self.assertEqual(launch.call_args_list[0].kwargs["stdout"], subprocess.PIPE)
+                self.assertEqual(launch.call_args_list[0].kwargs["stderr"], subprocess.STDOUT)
 
     def test_success_cleans_only_owned_processes(self):
         self.exercise()
@@ -80,6 +86,7 @@ class FrontendLifecycleTests(unittest.TestCase):
 
     def test_start_failure_cleans_completed_build_handle(self):
         build = Mock()
+        build.stdout = io.StringIO("")
         build.wait.return_value = 0
         with tempfile.TemporaryDirectory() as folder, \
                 patch.object(frontend, "source_fingerprints", return_value={}), \
@@ -114,6 +121,7 @@ class RunnerLifecycleTests(unittest.TestCase):
                 finally:
                     events.append("frontend-stop")
             process = Mock()
+            process.stdout = io.StringIO("23 passed\n")
             process.wait.return_value = code
             process.wait.side_effect = failure
             with patch.object(runner, "qa_backend", backend), \
@@ -124,6 +132,7 @@ class RunnerLifecycleTests(unittest.TestCase):
                 result = runner.run(["automation_test/features", "-q"])
                 stop.assert_called_once_with(process)
                 self.assertEqual(launch.call_count, 1)
+                self.assertEqual(list(Path(folder).iterdir()), [], "No pytest.log or isolation.json")
             self.assertEqual(events, ["backend-start", "frontend-start", "frontend-stop", "backend-stop"])
             return result
 

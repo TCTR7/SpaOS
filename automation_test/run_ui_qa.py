@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import subprocess
 import sys
@@ -16,24 +15,22 @@ def run(pytest_args, *, mode="production", port=3001):
     try:
         with qa_backend() as backend_url:
             with qa_frontend(backend_url, mode=mode, port=port) as qa:
-                proof = verify_api_isolation(backend_url, qa["frontend_url"], qa["run_id"])
-                (qa["artifacts"] / "isolation.json").write_text(
-                    json.dumps(proof, indent=2), encoding="utf-8")
-                print("QA: rewrite + SSR isolation verified; running pytest", flush=True)
+                verify_api_isolation(backend_url, qa["frontend_url"], qa["run_id"])
+                print("QA: rewrite + SSR isolation verified; console only; run " + qa["run_id"], flush=True)
                 flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-                test_log = qa["artifacts"] / "pytest.log"
-                with test_log.open("w", encoding="utf-8") as output:
-                    process = subprocess.Popen(
-                        [sys.executable, "-B", "-m", "pytest"] + list(pytest_args),
-                        cwd=ROOT, env=qa["env"], creationflags=flags,
-                        stdout=output, stderr=subprocess.STDOUT,
-                    )
-                    try:
-                        code = process.wait()
-                    finally:
-                        stop_owned_process(process)
-                print("\n".join(test_log.read_text(encoding="utf-8", errors="replace").splitlines()[-45:]), flush=True)
-                print("QA test log: " + str(test_log), flush=True)
+                process = subprocess.Popen(
+                    [sys.executable, "-B", "-m", "pytest", "-p", "no:cacheprovider"] + list(pytest_args),
+                    cwd=ROOT, env=qa["env"], creationflags=flags,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, encoding="utf-8", errors="replace",
+                )
+                try:
+                    for line in process.stdout:
+                        print(line, end="", flush=True)
+                    code = process.wait()
+                finally:
+                    stop_owned_process(process)
+                    process.stdout.close()
         return code
     except KeyboardInterrupt:
         print("QA interrupted; owned resources cleaned up.", file=sys.stderr)
@@ -44,7 +41,7 @@ def run(pytest_args, *, mode="production", port=3001):
 
 
 def main():
-    # Preserve Vietnamese diagnostics on Windows consoles as well as log files.
+    # Preserve Vietnamese diagnostics on Windows consoles without writing logs.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")

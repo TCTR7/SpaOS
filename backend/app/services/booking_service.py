@@ -24,7 +24,7 @@ from app.models.models import (
     User,
     UserRole,
 )
-from app.schemas.booking import BookingCreate, BookingUpdate
+from app.schemas.booking import BookingCreate, BookingUpdate, BookingOut
 from app.services.audit_service import audit
 from app.services.customer_access import customer_access, booking_access, customer_scope
 
@@ -195,10 +195,13 @@ async def compute_available_slots(
     d: date,
     duration_minutes: int,
     staff_ids: List[uuid.UUID],
+    *, exclude_booking_id: Optional[uuid.UUID] = None, include_start: Optional[datetime] = None,
 ) -> List[Tuple[datetime, datetime, List[uuid.UUID]]]:
     windows = await get_schedule_windows(db, tenant, staff_ids, d)
     day_start, day_end = local_day_bounds(d)
     busy = await fetch_busy(db, tenant, staff_ids, day_start, day_end)
+    if exclude_booking_id is not None:
+        busy = {sid: [b for b in rows if b.id != exclude_booking_id] for sid, rows in busy.items()}
     now = datetime.now(timezone.utc)
     duration = timedelta(minutes=duration_minutes)
     step = timedelta(minutes=SLOT_STEP_MINUTES)
@@ -213,6 +216,11 @@ async def compute_available_slots(
                     if sid not in ids:
                         ids.append(sid)
                 slot_start += step
+            if include_start is not None and w_start <= include_start and include_start + duration <= w_end:
+                if include_start > now and not _conflicts(busy[sid], include_start, include_start + duration, tenant.buffer_minutes):
+                    ids = slots.setdefault(include_start, [])
+                    if sid not in ids:
+                        ids.append(sid)
     return [(s, s + duration, ids) for s, ids in sorted(slots.items())]
 
 
@@ -296,7 +304,8 @@ async def _lock_staff_row(db: AsyncSession, tenant_id: uuid.UUID, staff_id: uuid
 
 
 # ---------------------------------------------------------------- create booking
-async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, body: BookingCreate) -> Booking:
+async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, body: BookingCreate,
+                         *, commit: bool = True, staff_candidates: Optional[List[uuid.UUID]] = None) -> Booking:
     start = ensure_aware(body.start_time).astimezone(timezone.utc)
     now = datetime.now(timezone.utc)
 
@@ -366,7 +375,7 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
         staff_id = body.staff_id
     else:
         local_day = start.astimezone(TZ).date()
-        all_ids = await list_active_staff_ids(db, tenant_id)
+        all_ids = staff_candidates if staff_candidates is not None else await list_active_staff_ids(db, tenant_id)
         windows = await get_schedule_windows(db, tenant, all_ids, local_day)
         # Chỉ lock các KTV có ca làm phù hợp; lock tuần tự theo id tăng dần (tránh deadlock)
         for sid in (s for s in all_ids if _fits(windows[s], start, end)):
@@ -419,6 +428,8 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
     booking_id = booking.id
     audit(db, tenant_id, actor, "BOOKING_CREATED", "booking", booking.id,
           {"customer_id": str(customer.id), "staff_id": str(staff_id), "start_time": start.isoformat()})
+    if not commit:
+        return booking
     await db.commit()  # nhả toàn bộ lock
 
     await set_tenant_context(db, tenant_id)
@@ -524,6 +535,26 @@ async def cancel_booking(
 
 
 # ---------------------------------------------------------------- list
+async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: List[Booking]) -> List[BookingOut]:
+    """Project names for already-authorized rows in two bounded queries; no lazy relationships."""
+    if not bookings:
+        return []
+    user_ids = {b.customer_id for b in bookings} | {b.staff_id for b in bookings if b.staff_id}
+    service_ids = {item.service_id for b in bookings for item in b.items}
+    users = dict((await db.execute(select(User.id, User.full_name).where(
+        User.tenant_id == tenant_id, User.id.in_(user_ids),
+        User.role.in_([UserRole.CUSTOMER, UserRole.STAFF])
+    ))).all())
+    services = dict((await db.execute(select(Service.id, Service.name).where(
+        Service.tenant_id == tenant_id, Service.id.in_(service_ids)
+    ))).all())
+    return [BookingOut.model_validate(b).model_copy(update={
+        "customer_name": users.get(b.customer_id), "staff_name": users.get(b.staff_id),
+        "items": [item.model_copy(update={"service_name": services.get(item.service_id)})
+                  for item in BookingOut.model_validate(b).items],
+    }) for b in bookings]
+
+
 async def list_bookings(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -584,12 +615,13 @@ async def reschedule_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User
         if package.status != PackageStatus.ACTIVE or (package.expiry_date and package.expiry_date <= start):
             raise HTTPException(422, "Thẻ liệu trình không còn hiệu lực tại giờ hẹn mới")
     # Lock old + potential new technicians in one deterministic order before bookings.
-    candidates = [body.staff_id] if body.staff_id else await list_active_staff_ids(db, tenant_id)
+    target_staff = body.staff_id if "staff_id" in body.model_fields_set else booking.staff_id
+    candidates = [target_staff] if target_staff else await list_active_staff_ids(db, tenant_id)
     valid = set()
     for sid in sorted(set(candidates + ([booking.staff_id] if booking.staff_id else []))):
         if await _lock_staff_row(db, tenant_id, sid):
             valid.add(sid)
-    if body.staff_id and body.staff_id not in valid:
+    if target_staff and target_staff not in valid:
         raise HTTPException(404, "Không tìm thấy kỹ thuật viên")
     end = start + timedelta(minutes=booking.total_duration_minutes)
     windows = await get_schedule_windows(db, tenant, candidates, start.astimezone(TZ).date())

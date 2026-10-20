@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useBranchGuard } from "@/lib/branch-guard";
 import { ApiError } from "@/lib/api";
 import { listPaymentEntries, recordReceipt, voidReceipt, formatPaymentCurrency as formatCurrency } from "@/lib/payment-api";
 import type { PaymentInvoice, PaymentEntry } from "@/lib/types";
@@ -11,8 +12,9 @@ import { Input, Label } from "@/components/ui/input";
 type ReceiptAttempt = { amount: string; method: "CASH" | "BANK_TRANSFER"; note: string | null; idempotency_key: string };
 type VoidAttempt = { entryId: string; reason: string; idempotency_key: string };
 
-export function PaymentLedger({ invoice, actorName, onChanged, onLocked }: {
+export function PaymentLedger({ invoice, actorName, onChanged, onLocked, onDirty }: {
   invoice: PaymentInvoice; actorName: (id: string) => string; onChanged: () => Promise<void>; onLocked: (locked: boolean) => void;
+  onDirty?: (dirty: boolean) => void;
 }): React.ReactElement {
   const [entries, setEntries] = React.useState<PaymentEntry[]>([]);
   const [offset, setOffset] = React.useState(0);
@@ -29,6 +31,9 @@ export function PaymentLedger({ invoice, actorName, onChanged, onLocked }: {
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
   const locked = busy || attempt !== null || voidAttempt !== null || refreshFailed;
+  const dirty = customAmount || !!amount || !!note || !!voidId || !!reason;
+  useBranchGuard(dirty, locked);
+  React.useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
   React.useEffect(() => { onLocked(locked); return () => onLocked(false); }, [locked, onLocked]);
 
   const load = React.useCallback(async (): Promise<void> => {
@@ -79,7 +84,7 @@ export function PaymentLedger({ invoice, actorName, onChanged, onLocked }: {
   return (
     <section className="space-y-4 rounded-xl border bg-card p-4">
       <h3 className="text-base font-bold">Xác nhận tiền đã nhận</h3>
-      <dl className="grid grid-cols-3 gap-3 text-sm">
+      <dl className="grid gap-3 text-sm sm:grid-cols-3">
         <div><dt>Giá đã chốt</dt><dd>{formatCurrency(invoice.amount_due)}</dd></div>
         <div><dt>Đã thu</dt><dd data-testid="invoice-paid">{formatCurrency(invoice.amount_paid)}</dd></div>
         <div><dt>Còn thiếu</dt><dd data-testid="invoice-balance">{formatCurrency(invoice.balance_due)}</dd></div>
@@ -98,14 +103,14 @@ export function PaymentLedger({ invoice, actorName, onChanged, onLocked }: {
           <Input id="receiptAmount" type="number" min="0.01" step="0.01" required value={amount}
             disabled={locked || invoice.status === "PAID"} max={invoice.balance_due} onChange={(e) => setAmount(e.target.value)} /></div>}
         <div><Label htmlFor="receiptMethod">Phương thức</Label>
-          <select id="receiptMethod" className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          <select id="receiptMethod" className="h-11 w-full rounded-md border bg-background px-2 text-base sm:h-9 sm:text-sm"
             value={method} disabled={locked} onChange={(e) => setMethod(e.target.value as "CASH" | "BANK_TRANSFER")}>
             <option value="CASH">Tiền mặt</option><option value="BANK_TRANSFER">Chuyển khoản</option>
           </select></div>
         <div className="sm:col-span-2"><Label htmlFor="receiptNote">Ghi chú / mã chuyển khoản (tùy chọn)</Label>
           <Input id="receiptNote" maxLength={500} value={note} disabled={locked} onChange={(e) => setNote(e.target.value)} /></div>
         <Button type="submit" disabled={busy || refreshFailed || !!voidAttempt || (invoice.status === "PAID" && !attempt)}>
-          {busy ? "Đang xử lý..." : attempt ? "Thử lại xác nhận" : "Xác nhận đã thu"}
+          {busy ? "Đang xử lý..." : attempt ? "Thử lại xác nhận" : `Xác nhận đã thu ${formatCurrency(customAmount ? amount || "0" : invoice.balance_due)}`}
         </Button>
       </form>}
       <p className="text-xs text-muted-foreground">Chỉ xác nhận sau khi đã kiểm tra tiền mặt hoặc giao dịch ngân hàng. Hủy lịch hẹn không tự hủy khoản thu.</p>

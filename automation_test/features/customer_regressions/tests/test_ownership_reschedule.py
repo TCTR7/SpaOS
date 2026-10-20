@@ -21,6 +21,7 @@ def test_admin_transfers_customer_and_old_staff_loses_ui_and_api_access(scenario
     expect(second_page.get_by_text("QA Customer", exact=True)).to_have_count(0)
     admin = s["page"](s["admin"], True)
     admin.goto(config.frontend_url + "/admin/customers")
+    admin.get_by_role("button").filter(has_text="QA Customer").click()
     admin.locator("#customerOwner").select_option(second["id"])
     with admin.expect_response(lambda r: r.url.endswith("/assignment")) as response:
         admin.get_by_role("button", name="Chuyển người phụ trách", exact=True).click()
@@ -37,6 +38,7 @@ def test_admin_transfers_customer_and_old_staff_loses_ui_and_api_access(scenario
     assert response.status == 404
     second_page.reload()
     expect(second_page.get_by_text("QA Customer", exact=True).first).to_be_visible()
+    second_page.get_by_role("button").filter(has_text="QA Customer").click()
     second_page.get_by_role("button", name="Sửa hồ sơ", exact=True).click()
     second_page.locator("#custNotes").fill("New owner note")
     with second_page.expect_response(lambda r: r.request.method == "PATCH" and "/customers/" in r.url) as changed:
@@ -89,12 +91,13 @@ def test_admin_can_handover_customer_during_reschedule_ui(scenario, api_helper):
     page.goto(config.frontend_url + "/admin/bookings")
     day = datetime.fromisoformat(booking["start_time"].replace("Z", "+00:00")).date().isoformat()
     page.locator('input[type="date"]').first.fill(day)
-    page.get_by_role("button", name="Đổi ngày / giờ / KTV", exact=True).click()
+    page.get_by_role("button", name="Chi tiết lịch hẹn", exact=True).click()
+    page.get_by_role("dialog").get_by_role("button", name="Đổi ngày / giờ / KTV", exact=True).click()
     modal = page.get_by_role("dialog")
     modal.locator("#rescheduleStaffAdmin").select_option(other["id"])
     modal.locator("#transferCustomer").check()
     new_day = (datetime.now() + timedelta(days=8)).date().isoformat()
-    with page.expect_response(lambda r: "/bookings/available-slots?" in r.url and "date=" + new_day in r.url) as slots:
+    with page.expect_response(lambda r: "/available-slots?" in r.url and "date=" + new_day in r.url) as slots:
         modal.locator("#rescheduleDateAdmin").fill(new_day)
     assert slots.value.status == 200
     modal.locator("button:has-text('KTV rảnh')").first.click()

@@ -9,6 +9,7 @@ import type { PaymentCollection, PaymentInvoice, PaymentSummary, AuditEvent, Use
 import { formatDateISOInVN, formatDateTimeVN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 const ACTIONS: Record<string, string> = {
   INVOICE_CREATED: "Ghi nhận khoản cần thu", PAYMENT_RECEIVED: "Xác nhận thu tiền", PAYMENT_VOIDED: "Hoàn tác ghi nhận",
@@ -40,6 +41,8 @@ export default function PaymentsPage(): React.ReactElement {
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [locked, setLocked] = React.useState(false);
+  const [dirty, setDirty] = React.useState(false);
+  const collectionOpener = React.useRef<HTMLButtonElement | null>(null);
   const fail = (e: unknown): void => setError(e instanceof Error ? e.message : "Không thể tải dữ liệu");
 
   React.useEffect(() => {
@@ -120,16 +123,20 @@ export default function PaymentsPage(): React.ReactElement {
       </nav>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       {tab === "collections" ? <>
-        <form onSubmit={(e) => { e.preventDefault(); setOffset(0); setSearch(query); }} className="flex flex-wrap gap-2">
-          <Input aria-label="Tìm khách thu tiền" placeholder="Tên hoặc số điện thoại khách" className="min-w-0 flex-1" value={query} disabled={locked || busy} onChange={(e) => setQuery(e.target.value)} />
+        <form onSubmit={(e) => { e.preventDefault(); setOffset(0); setSearch(query); }} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <Input aria-label="Tìm khách thu tiền" placeholder="Tên hoặc số điện thoại khách" className="col-span-2 min-w-0 sm:flex-1" value={query} disabled={locked || busy} onChange={(e) => setQuery(e.target.value)} />
           <Button type="submit" variant="outline" disabled={locked || busy}>Tìm khách</Button>
-          <select aria-label="Lọc trạng thái thu tiền" className="h-9 rounded-md border bg-background px-2 text-sm" value={scope} disabled={locked || busy} onChange={(e) => { setScope(e.target.value as "outstanding" | "all"); setOffset(0); }}>
+          <select aria-label="Lọc trạng thái thu tiền" className="h-11 min-w-0 rounded-md border bg-background px-2 text-base sm:h-9 sm:text-sm" value={scope} disabled={locked || busy} onChange={(e) => { setScope(e.target.value as "outstanding" | "all"); setOffset(0); }}>
             <option value="outstanding">Còn cần thu</option><option value="all">Tất cả</option>
           </select>
         </form>
-        {source && <section className="space-y-3 rounded-xl border border-primary/40 bg-card p-4" aria-label="Xác nhận thu tiền">
-          <div className="flex items-start justify-between gap-2"><div><h2 className="font-bold">{source.customer_name}</h2><p className="text-sm">{source.description}</p></div>
-            <Button size="sm" variant="outline" disabled={locked || busy} onClick={() => { setSelected(null); setSource(null); }}>Đóng</Button></div>
+        <Modal open={!!source} title="Xác nhận thu tiền" historyGuard pending={locked || busy} dirty={dirty || !!legacyAmount}
+          returnFocusRef={collectionOpener}
+          description={source ? `${source.customer_name} • ${source.description}` : undefined}
+          onClose={() => { setSelected(null); setSource(null); }}>
+        {source && <section className="space-y-3" aria-label="Xác nhận thu tiền">
+          <div><h2 className="font-bold">{source.customer_name}</h2><p className="text-sm">{source.description}</p></div>
+          {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
           {source.status === "NEEDS_PRICE" && !selected && <form onSubmit={(e) => { e.preventDefault(); void choose(source, legacyAmount); }} className="space-y-2">
             <p className="text-sm">Thẻ cũ chưa lưu giá bán. Đối chiếu số tiền đã thỏa thuận với khách trước khi ghi nhận.</p>
             <Label htmlFor="legacyAmount">Giá bán thẻ đã đối chiếu (VND)</Label>
@@ -137,12 +144,13 @@ export default function PaymentsPage(): React.ReactElement {
             <Button type="submit" disabled={busy}>Xác nhận giá đã đối chiếu</Button>
           </form>}
           {busy && <p>Đang tải khoản thu...</p>}
-          {selected && <PaymentLedger key={selected.id} invoice={selected} actorName={actorName} onChanged={refresh} onLocked={setLocked} />}
+          {selected && <PaymentLedger key={selected.id} invoice={selected} actorName={actorName} onChanged={refresh} onLocked={setLocked} onDirty={setDirty} />}
         </section>}
+        </Modal>
         <section aria-label="Danh sách khách và dịch vụ" className="space-y-3">
           {loading ? <p role="status">Đang tải danh sách...</p> : <>
             {rows.length === 0 && <p className="rounded-xl border p-5">Không có khoản thu phù hợp.</p>}
-            {rows.map((row) => <article key={row.source_type + row.source_id} data-testid={"collection-" + row.source_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4">
+            {rows.map((row) => <article key={row.source_type + row.source_id} data-testid={"collection-" + row.source_id} className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border bg-card p-4 [overflow-wrap:anywhere] sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1"><h2 className="font-bold">{row.customer_name}</h2>
                 <p className="text-xs text-muted-foreground">{row.phone_number} • {formatDateTimeVN(row.occurred_at)}</p>
                 <p className="mt-1 text-sm">{row.source_type === "package" ? "Thẻ liệu trình: " : ""}{row.description}</p>
@@ -151,7 +159,7 @@ export default function PaymentsPage(): React.ReactElement {
                 {row.amount_due !== null && <p className="text-sm">Giá {formatCurrency(row.amount_due)} • Đã thu {formatCurrency(row.amount_paid)}
                   {Number(row.balance_due) > 0 && <> • Còn thiếu <strong>{formatCurrency(row.balance_due || "0")}</strong></>}</p>}
               </div>
-              {!["COVERED", "FREE"].includes(row.status) && <Button disabled={locked || busy} variant={row.status === "PAID" ? "outline" : "default"} onClick={() => void choose(row)}>
+              {!["COVERED", "FREE"].includes(row.status) && <Button disabled={locked || busy} variant={row.status === "PAID" ? "outline" : "default"} onClick={(event) => { collectionOpener.current = event.currentTarget; void choose(row); }}>
                 {row.status === "PAID" ? "Xem khoản đã thu" : row.status === "NEEDS_PRICE" ? "Đối chiếu giá cũ" : "Xác nhận đã thu"}
               </Button>}
             </article>)}

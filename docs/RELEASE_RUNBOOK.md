@@ -164,6 +164,34 @@ Công cụ tạo database spaos_qa_<UUID>, chạy toàn bộ migration và pytes
 Toàn bộ E2E tự mở API container/DB spaos_e2e_<UUID> trên loopback port tạm, seed demo và operator QA riêng. Browser và ApiHelper dùng API thật tạm; feature operator kiểm tra Unicode, chủ spa đăng nhập thật và retry sau response bị mất. Teardown dọn container/database; không seed QA vào hệ thống người dùng.
 
 
+## QA-04: đồng bộ giờ Windows/WSL, không lưu file log
+
+Chỉ thị PO ngày 19/10/2026 thay quy trình lưu artifact/log cũ: chạy `automation_test.run_ui_qa` và đọc console; không chuyển output sang file, bật collector ảnh/JSON hoặc yêu cầu gửi JWT/credentials. Runner dùng Docker logging driver `none`, không tạo `pytest.log`, `frontend.log`, `isolation.json`, không ghi pytest cache. Không tự xóa dữ liệu QA lịch sử. Các chẩn đoán số liệu xác thực chỉ xuất console.
+
+Đã quan sát Windows chưa đồng bộ (Local CMOS Clock/Stratum 0), Ubuntu WSL bật NTP riêng và 14 lần thay đổi clock trong cửa sổ QA-04 lỗi. Đây là hướng xử lý runtime; không sửa xác thực để chấp nhận token sai thời gian. Việc điều chỉnh giờ ảnh hưởng cả máy, không chỉ SpaOS.
+
+1. Mở PowerShell **Run as administrator**, dùng cấu hình NTP hiện có:
+
+   ```powershell
+   w32tm /resync /rediscover
+   w32tm /query /status
+   ```
+
+   Chỉ tiếp tục khi Windows có nguồn đồng bộ hợp lệ, Last Successful Sync Time mới, Stratum khác 0 và không còn Leap Indicator 3. Nếu access denied thì vẫn thiếu quyền Administrator. Nếu không có dữ liệu thời gian, kiểm tra dịch vụ/DNS/UDP 123/cấu hình của máy; không coi stripchart thành công là chứng minh dịch vụ đã đồng bộ.
+
+2. **Sau khi giờ Windows đã đồng bộ**, loại bỏ NTP độc lập trong Ubuntu WSL để dùng đồng bộ giờ của nền tảng. Lệnh này thay cấu hình hệ thống Ubuntu; người vận hành cần xác nhận phạm vi trước khi thực hiện:
+
+   ```powershell
+   wsl -d Ubuntu -u root -- timedatectl set-ntp false
+   wsl -d Ubuntu -- timedatectl show -p NTP -p NTPSynchronized
+   ```
+
+   Trạng thái trước can thiệp: NTP Ubuntu=yes. Nếu cần hoàn nguyên cấu hình Ubuntu: `wsl -d Ubuntu -u root -- timedatectl set-ntp true`. Không tắt NTP guest khi Windows vẫn chưa đồng bộ; không tự shutdown WSL/Docker hoặc dừng server ứng dụng. Tham khảo báo cáo hiện tượng clock skew ở [Microsoft WSL issue #11790](https://github.com/microsoft/WSL/issues/11790); đây là thông tin hỗ trợ, không thay bằng chứng đo trên máy.
+
+3. Đo lại Windows/Ubuntu/Docker theo thời gian, gồm qua nhiều chu kỳ 32s từng quan sát và sau sleep/resume. Chạy lại strict JWT probe/HTTP auth và hồi quy auth/session qua runner cô lập; xem trực tiếp console. Xác nhận không còn bước lùi làm token vừa cấp bị từ chối, không tăng JWT leeway, retry hay lùi `iat`. Lưu kết luận ngắn trong PROGRESS, không lưu output thô thành file.
+
+4. Chỉ đóng QA-04 khi đã thực hiện thay đổi runtime và có kiểm chứng sau sửa; các lượt 400/400 HTTP, 21.761 mẫu probe hoặc E2E xanh trước can thiệp không đủ. T12 vẫn cần staging HTTPS, Android/iPhone thật và pilot. Hướng dẫn lệnh Windows chính thức: [Windows Time tools](https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/Windows-Time-Service-Tools-and-Settings).
+
 ## Tùy chỉnh màu thương hiệu
 1. Chạy migration tới 0007_branding và triển khai frontend/backend cùng phiên bản.
 2. Đăng nhập /operator/login → Màu thương hiệu của spa → chọn màu hoặc nhập HEX, xem trước → Lưu màu thương hiệu. Có thể chọn màu ngay trong form cấp chủ spa.
@@ -177,3 +205,23 @@ Frontend vẫn dùng FRONTEND_URL (nên chọn server thử riêng); SSR metadat
 
 ### Đồng bộ đồng hồ và lỗi 401
 Regression đã ghi nhận ImmatureSignatureError khi token mới bị coi là phát trong tương lai. Backend chấp nhận clock skew tối đa 2 giây cho cả token nghiệp vụ/Operator; vẫn cần đồng bộ NTP cho host/container. Log chỉ ghi loại lỗi xác thực, không ghi token/password. Token sai chữ ký/audience/scope/version hoặc vượt dung sai vẫn bị chặn.
+
+### Tạo lịch nhiều buổi và kiểm tra kết quả — T01, 19/10/2026
+
+- Backend/frontend cần triển khai cùng phiên bản và migrate tới `0008_manual_booking_batches` theo quy trình backup/migration hiện hành. Chưa chạy migration này trên database ứng dụng trong đợt QA.
+- Tại quầy, một lần xác nhận tạo toàn bộ khách mới nếu có, thẻ mới nếu có và danh sách lịch trong một giao dịch. Một buổi xung đột/hết buổi sẽ rollback toàn bộ lần tạo; không có bước tự xóa bù dữ liệu.
+- Nếu mất phản hồi, dùng **Kiểm tra kết quả** hoặc **Thử lại cùng yêu cầu**; cùng mã và nội dung không tạo thêm dữ liệu. **Kiểm tra sau** đóng vùng khôi phục nhưng giữ mã. Sau reload/quay lại trang Lịch, kiểm tra kết quả trước khi tạo mới; không tự gửi POST.
+- Browser chỉ lưu UUID yêu cầu trong sessionStorage theo chi nhánh/người thao tác; không lưu hồ sơ khách. Không tự xóa mã hoặc thay trình duyệt để thử lại khi chưa rõ kết quả. Đóng hẳn tab/xóa browser storage làm mất tham chiếu khôi phục phía trình duyệt; phải đối chiếu khách/thẻ/lịch với Admin trước khi tạo lần mới.
+- Giữ bảng `manual_booking_batches` trong backup và restore cùng dữ liệu khách/thẻ/lịch/audit; không xóa bản ghi chống lặp để tái dùng mã. Bảng có ENABLE/FORCE RLS theo tenant; GET kết quả kiểm tra lại actor và quyền hồ sơ hiện hành.
+## Gate UI/UX cập nhật 19/10/2026
+
+- Cập nhật T12: PO xác nhận chưa có staging HTTPS/thiết bị thật. Sau bổ sung log clock, backend isolated 98/98 và production regression auth/branches/operator/session/guard 44/44 PASS (run 9c4b7634); frontend không đổi. T12 vẫn mở, không dùng kiểm tra giả lập thay nghiệm thu thật.
+- T11a/b/c/d đã đạt phạm vi Chromium, kế hoạch có 28/29 task hoàn tất. Production QA `86d9eaf7-ae95-42eb-ae99-d6d658765eeb`: build/TypeScript, full E2E 204/204 PASS; backend isolated 88/88, QA harness 23/23 PASS. Xem `PROGRESS.md` và `UI_UX_EXECUTION_PLAN.md` cho source/lệnh/run lỗi; không cần chạy lại chỉ vì sửa tài liệu.
+- **Chưa chốt pilot/release:** T12 còn thiết bị Android Chrome/iPhone Safari thật, bàn phím ảo/safe area/zoom 200%/touch/Back/offline/Push và thử nghiệm cùng chủ spa/KTV/khách. Ghi thiết bị/OS/trình duyệt, vai trò, ngày, expected/actual và vấn đề; không thay bằng viewport Chromium.
+- **QA-04 chưa đóng:** ImmatureSignatureError tái hiện setup run f5a26bdb. Cần đối chiếu iat/đồng hồ runtime khi lỗi và kiểm chứng staging; không tăng JWT leeway, sleep/retry để làm xanh. Probe đồng hồ ở run khác chỉ là quan sát, chưa chứng minh nguyên nhân.
+- Khi QA-04 tái hiện, lấy dòng `Authentication clock validation rejected (ImmatureSignatureError)` và thời điểm/run tương ứng. Log chỉ gồm server_unix, iat/nbf ahead, utc-vs-wall, wall-vs-monotonic; không gửi JWT/credentials/claims định danh. Đối chiếu clock host/runtime ngay cùng sự cố; số liệu của run khác không đủ kết luận.
+- Probe độc lập: `docker-compose run --rm --no-deps -e ENVIRONMENT=test --entrypoint python backend -B -m scripts.qa_clock_probe --seconds 120`. Override entrypoint nên không chạy migration/seed/server; probe không truy cập DB, không phát JWT cho tài khoản thật. Kết quả 21.761 mẫu không lỗi chỉ chứng minh cửa sổ đo đó, không đóng QA-04.
+- Biên bản thiết bị/pilot khi có staging: ghi thiết bị/OS/trình duyệt, ngày/role, portrait/landscape; thử bàn phím ở form cuối, zoom 200%, safe area, Back/touch/offline/Push. Chủ spa thử tạo/dời lịch, dùng thẻ, thu đủ/một phần và đổi chi nhánh; KTV thử hồ sơ được giao/ngoài quyền; khách thử đặt/dời/hủy. Ghi expected/actual, bấm nhầm/trợ giúp/thời gian quan sát; không điền PASS nếu chưa thực hiện.
+- Đổi chi nhánh dùng Web Locks để phối hợp form/giao dịch giữa các tab; trình duyệt thiếu API này bị chặn đổi với thông báo. Kiểm chứng trên HTTPS và trình duyệt hỗ trợ trước bàn giao. Backend JWT/tenant/RLS/row locks vẫn bắt buộc, không coi Web Locks là kiểm soát bảo mật dữ liệu.
+- Database ứng dụng chưa áp migration 0008 trong các lượt QA; các yêu cầu backup/restore/RLS/staging/migration và vận hành bên dưới vẫn phải hoàn tất riêng. Không deploy từ kết quả UI xanh.
+

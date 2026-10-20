@@ -54,7 +54,6 @@ def test_selected_slot_secondary_text_uses_brand_foreground(scenario, color, bac
         json={"theme_color": color, "configured": True}))
     page.goto(s["url"] + "/book?service_id=" + s["service"]["id"])
     page.get_by_role("button", name="Tiếp tục", exact=True).click()
-    page.get_by_role("button", name="Tiếp tục", exact=True).click()
     day = (datetime.now(timezone(timedelta(hours=7))) + timedelta(days=5)).date().isoformat()
     with page.expect_response(lambda r: "/bookings/available-slots?" in r.url and "date=" + day in r.url):
         page.locator("#wizDate").fill(day)
@@ -86,7 +85,6 @@ def test_package_copy_preserves_extra_charge(scenario, with_extra_service):
     expect(package_card).to_contain_text("Đã chọn 1 buổi")
     if with_extra_service:
         page.get_by_text("QA Extra Service", exact=True).click()
-    page.get_by_role("button", name="Tiếp tục", exact=True).click()
     page.get_by_role("button", name="Tiếp tục", exact=True).click()
     day = (datetime.now(timezone(timedelta(hours=7))) + timedelta(days=5)).date().isoformat()
     with page.expect_response(lambda r: "/bookings/available-slots?" in r.url and "date=" + day in r.url):

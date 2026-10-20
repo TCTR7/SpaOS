@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useBranchGuard } from "@/lib/branch-guard";
 import {
   Bell,
   BellRing,
@@ -24,6 +25,7 @@ import {
 import type { NotificationItem } from "@/lib/types";
 import { cn, formatDateTimeVN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 
 export function NotificationBell(): React.ReactElement {
   const [open, setOpen] = React.useState<boolean>(false);
@@ -34,18 +36,24 @@ export function NotificationBell(): React.ReactElement {
   const [pushSupported, setPushSupported] = React.useState<boolean>(false);
   const [pushBusy, setPushBusy] = React.useState<boolean>(false);
   const [pushMessage, setPushMessage] = React.useState<string | null>(null);
+  useBranchGuard(false, pushBusy);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const request = React.useRef(0);
+  const [error, setError] = React.useState<string | null>(null);
 
   const loadNotifications = React.useCallback(async (): Promise<void> => {
-    setLoading(true);
+    const attempt = ++request.current;
+    setLoading(true); setError(null);
     try {
       const res = await fetchNotifications({ limit: 30, offset: 0 });
+      if (request.current !== attempt) return;
       setUnreadCount(res.unread_count);
       setItems(res.items);
     } catch {
-      // ignore background poll errors
+      if (request.current === attempt) setError("Không tải được thông báo. Hãy thử làm mới.");
     } finally {
-      setLoading(false);
+      if (request.current === attempt) setLoading(false);
     }
   }, []);
 
@@ -54,7 +62,7 @@ export function NotificationBell(): React.ReactElement {
     const timer = window.setInterval(() => {
       void loadNotifications();
     }, 20000);
-    return () => window.clearInterval(timer);
+    return () => { request.current += 1; window.clearInterval(timer); };
   }, [loadNotifications]);
 
   React.useEffect(() => {
@@ -77,19 +85,6 @@ export function NotificationBell(): React.ReactElement {
     })();
   }, []);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (e: MouseEvent): void => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
 
   const handleEnableWebPush = async (): Promise<void> => {
     setPushBusy(true);
@@ -131,7 +126,7 @@ export function NotificationBell(): React.ReactElement {
       );
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch {
-      // ignore
+      setError("Kh\u00f4ng c\u1eadp nh\u1eadt \u0111\u01b0\u1ee3c th\u00f4ng b\u00e1o. H\u00e3y th\u1eed l\u1ea1i.");
     }
   };
 
@@ -141,7 +136,7 @@ export function NotificationBell(): React.ReactElement {
       setItems((prev) => prev.map((item) => ({ ...item, is_read: true })));
       setUnreadCount(0);
     } catch {
-      // ignore
+      setError("Kh\u00f4ng c\u1eadp nh\u1eadt \u0111\u01b0\u1ee3c th\u00f4ng b\u00e1o. H\u00e3y th\u1eed l\u1ea1i.");
     }
   };
 
@@ -154,7 +149,8 @@ export function NotificationBell(): React.ReactElement {
           setOpen(nextOpen);
           if (nextOpen) void loadNotifications();
         }}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-slate-700 transition hover:bg-accent"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-slate-700 transition hover:bg-accent"
+        ref={triggerRef} aria-haspopup="dialog" aria-expanded={open}
         aria-label="Thông báo"
       >
         {unreadCount > 0 ? (
@@ -169,9 +165,11 @@ export function NotificationBell(): React.ReactElement {
         )}
       </button>
 
-      {open && (
-        <div data-layout-card="notifications" className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <Modal open={open} onClose={() => setOpen(false)} title="Bảng thông báo" pending={pushBusy} returnFocusRef={triggerRef} historyGuard>
+        <div data-layout-card="notifications" className="min-w-0 [overflow-wrap:anywhere]">
+          {error && <p role="alert" className="p-3 text-sm text-rose-700">{error}</p>}
+          {loading && <p role="status" className="p-3 text-sm">Đang tải thông báo...</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-foreground">
                 Thông báo ({unreadCount} chưa đọc)
@@ -184,7 +182,8 @@ export function NotificationBell(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => void loadNotifications()}
-                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Làm mới thông báo" disabled={loading}
+                className="min-h-11 min-w-11 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Làm mới"
               >
                 <RefreshCw
@@ -205,7 +204,7 @@ export function NotificationBell(): React.ReactElement {
           </div>
 
           {pushSupported && (
-            <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
               <div className="flex items-center gap-2 text-xs">
                 <Radio
                   className={cn(
@@ -246,7 +245,7 @@ export function NotificationBell(): React.ReactElement {
           )}
 
           <div className="max-h-80 overflow-y-auto divide-y divide-border">
-            {items.length === 0 ? (
+            {items.length === 0 && !error && !loading ? (
               <div className="p-6 text-center text-xs text-muted-foreground">
                 Chưa có thông báo nào.
               </div>
@@ -259,7 +258,7 @@ export function NotificationBell(): React.ReactElement {
                     !item.is_read && "bg-primary/5"
                   )}
                 >
-                  <div className="space-y-0.5">
+                  <div className="min-w-0 flex-1 space-y-0.5">
                     <div className="flex items-center gap-1.5">
                       {!item.is_read && (
                         <span className="h-2 w-2 rounded-full bg-primary" />
@@ -277,7 +276,7 @@ export function NotificationBell(): React.ReactElement {
                     <button
                       type="button"
                       onClick={() => void handleMarkOneRead(item.id)}
-                      className="shrink-0 rounded p-1 text-primary hover:bg-primary/10"
+                      className="min-h-11 min-w-11 shrink-0 rounded p-1 text-primary hover:bg-primary/10"
                       title="Đánh dấu đã đọc"
                     >
                       <Check className="h-3.5 w-3.5" />
@@ -288,7 +287,7 @@ export function NotificationBell(): React.ReactElement {
             )}
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
