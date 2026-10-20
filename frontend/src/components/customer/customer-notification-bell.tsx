@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useNotificationFeed } from "@/lib/use-notification-feed";
 import {
   Bell,
   BellRing,
@@ -13,15 +14,13 @@ import {
   fetchCustomerNotifications,
   markAllCustomerNotificationsRead,
   markCustomerNotificationRead,
-  subscribeCustomerWebPush,
 } from "@/lib/customer-api";
 import {
   disableCustomerWebPush,
   enableCustomerWebPush,
-  getActivePushSubscription,
+  syncExistingWebPush,
   isWebPushSupported,
 } from "@/lib/web-push";
-import type { NotificationItem } from "@/lib/types";
 import { cn, formatDateTimeVN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -34,39 +33,25 @@ export function CustomerNotificationBell({
   themeColor: string;
 }): React.ReactElement {
   const [open, setOpen] = React.useState<boolean>(false);
-  const [unreadCount, setUnreadCount] = React.useState<number>(0);
-  const [items, setItems] = React.useState<NotificationItem[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(false);
   const [pushSubscribed, setPushSubscribed] = React.useState<boolean>(false);
   const [pushSupported, setPushSupported] = React.useState<boolean>(false);
   const [pushBusy, setPushBusy] = React.useState<boolean>(false);
+  const pushAlive = React.useRef(false);
+  const pushFlight = React.useRef(false);
+  React.useEffect(() => { pushAlive.current = true; return () => { pushAlive.current = false; }; }, []);
   const [pushMsg, setPushMsg] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const request = React.useRef(0);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const loadNotifications = React.useCallback(async (): Promise<void> => {
-    const attempt = ++request.current;
-    setLoading(true); setError(null);
-    try {
-      const res = await fetchCustomerNotifications(slug);
-      if (request.current !== attempt) return;
-      setUnreadCount(res.unread_count);
-      setItems(res.items);
-    } catch {
-      if (request.current === attempt) setError("Không tải được thông báo. Hãy thử làm mới.");
-    } finally {
-      if (request.current === attempt) setLoading(false);
-    }
-  }, [slug]);
-
+  const { items, unreadCount, loading, readBusy, error, loadNotifications,
+    handleMarkOneRead, handleMarkAllRead } = useNotificationFeed(slug, {
+    load: () => fetchCustomerNotifications(slug), read: (id) => markCustomerNotificationRead(slug, id), readAll: () => markAllCustomerNotificationsRead(slug),
+  });
   React.useEffect(() => {
     void loadNotifications();
     const timer = window.setInterval(() => {
       void loadNotifications();
     }, 20000);
-    return () => { request.current += 1; window.clearInterval(timer); };
+    return () => { window.clearInterval(timer); };
   }, [loadNotifications]);
 
   React.useEffect(() => {
@@ -74,27 +59,20 @@ export function CustomerNotificationBell({
     setPushSupported(supported);
     if (!supported) return;
 
-    void (async () => {
-      const sub = await getActivePushSubscription();
-      if (sub) {
-        setPushSubscribed(true);
-        const json = sub.toJSON();
-        if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
-          await subscribeCustomerWebPush(slug, {
-            endpoint: json.endpoint,
-            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-          }).catch(() => {});
-        }
-      }
-    })();
+    let cancelled = false;
+    void syncExistingWebPush(slug, () => !cancelled)
+      .then((subscribed) => { if (!cancelled) setPushSubscribed(subscribed); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [slug]);
 
 
   const handleEnablePush = async (): Promise<void> => {
+    if (pushFlight.current || !pushAlive.current) return;
+    pushFlight.current = true;
     setPushBusy(true);
     setPushMsg(null);
     try {
-      await enableCustomerWebPush(slug);
+      await enableCustomerWebPush(slug, () => pushAlive.current);
       setPushSubscribed(true);
       setPushMsg("Đã bật thông báo nhắc lịch trên điện thoại!");
     } catch (err) {
@@ -102,15 +80,18 @@ export function CustomerNotificationBell({
         err instanceof Error ? err.message : "Không thể bật thông báo đẩy"
       );
     } finally {
-      setPushBusy(false);
+      pushFlight.current = false;
+      if (pushAlive.current) setPushBusy(false);
     }
   };
 
   const handleDisablePush = async (): Promise<void> => {
+    if (pushFlight.current || !pushAlive.current) return;
+    pushFlight.current = true;
     setPushBusy(true);
     setPushMsg(null);
     try {
-      await disableCustomerWebPush(slug);
+      await disableCustomerWebPush(slug, () => pushAlive.current);
       setPushSubscribed(false);
       setPushMsg("Đã tắt thông báo đẩy trên thiết bị này.");
     } catch (err) {
@@ -118,27 +99,8 @@ export function CustomerNotificationBell({
         err instanceof Error ? err.message : "Không thể tắt thông báo đẩy"
       );
     } finally {
-      setPushBusy(false);
-    }
-  };
-
-  const handleMarkOneRead = async (id: string): Promise<void> => {
-    try {
-      const updated = await markCustomerNotificationRead(slug, id);
-      setItems((prev) => prev.map((n) => (n.id === id ? updated : n)));
-      setUnreadCount((c) => Math.max(0, c - 1));
-    } catch {
-      setError("Kh\u00f4ng c\u1eadp nh\u1eadt \u0111\u01b0\u1ee3c th\u00f4ng b\u00e1o. H\u00e3y th\u1eed l\u1ea1i.");
-    }
-  };
-
-  const handleMarkAllRead = async (): Promise<void> => {
-    try {
-      await markAllCustomerNotificationsRead(slug);
-      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-    } catch {
-      setError("Kh\u00f4ng c\u1eadp nh\u1eadt \u0111\u01b0\u1ee3c th\u00f4ng b\u00e1o. H\u00e3y th\u1eed l\u1ea1i.");
+      pushFlight.current = false;
+      if (pushAlive.current) setPushBusy(false);
     }
   };
 
@@ -192,7 +154,7 @@ export function CustomerNotificationBell({
               {unreadCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => void handleMarkAllRead()}
+                  disabled={readBusy} onClick={() => void handleMarkAllRead()}
                   className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold"
                   style={{ color: "var(--brand-text)" }}
                 >
@@ -269,7 +231,7 @@ export function CustomerNotificationBell({
                   {!item.is_read && (
                     <button
                       type="button"
-                      onClick={() => void handleMarkOneRead(item.id)}
+                      disabled={readBusy} onClick={() => void handleMarkOneRead(item.id)}
                       className="min-h-11 min-w-11 shrink-0 rounded p-1 hover:bg-muted"
                       style={{ color: "var(--brand-text)" }}
                       title="Đánh dấu đã đọc"

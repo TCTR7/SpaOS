@@ -317,6 +317,10 @@ Quyết định UI cho đợt đầu:
 
 ## T12 — Gate tổng hợp và pilot
 
+- **R29-01..05 đã sửa và kiểm chứng 20/10:** production `6253fa68-759e-4493-b281-b88b2702a1cb`, build/TypeScript + 74/74 hồi quy PASS (230.94s), gồm 18 ca mới/thu tiền/phiên/guard chi nhánh/màn phụ và 4 layout. Harness 25/25 PASS; console-only, cleanup hoàn tất. Các follow-up R29 nêu trong review dưới đây đã đóng trong phạm vi code/Chromium; QA-04 và T12 staging/thiết bị thật/pilot vẫn mở. Không lấy 74 ca chọn lọc làm full features sau sửa.
+
+- **Review lại 20/10/2026:** xem đầu `UI_UX_REVIEW.md`, R29-01..05. Cần follow-up T07/T11 (Push đổi phiên; counter đọc lặp), T06 (rows cũ khi filter lỗi), T00c (capture che AssertionError trong console-only), T04b/T11d (CTA spa demo). Checkbox trước đây là nghiệm thu lịch sử; không dùng 28/29 để tuyên bố hiện tại không còn lỗi. QA-04/thiết bị thật/pilot vẫn mở.
+
 - Cập nhật QA-04 ngày 19/10: PO yêu cầu **không ghi file log**, runner hiện chỉ xuất console, Docker QA logging=none và chặn collector. Windows chưa đồng bộ giờ; Ubuntu WSL bật NTP riêng, có 14 clock change trong cửa sổ lỗi gốc. Resync Windows bị Access denied, chờ người vận hành chạy PowerShell Administrator. Chưa thay cấu hình giờ và chưa đóng QA-04; xem quy trình khắc phục/hoàn nguyên trong RELEASE_RUNBOOK và bằng chứng trong PROGRESS. Không chạy lại vô hạn suite để thay cho sửa runtime.
 
 - Cập nhật điều tra 19/10: PO xác nhận chưa có staging HTTPS/thiết bị thật. Đã thêm probe JWT chỉ đọc và log metadata khi gặp ImmatureSignatureError; không thay chính sách xác thực. **Backend 98/98 PASS (201.24s), production regression auth/branches/operator/session/guard 44/44 PASS (116.05s), run 9c4b7634**. Probe 21.761 mẫu/120s không tái hiện lỗi, không đủ để đóng QA-04. Full UI 204/204 phía dưới là lượt trước, frontend không đổi. Lệnh và số liệu trong PROGRESS; T12 vẫn chờ môi trường, kiểm chứng nguyên nhân và nghiệm thu thực tế.

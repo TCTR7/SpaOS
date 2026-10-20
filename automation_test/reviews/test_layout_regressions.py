@@ -5,7 +5,7 @@ import pytest
 from playwright.sync_api import expect
 
 from common_setup.config import config
-from common_setup.layout_evidence import assert_layout_contained, capture_layout, measure_layout
+from common_setup.layout_evidence import assert_layout_contained, measure_layout
 from features.customer_regressions.conftest import scenario
 
 
@@ -42,11 +42,19 @@ def test_long_note_contained_in_mobile_calendar(scenario):
 
 def check_layout(page, task, label):
     options = dict(intentional_scroll_selectors=('[data-calendar-scroll]',))
-    try:
-        assert_layout_contained(measure_layout(page, **options))
-    except AssertionError:
-        capture_layout(page, task=task, label=label, role="ADMIN", dataset={"bookings": 1}, **options)
-        raise
+    # The assertion includes measured bounds; preserve it without file capture.
+    assert_layout_contained(measure_layout(page, **options))
+
+
+def test_layout_failure_preserves_original_assertion_without_capture(monkeypatch):
+    import sys
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "measure_layout", lambda *args, **kwargs: {})
+    def failed_assertion(evidence):
+        raise AssertionError("QA intentional clipping failure")
+    monkeypatch.setattr(module, "assert_layout_contained", failed_assertion)
+    with pytest.raises(AssertionError, match="QA intentional clipping failure"):
+        check_layout(None, "no-artifact", "no-artifact")
 
 
 @pytest.mark.parametrize("width", [768, 1366])

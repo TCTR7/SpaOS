@@ -24,7 +24,7 @@ const STATUS: Record<PaymentCollection["status"], string> = {
 
 export default function PaymentsPage(): React.ReactElement {
   const { user, loading: authLoading } = useAdminAuth();
-  const [rows, setRows] = React.useState<PaymentCollection[]>([]);
+  const [storedRows, setRows] = React.useState<PaymentCollection[]>([]);
   const [selected, setSelected] = React.useState<PaymentInvoice | null>(null);
   const [source, setSource] = React.useState<PaymentCollection | null>(null);
   const [offset, setOffset] = React.useState(0);
@@ -40,6 +40,15 @@ export default function PaymentsPage(): React.ReactElement {
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [rowsScope, setRowsScope] = React.useState("");
+  const [collectionError, setCollectionError] = React.useState<string | null>(null);
+  const [collectionAttempt, setCollectionAttempt] = React.useState(0);
+  const collectionKey = JSON.stringify([user?.id, user?.tenant_id, search, scope, offset]);
+  const currentCollectionKey = React.useRef(collectionKey);
+  currentCollectionKey.current = collectionKey;
+  const collectionRequest = React.useRef(0);
+  const rows = rowsScope === collectionKey ? storedRows : [];
+  const collectionLoading = loading || rowsScope !== collectionKey;
   const [locked, setLocked] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
   const collectionOpener = React.useRef<HTMLButtonElement | null>(null);
@@ -48,12 +57,15 @@ export default function PaymentsPage(): React.ReactElement {
   React.useEffect(() => {
     if (user?.role !== "ADMIN") return;
     let cancelled = false;
+    const request = ++collectionRequest.current;
+    const current = () => !cancelled && request === collectionRequest.current && currentCollectionKey.current === collectionKey;
+    setRows([]); setRowsScope(collectionKey); setCollectionError(null);
     setLoading(true); setError(null);
-    void listCollections(search, scope, offset).then((data) => { if (!cancelled) setRows(data); })
-      .catch((e: unknown) => { if (!cancelled) fail(e); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    void listCollections(search, scope, offset).then((data) => { if (current()) setRows(data); })
+      .catch((e: unknown) => { if (current()) setCollectionError(e instanceof Error ? e.message : "Không tải được danh sách thu tiền"); })
+      .finally(() => { if (current()) setLoading(false); });
     return () => { cancelled = true; };
-  }, [user?.role, search, scope, offset]);
+  }, [user?.role, search, scope, offset, collectionKey, collectionAttempt]);
   React.useEffect(() => {
     if (user?.role !== "ADMIN") return;
     let cancelled = false;
@@ -72,12 +84,15 @@ export default function PaymentsPage(): React.ReactElement {
   }, [user?.role, tab, auditOffset]);
 
   const refresh = async (): Promise<void> => {
+    const key = collectionKey;
+    const request = ++collectionRequest.current;
     const today = formatDateISOInVN();
     const [data, total, current] = await Promise.all([
       listCollections(search, scope, offset), getPaymentSummary(today, today),
       selected ? apiRequest<PaymentInvoice>(`/payments/invoices/${selected.id}`) : Promise.resolve(null),
     ]);
-    setRows(data); setSummary(total); setSelected(current);
+    if (currentCollectionKey.current !== key || collectionRequest.current !== request) return;
+    setRows(data); setRowsScope(key); setLoading(false); setCollectionError(null); setSummary(total); setSelected(current);
   };
   const choose = async (row: PaymentCollection, price?: string): Promise<void> => {
     if (locked || busy) return;
@@ -148,7 +163,9 @@ export default function PaymentsPage(): React.ReactElement {
         </section>}
         </Modal>
         <section aria-label="Danh sách khách và dịch vụ" className="space-y-3">
-          {loading ? <p role="status">Đang tải danh sách...</p> : <>
+          {collectionLoading ? <p role="status">Đang tải danh sách...</p> : collectionError ? <div role="alert" className="space-y-2">
+            <p>{collectionError}</p><Button variant="outline" disabled={locked || busy} onClick={() => setCollectionAttempt((value) => value + 1)}>Thử tải lại danh sách thu tiền</Button>
+          </div> : <>
             {rows.length === 0 && <p className="rounded-xl border p-5">Không có khoản thu phù hợp.</p>}
             {rows.map((row) => <article key={row.source_type + row.source_id} data-testid={"collection-" + row.source_id} className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border bg-card p-4 [overflow-wrap:anywhere] sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1"><h2 className="font-bold">{row.customer_name}</h2>
@@ -165,8 +182,8 @@ export default function PaymentsPage(): React.ReactElement {
             </article>)}
           </>}
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={locked || busy || loading || offset === 0} onClick={() => setOffset(Math.max(0, offset-50))}>Trang trước</Button>
-            <Button size="sm" variant="outline" disabled={locked || busy || loading || rows.length < 50} onClick={() => setOffset(offset+50)}>Trang sau</Button>
+            <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError || offset === 0} onClick={() => setOffset(Math.max(0, offset-50))}>Trang trước</Button>
+            <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError || rows.length < 50} onClick={() => setOffset(offset+50)}>Trang sau</Button>
           </div>
         </section>
       </> : <section className="space-y-3 rounded-xl border bg-card p-4">

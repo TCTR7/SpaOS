@@ -479,6 +479,27 @@ docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
 - Bước còn lại: xác nhận Windows thực sự đồng bộ thành công, sau đó xử lý NTP riêng của Ubuntu theo runbook và kiểm chứng lại clock/JWT trên console. Không tăng leeway, bỏ verify, sửa iat hoặc thêm retry/sleep để che lỗi. **QA-04/T12 vẫn mở; tổng 28/29.**
 - Kiểm chứng cuối harness mới trên production frontend cô lập: **46b61dcb-79ae-41e5-9416-3f182c872152 — build/TypeScript PASS, 23/23 E2E PASS (49.23s)**, gồm Admin auth và session recovery, không skip/setup error. Kết quả đã stream trực tiếp trên console, không lưu output/proof/ảnh vào file. Đây là xác nhận runner hoạt động, không phải nghiệm thu sửa clock. Lượt trước `9650604f` exit 0 nhưng stdout con không hiển thị trên Windows nên không dùng lượt đó làm bằng chứng số test; đã sửa chuyển tiếp pipe và kiểm chứng lại bằng lượt 23/23 này.
 
+### 20/10/2026 — Review lại 29 task UI/UX
+
+- Đối chiếu đủ các task với source/contract/test; kết quả và file:dòng nằm ở đầu `UI_UX_REVIEW.md`, mã R29-01..05. Không chứng nhận lại toàn bộ 28 task là sạch lỗi: còn Push tiếp tục bằng phiên mới, danh sách Thu tiền cũ sau lỗi query, counter thông báo giảm lặp, failure capture che lỗi layout trong console-only, CTA spa demo ở tenant 404.
+- R29-01 tái hiện bằng module TS/Node VM (A bắt đầu → B đăng nhập → subscribe bằng B); R29-02 tái hiện trên Chromium production với API mock 503 cho query B (vẫn hiện A); R29-03 chạy chính handler TS với hai response cùng ID (2 unread item nhưng counter 1). Không gọi các probe mock này là kiểm chứng backend/RLS; không sửa nghiệp vụ trong lượt review.
+- Production run **23ace1c2-7b89-4960-b2c4-4a1899e6d64a: build/TypeScript PASS, 204/204 E2E PASS (903.02s)**; **3/3 regression bố cục lịch PASS (27.04s)** chạy riêng trên cùng QA đã xác minh marker, không collector; **25/25 harness PASS (0.300s)**. Không skip/xfail/setup error. Không chạy lại backend suite vì không sửa backend; 98/98 là lịch sử.
+- Chỉ xuất console, không ghi log/ảnh/JSON artifact. Runner exit 0; 3001 không còn listener, không còn container E2E QA. Không mở/tắt 3000, không seed/migrate DB ứng dụng. QA-04 không tái hiện trong cửa sổ này nhưng chưa có kiểm chứng sau sửa đồng bộ giờ. T12 vẫn chờ staging HTTPS/thiết bị thật/pilot; chưa chốt release. Ưu tiên sửa R29-01/02 rồi R29-03/04/05, thêm regression trước nghiệm thu lại các task liên quan.
+
+### 20/10/2026 — Sửa và kiểm chứng R29-01..05
+
+- Đã sửa 5 phát hiện của lượt review: Push pin token/session generation và kiểm tra sau await (gồm auto-sync/disable/mounted/ref chống nhấn lặp); Thu tiền gắn scope/user/tenant/query/filter/page, lỗi có retry và ẩn rows cũ; hai bell dùng `use-notification-feed.ts`, serialize mark-one/read-all, lấy counter từ server, bỏ GET trước mutation; layout giữ AssertionError gốc không capture; CTA tenant 404 về chọn chi nhánh `/`.
+- Thêm **18 E2E** trong `test_review_followups.py` và 1 fault-injection giữ lỗi layout; không thay API/backend/JWT/giá/giao dịch. Dev cuối `26162b99`: **20/20 PASS (73.19s)** trước hai ca Push bình thường bổ sung. Hai lượt dev chưa đạt vì assertion đếm initial GET Strict Mode và nhãn Customer “mới”; đã chỉnh đúng kiểm tra, không skip/tăng timeout. Chi tiết ở UI_UX_REVIEW.
+- **Production `6253fa68-759e-4493-b281-b88b2702a1cb`: build/TypeScript PASS, 74/74 PASS (230.94s)**, không skip/xfail/setup error. Gồm 18 mới + 7 thu tiền + 20 phiên + 10 guard đổi branch + 15 màn phụ/mobile + 4 layout. **Harness 25/25 PASS (0.197s)**. Đây là hồi quy chọn lọc trên source cuối; 204/204 trước sửa là lịch sử, không gọi lượt này là full features. Backend không đổi nên không chạy lại suite backend.
+- Runner exit 0; 3001 không có listener, không còn container E2E QA. Chỉ xuất console, không ghi log/ảnh/JSON artifact; không mở/tắt 3000 hoặc seed/migrate DB ứng dụng. Test bằng module TypeScript qua node_modules bị auto-review từ chối do ignore-path; đã dùng Playwright trên frontend QA để kiểm chứng, không thực thi cách bị chặn.
+- **R29-01..05 đóng trong phạm vi code/Chromium; QA-04/T12 vẫn mở.** Windows kiểm tra lại vẫn Local CMOS Clock/Stratum 0/chưa sync; bước Administrator trong RELEASE_RUNBOOK chưa được thực hiện/kiểm chứng. Không nới JWT để che lỗi; staging HTTPS/Android/iPhone/pilot còn chờ môi trường.
+
+Lệnh kiểm chứng R29 tại root (console-only):
+
+```powershell
+& automation_test/.venv/Scripts/python.exe -B -m automation_test.run_ui_qa -- automation_test/features/customer_regressions/tests/test_review_followups.py automation_test/features/admin_payments automation_test/features/customer_regressions/tests/test_session_recovery.py automation_test/features/customer_regressions/tests/test_branch_work_guard.py automation_test/features/customer_regressions/tests/test_final_mobile_routes.py automation_test/reviews/test_layout_regressions.py -q --tb=short --maxfail=1
+```
+
 Lệnh kiểm chứng T12 tại root:
 
 ```powershell

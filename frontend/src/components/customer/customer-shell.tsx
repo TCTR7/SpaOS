@@ -62,10 +62,10 @@ export function CustomerShell({
             tra lại mã QR hoặc đường dẫn từ lễ tân.
           </p>
           <Link
-            href="/spa-demo"
+            href="/"
             className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground shadow"
           >
-            Thử truy cập Spa mẫu (/spa-demo)
+            Chọn chi nhánh
           </Link>
         </div>
       </div>
