@@ -6,7 +6,7 @@ from common_setup.config import config
 from features.customer_regressions.pages.appointments_page import CustomerAppointmentsPage
 
 
-def test_admin_transfers_customer_and_old_staff_loses_ui_and_api_access(scenario, api_helper):
+def test_admin_transfers_profile_and_old_staff_only_retains_assigned_booking(scenario, api_helper):
     s = scenario
     booking = s["book"]()
     second = s["call"]("POST", "/staff", json={"full_name": "QA Second Staff",
@@ -35,7 +35,10 @@ def test_admin_transfers_customer_and_old_staff_loses_ui_and_api_access(scenario
     assert response.status == 404
     response = first.request.get(config.api_v1_url + "/bookings/" + booking["id"],
                                  headers={"Authorization": "Bearer " + first_token})
-    assert response.status == 404
+    assert response.status == 200 and response.json()["can_manage"] is False
+    forbidden = first.request.patch(config.api_v1_url + "/bookings/" + booking["id"] + "/status",
+        headers={"Authorization": "Bearer " + first_token}, data={"status": "CONFIRMED"})
+    assert forbidden.status == 404
     second_page.reload()
     expect(second_page.get_by_text("QA Customer", exact=True).first).to_be_visible()
     second_page.get_by_role("button").filter(has_text="QA Customer").click()

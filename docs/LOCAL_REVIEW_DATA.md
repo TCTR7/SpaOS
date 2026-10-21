@@ -38,3 +38,18 @@ Runner chỉ chấp nhận localhost/127.0.0.1. Tạo dữ liệu qua API xác t
 JSON được ghi trước khi tạo tài khoản và cập nhật ID theo tiến độ. Lượt tạo dở có thể tiếp tục bằng cùng file; endpoint cấp chủ và batch giữ request_id. Khi provisioning đã hoàn tất, chạy lại chỉ xác minh. Nếu bạn thêm/sửa dữ liệu thủ công khiến số lượng/trạng thái khác kế hoạch, kiểm tra có thể báo không khớp; runner không xóa dữ liệu để ép test đạt. Mức 10 nhân viên là giới hạn của runner dữ liệu, không phải giới hạn mới áp lên sản phẩm.
 
 Runner không tạo log, ảnh, trace hoặc video; kết quả ra console, trạng thái xác minh và thông tin tài khoản nằm trong JSON do PO yêu cầu. Kết quả và các giới hạn của lượt chạy xem PROGRESS.md.
+
+
+## Các luồng UX bổ sung (21/10/2026)
+
+Bản local đã áp migration 0009 sau backup/restore; giữ nguyên bộ tài khoản trong JSON. Không cần tạo lại dữ liệu hoặc đăng ký tài khoản khác.
+
+- Chủ spa: vào Tổng quan để xem việc trong ngày, khoản cần thu và hướng dẫn thiết lập. Trong Cài đặt, bổ sung địa chỉ/số liên hệ hoặc chọn ảnh PNG; ảnh chỉ lưu khi nhấn Lưu.
+- Nhân sự: chọn nhân viên để xem ca tuần, nghỉ/đổi giờ riêng một ngày hoặc đổi tài khoản đăng nhập. Nếu ca mới ảnh hưởng lịch đã nhận, app yêu cầu xử lý những lịch đó trước. Tài khoản chung áp dụng cho mọi chi nhánh đã cấp; đổi mật khẩu thu hồi phiên cũ.
+- Hồ sơ khách: Đặt lịch cho khách và Xem khoản cần thu giữ đúng khách đang chọn; có lịch gần đây và lịch sử từng thẻ. Thẻ đã giữ hết buổi vẫn được hiển thị nhưng không chọn thêm được.
+- Khách cần đăng nhập/khôi phục: chủ mở phần Giúp khách đăng nhập hoặc đặt lại mật khẩu, xác minh đúng khách ngoài app rồi nhập mật khẩu của chính chủ để cấp link. Gửi riêng link cho đúng khách; khách tự đặt mật khẩu, đăng nhập lại bằng SĐT cũ. Không ghi link/token vào báo cáo công khai. Link dùng một lần, hạn 30 phút; cấp mới hủy link cũ.
+- Bàn giao: mở chi tiết lịch và ghi bàn giao riêng buổi đó. Nhân viên chỉ được giao thực hiện đọc được ghi chú này; không được sửa trạng thái hoặc xem hồ sơ sức khỏe ngoài quyền.
+- Nhân viên: mở Ca làm của tôi để xem tuần và ngoại lệ ngày; liên hệ chủ khi cần điều chỉnh. Giữ nguyên quyền nhân viên, chưa có lễ tân/thu ngân.
+- Khách: sửa họ tên/mật khẩu tại Thẻ & Hồ sơ, mở lịch sử từng thẻ; sau đặt lịch có thể tải tệp lịch cá nhân. Tệp tải xuống không tự đồng bộ khi dời/hủy. Nếu mất mạng sau xác nhận, dùng Kiểm tra lịch đã đặt trước khi gửi yêu cầu khác.
+
+Tất cả thao tác thay đổi ở trên sẽ thay dữ liệu local nếu bạn chủ động xác nhận; automation hồi quy của đợt này dùng database QA riêng. Push qua HTTPS trên Android/iPhone và pilot người dùng thật vẫn cần nghiệm thu riêng.

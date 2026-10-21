@@ -30,6 +30,7 @@ def main():
     env["MIGRATION_DATABASE_URL"] = make_url(settings.MIGRATION_DATABASE_URL).set(database=name).render_as_string(hide_password=False)
     env.update(ENVIRONMENT="test", OPERATOR_PHONE="0998888777", OPERATOR_NAME="QA Operator",
                OPERATOR_PASSWORD="OperatorOnlyForQa@2026")
+    env["VAPID_PUBLIC_KEY"], env["VAPID_PRIVATE_KEY"] = "", ""
     for args in (["alembic", "upgrade", "head"], [sys.executable, "-m", "app.seed"]):
         subprocess.run(args, env=env, check=True)
     if os.environ.get("SPAOS_QA_SEED_DEMO") == "1":

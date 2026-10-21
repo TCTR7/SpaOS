@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import datetime, time
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import List, Optional
 
@@ -8,6 +8,8 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Date,
+    LargeBinary,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
@@ -77,6 +79,8 @@ class Tenant(TimestampMixin, Base):
 
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(String(500))
+    contact_phone: Mapped[Optional[str]] = mapped_column(String(20))
     logo_url: Mapped[Optional[str]] = mapped_column(String(500))
     theme_color: Mapped[Optional[str]] = mapped_column(String(20))
     open_time: Mapped[time] = mapped_column(Time, nullable=False, server_default=text("'08:00'"))
@@ -92,6 +96,7 @@ class User(TimestampMixin, TenantOwnedMixin, Base):
     role: Mapped[UserRole] = mapped_column(_enum(UserRole), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    auth_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     assigned_staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -206,12 +211,14 @@ class Notification(TimestampMixin, TenantOwnedMixin, Base):
     """Thông báo trong ứng dụng (quả chuông)."""
 
     __tablename__ = "notifications"
+    __table_args__ = (UniqueConstraint("event_id", "user_id", name="uq_event_recipient"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    event_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("notification_events.id"))
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     booking_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="SET NULL")
@@ -327,3 +334,66 @@ class DeploymentBranding(TimestampMixin, Base):
     slot: Mapped[int] = mapped_column(Integer, nullable=False, default=1, unique=True)
     theme_color: Mapped[str] = mapped_column(String(7), nullable=False)
     updated_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("deployment_operators.id"), nullable=False)
+
+
+class StaffDateOverride(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "staff_date_overrides"
+    __table_args__ = (UniqueConstraint("tenant_id", "staff_id", "day", name="uq_staff_override_day"),)
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    end_time: Mapped[time] = mapped_column(Time, nullable=False)
+    is_day_off: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class TenantLogo(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "tenant_logos"
+    __table_args__ = (UniqueConstraint("tenant_id", name="uq_tenant_logo"),)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class RecoveryGrant(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "recovery_grants"
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class BookingRequest(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "booking_requests"
+    __table_args__ = (UniqueConstraint("tenant_id", "actor_id", "request_id", name="uq_customer_booking_request"),)
+    actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    booking_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=False)
+
+
+class BookingHandover(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "booking_handovers"
+    __table_args__ = (UniqueConstraint("tenant_id", "booking_id", name="uq_booking_handover"),)
+    booking_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=False)
+    author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    note: Mapped[str] = mapped_column(String(1000), nullable=False)
+
+
+class NotificationEvent(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "notification_events"
+    booking_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=False)
+    actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    event: Mapped[str] = mapped_column(String(30), nullable=False)
+    to_staff: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+
+
+class NotificationDispatch(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "notification_dispatches"
+    __table_args__ = (UniqueConstraint("tenant_id", "notification_id", "subscription_id", name="uq_notification_dispatch"),)
+    notification_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("notifications.id"), nullable=False)
+    subscription_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("push_subscriptions.id", ondelete="CASCADE"), nullable=False)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

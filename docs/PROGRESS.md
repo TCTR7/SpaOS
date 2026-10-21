@@ -538,3 +538,103 @@ docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
 - [x] Các lượt đầu gặp thiếu tzdata Windows và console không hỗ trợ Unicode; đã dùng timezone UTC+7 có tên Asia/Ho_Chi_Minh, xuất UTF-8, tiếp tục cùng manifest. Dữ liệu không bị nhân đôi. Đăng nhập API đạt nhưng UI trang lịch trống do server `next start` cổng 3000 còn manifest build cũ, báo Loading chunk 506 failed. Xác minh đúng PID 26264 thuộc frontend SpaOS rồi restart đúng frontend bằng npm run start (ẩn cửa sổ); không đọc/xóa cache build hoặc đổi cổng.
 - [x] Lượt xác minh cuối **PASS: 174 HTTP requests kiểm tra status/thông tin trả về + 11 luồng browser** trên `http://localhost:3000` và `http://localhost:8001/api/v1`: đăng nhập chủ/30 nhân viên/30 khách, phạm vi chi nhánh, đủ roster/khách/lịch, thẻ tự trừ đúng một buổi và thông báo khách; UI chủ chuyển ba chi nhánh/xem roster/tổng hợp, ba nhân viên đăng nhập mobile, ba khách đăng nhập và thấy thông báo. Đây là automation riêng cho bộ dữ liệu mới, không phải full QA regression hoặc chứng nhận production. `git diff --check` PASS.
 - Dữ liệu được giữ nguyên cho PO kiểm tra; không teardown hoặc reset database. Không chạy load/stress hay kiểm thử phá hủy trên dữ liệu hiện có. Push thật/HTTPS/QA-04/T12 giữ giới hạn cũ; automation không đăng ký nhận Push trên thiết bị.
+
+
+### 21/10/2026 — Rà soát UX theo chủ spa, nhân viên và khách hàng
+
+- Theo PO: ghi nhận nguyên tắc đơn giản hóa thao tác cho cả ba nhóm; tạo `docs/UX_ROLE_REVIEW.md` gồm 40 mục (12 chủ spa, 8 nhân viên, 12 khách, 8 dùng chung), ưu tiên P1/P2, hiện trạng, ảnh hưởng, đề xuất, tiêu chí nghiệm thu và nguồn file:dòng.
+- Review source frontend, đối chiếu contract/PRD/chiến lược; phân biệt tính năng đã có, cải thiện UX và đề xuất cần API/quyết định quyền. Phát hiện cụ thể gồm login khách luôn về book, hủy lịch gửi ngay, text kỹ thuật còn sót, lịch quản trị chưa có góc nhìn khoảng trống theo nhân viên.
+- Chỉ bổ sung tài liệu, chưa triển khai source/API/quyền hoặc thay dữ liệu. Chưa chạy browser/E2E mới và chưa nghiệm thu thiết bị/pilot; không xem review là bằng chứng hoàn thành T12/QA-04. Các kết quả kiểm thử trước giữ nguyên phạm vi lịch sử.
+
+
+### 21/10/2026 — Triển khai đợt UX cốt lõi theo UX_ROLE_REVIEW (đang kiểm chứng)
+
+- PO cho phép cập nhật; chốt NV-02: người chỉ được giao thực hiện tiếp tục chỉ xem, chủ spa/người phụ trách xác nhận trạng thái. Đã ghi quyết định trong chiến lược/PRD/review.
+- Frontend: từ dịch vụ/thẻ hợp lệ tới chọn giờ; tìm ngày có chỗ tối đa 7 ngày, không tự chọn slot; login returnTo cùng chi nhánh; xác nhận hủy; tra giờ trống cho chủ; STAFF mặc định lịch mình thực hiện; động từ thao tác; kết quả tìm khách chọn trực tiếp; dashboard có việc theo ngày; thông báo mở đúng lịch, giữ form đang nhập; nhãn/hiện mật khẩu, sao chép giờ tuần và kỳ báo cáo nhanh. Không thêm endpoint/migration hoặc mở quyền backend.
+- Lượt production QA đầu `1fa3727a-0be0-47bb-85ab-f9e1a6220d56`: build/strict TypeScript PASS, **56 PASS/14 FAIL (456.53s)** trong 70 ca. Ba ca phát hiện tràn tên dịch vụ dài; sửa wrap và nút tìm ngày trên mobile. Những ca còn lại dùng selector/luồng cũ (hủy ngay, chọn nhân viên chưa mở, focus sau helper tự chọn khách) hoặc đòi lỗi 5xx thô vốn đã được che từ đợt copy trước; đã đồng bộ test, giữ assertion giao dịch/quyền/response muộn. Không skip, nới assertion bố cục, tăng timeout hoặc sửa JWT.
+- Bổ sung hồi quy redirect ngoài/khác branch, đặt từ thẻ/dịch vụ, hủy nhầm, tìm ngày giới hạn/phản hồi muộn, mở thông báo và giữ settings dirty, lọc dashboard theo ngày, kỳ báo cáo và draft sao chép ca. Lượt cuối sẽ ghi bên dưới sau khi kết thúc.
+- Review ghi riêng mục đã có code, mục làm một phần và phần cần API/nghiệp vụ/pilot. Không coi 40/40 hoàn thành; không tạo giả khôi phục mật khẩu, upload hoặc outbox bằng frontend. Database trải nghiệm và credentials được giữ nguyên; chỉ test trong môi trường QA tạm, console-only.
+
+- **Kết quả cuối QA production `185afa1f-5534-43bb-9bb7-4712d4e99fa9`: build/strict TypeScript PASS; 78/78 E2E PASS (446.54s)**, không skip/xfail/setup error. Gồm 18 mới + hồi quy wizard, khách/thẻ/hủy, pagination, assigned staff/notification, modal/keyboard, manual batch recovery, calendar concurrency/UI và client PWA/tenant isolation. DecodeError là ca token sai chủ ý. Không gọi bộ chọn lọc này là full features; QA-04/T12/Push thật giữ giới hạn cũ. Không chạy backend suite vì backend/API không đổi.
+
+- Bản local cuối: `npm run build` PASS; xác minh listener 3000 đúng frontend SpaOS rồi restart riêng frontend (launcher PID 4736). Sau restart `/` và `/admin/login` HTTP 200. Kiểm tra cuối còn **0 container spaos-e2e-qa, 0 listener 3001**. `git diff --check` PASS. Không seed/reset/ghi nghiệp vụ vào database ứng dụng hoặc sửa credential dataset.
+
+
+### 21/10/2026 — Hoàn thiện backlog UX theo PO (đang nghiệm thu)
+
+- PO yêu cầu hoàn thiện các mục còn lại và report sau khi xong. Chốt NV-08 giữ quyền hiện hành, NV-07 bàn giao riêng từng lịch, KH-07 spa xác minh/cấp liên kết một lần. Ghi trong PRD/chiến lược/contract.
+- Đã có code migration 0009 và các luồng setup/liên hệ/logo, ca ngoại lệ/người dùng xem ca mình, tài khoản chung/thu hồi phiên, khôi phục khách, lịch sử thẻ và số buổi nhất quán, bàn giao đúng lịch, liên kết CRM/thu tiền, booking request có biên nhận, hàng đợi thông báo bền vững. Frontend thêm refresh GET khi quay lại, offline, lịch cá nhân và hướng dẫn Push. Chưa xem các phần có code là đã nghiệm thu toàn bộ.
+- Kiểm thử tập trung backend 14/14 PASS (42.89s). Full backend trước lượt cuối lần lượt dừng ở assertion hợp đồng chi nhánh và URL Push cũ, đã đồng bộ trường liên hệ/booking ID; chưa báo full suite xanh. Build frontend PASS. E2E đầu không khởi động backend QA đúng thời hạn; chẩn đoán container/database QA riêng sau đó health PASS, dọn tài nguyên vừa tạo. Lượt E2E chọn 12 ca: 4 PASS/1 FAIL trước khi dừng; fixture bàn giao vô tình giao cùng người phụ trách hồ sơ, đã tách hai người để assertion chỉ đọc đúng nghiệp vụ.
+- Đang chạy lại toàn backend và 254 E2E trên deployment QA tạm riêng. Không sửa JWT, tăng timeout hoặc nới guard để qua test. Chỉ console, không tạo log/ảnh/proof. Bộ dữ liệu local và thông tin đăng nhập giữ nguyên; schema ứng dụng chưa cập nhật tại thời điểm ghi mục này. Kết quả cuối và delivery được ghi tiếp khi hoàn tất.
+
+- Backend cuối: **116/116 PASS (298.97s)** trên database QA cô lập; runner đã dọn database. Trước đó lượt bổ sung tài khoản **13/13 PASS (43.07s)**. Frontend local build/TypeScript PASS sau hoàn thiện hồ sơ/lịch/khóa form.
+- Backup trước migration: `backups/ux-before-0009-20261021-a7c92.dump`, restore vào PostgreSQL tạm PASS (inventory/policies/RLS probes). Đã áp duy nhất migration 0009 lên local; so sánh trước/sau giữ nguyên số dòng/cờ RLS toàn bộ bảng cũ, thêm 7 bảng scoped. Không seed/reset credentials. Smoke đọc local PASS: tài khoản chủ sẵn có đăng nhập, thấy đúng 3 chi nhánh, đọc setup/lịch/public branch. E2E tiếp tục chạy QA riêng; chưa chốt kết quả cuối.
+
+- E2E đầy đủ đầu `52abb290-06b2-4ac5-b119-d74b0a1e15b9`: **192 PASS/62 FAIL (1332.65s)** trong 254 ca. Phần lớn test còn dùng nhãn/lỗi thô/đích login cũ hoặc đòi mất quyền đọc booking được giao sau chuyển hồ sơ (trái quyết định PO). Đã đối chiếu để cập nhật selector/assertion, giữ chặn ghi, token, RLS và số giao dịch. Không xem lượt này là đạt. Phát hiện luồng recovery thành công có thể mất màn kết quả khi thu hồi phiên làm remount; sửa chuyển sang trang đăng nhập có thông báo thành công, không giữ token khôi phục. Đang kiểm chứng lại.
+- Backup sau migration `backups/ux-after-0009-20261021-f83d1.dump` restore PASS, inventory/policies/RLS không context/tenant/account/phone đều PASS, gồm bảng mới. Bổ sung validation giờ ca thuần **2/2 PASS**, không ghi DB.
+
+- E2E đầy đủ lượt hai `48d8a059-098c-4f3c-8183-66d8b94e532b`: **252 PASS/5 FAIL (1193.77s)** trong 257 ca. Không skip/xfail. Ba selector còn sai tên hộp thoại/phạm vi lịch; thẻ giữ hết buổi đang bị ẩn nên đã hiển thị số giữ + khóa chọn. Hai ca recovery/họ tên chọn trùng phần tử với route announcer/thanh điều hướng. Chẩn đoán riêng `4ca1dd8b-861d-4e2f-8b2f-61a891618622`: **3 PASS/2 FAIL (105.76s)**; recovery HTTP200/chuyển đúng login, dùng lại link bị từ chối đúng; sửa tên HTTP200/dữ liệu cập nhật đúng nhưng selector chưa giới hạn main. Đã sửa selector, đang chạy toàn bộ lần cuối.
+- Chốt sửa UI bổ sung: giá gói mới chỉ tính một lần khi đặt nhiều lịch; số buổi batch bị giới hạn theo thẻ ít buổi khả dụng nhất; thẻ đang giữ hết buổi vẫn hiện và không thể chọn. Popup thông báo thiết bị mở cửa sổ riêng để giữ form, bộ lọc trạng thái bỏ mã tiếng Anh. Hàm lỗi UI kiểm tra **8/8 PASS** qua Node VM (không tạo file). `git -c core.safecrlf=false diff --check` PASS.
+
+- Bản local cuối đã build PASS, restart đúng frontend SpaOS (launcher 29004). Kiểm tra UI chỉ đọc cho tài khoản chủ/nhân viên/khách trong manifest: tổng quan, ca cá nhân, hồ sơ/thẻ và không tràn ngang ở 390 px đều PASS, không ghi nghiệp vụ hoặc đổi credentials.
+- Lượt E2E cuối `939fc716-e9f1-4df5-a349-21d2bdb52590` đang chạy 257 ca, đã qua toàn bộ 15 ca mới trong test_role_experience_completion.py (gồm recovery, hồ sơ, phản hồi đổi mật khẩu muộn, logo, ca theo ngày, thẻ/biên nhận). Chưa ghi kết quả tổng cho tới khi runner kết thúc.
+
+
+### Kết quả cuối đợt hoàn thiện UX — 21/10/2026
+
+- **Toàn bộ E2E features: 257/257 PASS (1089.36s), run 939fc716-e9f1-4df5-a349-21d2bdb52590**, không skip/xfail/setup error. Production build QA và kiểm tra kiểu PASS; QA config kế thừa strict:true từ frontend/tsconfig.json. Bao gồm 15 ca mới, hồi quy khách/chủ/nhân viên, Operator, thu tiền, đổi chi nhánh, phân trang, phục hồi lỗi mạng, thông báo, bàn phím và đo bố cục. Không xem browser giả lập là nghiệm thu thiết bị thật.
+- Backend đầy đủ **116/116 PASS (298.97s)** trên database QA riêng; frontend local cuối npm run build PASS. Validation giờ ca **2/2**, hàm lỗi **8/8** PASS. Các lượt thất bại trước giữ nguyên lịch sử phía trên; kết quả cuối không thay đổi nghĩa của các lượt đó.
+- Đã cập nhật source/API_CONTRACT/PRD/chiến lược/UX_ROLE_REVIEW/runbook và hướng dẫn local. Migration 0009 đã áp lên local sau backup + restore thử PASS; 7 bảng mới FORCE RLS, giữ nguyên số dòng/cờ RLS của bảng cũ. Backup sau migration cũng restore/policies/RLS PASS. Không seed/reset credentials hoặc dữ liệu bộ trải nghiệm.
+- Local frontend đang phục vụ build cuối (launcher 29004). Smoke UI chỉ đọc ba vai trò và mobile PASS; tài khoản chủ sẵn có vẫn đăng nhập và thấy đúng ba chi nhánh. Không chạy fault injection/QA mutation trên database ứng dụng. Không lưu log/ảnh/trace/video/proof; các backup nhạy cảm nằm trong thư mục bị Git bỏ qua.
+- Phần code của backlog được triển khai; NV-02 và NV-08 đóng theo lựa chọn PO giữ quyền hiện hành. **Chưa hoàn tất nghiệm thu DC-03 (Push thiết bị thật/HTTPS), DC-05 (screen reader/bàn phím ảo/thiết bị thật), DC-07 (pilot người dùng thật).** Không tự đóng QA-04/T12 hoặc tuyên bố production-ready; các ý tưởng có điều kiện như ca tách, SMS OTP, lễ tân/thu ngân, danh sách chờ và sao chép cấu hình không tự mở rộng.
+
+- Xác minh dọn tài nguyên cuối PASS: **0 container QA/restore, 0 database QA tạm, 0 listener 3001**. Backend health và các route local 3000 trả HTTP200. `git -c core.safecrlf=false diff --check` PASS; manifest tài khoản/hai file backup đều bị ignore.
+
+
+### 21/10/2026 — Nhận diện spa theo yêu cầu PO
+
+- Dùng logo chi nhánh hiện có trên sidebar quản trị, header mobile và header khách; trang dịch vụ có logo lớn cùng tên spa. Logo giữ nguyên tỷ lệ, tên xuống dòng và ảnh lỗi chuyển chữ viết tắt. Cài đặt có bản xem trước logo + tên. Chưa bổ sung avatar cá nhân hoặc thay icon PWA cấp deployment.
+- Giữ API upload PNG hiện hành (256 KB, tối đa 2048×2048), quyền ADMIN và phạm vi từng chi nhánh. Không thay backend/schema/dữ liệu.
+- Đang kiểm chứng build và regression upload → lưu → quản trị/khách ở 320 px; kết quả cuối ghi bên dưới.
+- Kết quả cuối: local build/TypeScript PASS; QA production build PASS, regression logo mở rộng **1/1 PASS (8.29s)**, run `61996392-9007-4f9e-b384-d1af5c4755da` (14 ca ngoài phạm vi deselected). Kiểm tra upload/lưu nguyên tử, logo quản trị và khách, object-contain, fallback ảnh lỗi, không tràn ngang 320 px. Lượt build đầu lỗi cờ regex không phù hợp target, đã bỏ cờ không cần thiết rồi build lại đạt. Không chạy lại full suite/backend vì chỉ thay giao diện.
+- Frontend local đã restart đúng tiến trình sau build; /admin/login HTTP200. `git diff --check` PASS. QA console-only, không lưu log/ảnh/proof.
+
+
+### 21/10/2026 — Sửa dashboard lặp thiết lập và trình bày
+
+- PO phản ánh khối thiết lập lặp. Source chỉ gọi một SetupGuide nhưng SetupGuide/DashboardWork dùng cùng sibling key; đã thêm prefix riêng setup/work để React phân biệt khi cập nhật.
+- Thiết lập chia thành ba thẻ có trạng thái, khu chia sẻ riêng, summary có icon và số mục đã có thông tin; giữ mở/đóng, lỗi/retry và sao chép có fallback. Nút tổng hợp chi nhánh có nền màu thương hiệu, icon và focus rõ ràng. Không thay API/quyền/dữ liệu.
+- Bổ sung hồi quy chỉ có một khối sau đổi ngày, layout 320/390/1366 px và lỗi/retry setup; đang chạy QA production riêng. Không tự khởi động frontend local theo yêu cầu tắt trước đó.
+- Kết quả: production build/TypeScript PASS; **2/2 E2E PASS (8.37s)**, run `f897ed38-bde8-45e7-b115-e5a951cd213d`, 13 ca ngoài phạm vi deselected. Xác nhận một khối sau đổi ngày, không tràn ngang 320/390/1366 px, lỗi/retry hoạt động. `git diff --check` PASS. Chỉ chạy frontend QA tạm; không khởi động lại frontend local.
+
+### 21/10/2026 — Review toàn bộ tính đồng nhất UI theo PO
+
+- Báo cáo `docs/UI_CONSISTENCY_REVIEW.md`: rà source 60 TSX/CSS, 24 page; 12 nhóm WARNING (4 P1, 8 P2), chưa xác nhận CRITICAL. Ưu tiên phần dưới dashboard, phân cấp chỉ số, nút dài/mobile, CSS utility không có hiệu lực. Tách nhận xét thiết kế khỏi lỗi chức năng. Không thay source sản phẩm/backend/dữ liệu.
+- Thêm `automation_test/reviews/test_ui_inventory.py`, chỉ console. 29 hồi quy hiện có PASS trong lượt dev `c363b638-7f62-4f1a-88a5-568520a87c0b`, 1 kiểm kê FAIL do selector heading ẩn (259.29s toàn lượt). Sửa selector; kiểm kê riêng **1/1 PASS, 88.85s**, run `e8b9d20a-38f7-4bcb-a6d1-99c41c1c14c2`: 25 tổ hợp route/vai trò × 2 kích thước, không tràn/ID trùng tại thời điểm đo; CSS và CTA nhỏ xác nhận. Không gọi đây là full production E2E.
+- Lượt trước lỗi backend readiness; lượt production bị mất session console không tính kết quả; lượt dev đầu lỗi cú pháp script mới đã sửa. Chi tiết/giới hạn ở báo cáo. QA dọn xong, không listener 3000/3001/3002 hoặc container QA đang chạy; diff --check PASS. Frontend local giữ tắt.
+
+### 21/10/2026 — Triển khai UI_CONSISTENCY_REVIEW theo PO
+
+- Đang hoàn thiện 12 nhóm: dashboard công việc có hàng lịch/tiền riêng, số liệu phân cấp và chi nhánh tổng hợp mở rộng; nút dài xuống dòng, CTA/select mobile lớn hơn; thay utility CSS không hợp lệ, tăng chữ phụ; đồng bộ chi nhánh, ca làm/ngày, tài khoản, disclosure, phản hồi và tên menu. Giữ quyền/API/nghiệp vụ.
+- Danh sách chi nhánh công khai dùng chữ viết tắt làm dấu nhận diện vì API danh sách chưa trả logo; quản trị dùng logo tenant có sẵn. Không tạo N+1 fetch logo/metadata hoặc mở rộng backend ngoài phạm vi.
+- Build local ban đầu PASS; đang chạy production QA chọn lọc cùng hai regression mới. Giữ frontend local tắt, không ghi log/ảnh/proof và không sửa dữ liệu trải nghiệm.
+
+- Kiểm chứng cập nhật UI: production QA `33a06faa-75d4-4171-b393-542b4557f15a`, build/strict TypeScript PASS; **102 PASS, 1 FAIL (301.02s)** trong 103 ca. Ca mới đo nút Đặt lịch hẹn ngay còn cao 36 px; đã thêm min-h-11, đang chạy lại ca mới cùng hồi quy điều khiển/mobile/lịch trên production QA. Giữ tiêu chí >=44 px, không nới assertion.
+
+- **Kết quả cuối:** production QA build/strict TypeScript PASS; **16/16 PASS (40.90s)**, run `9256a654-e932-4cb2-86ca-e1c37611b539`. Gồm hai ca mới (nút dài/CTA 44 px và chi nhánh mở rộng), 10 ca điều khiển/mobile và bốn ca bố cục lịch. Ca lỗi ở lượt 103 đã được sửa và kiểm chứng lại; 102 ca PASS trước đó giữ đúng phạm vi, không gọi lượt cuối là full suite 103/103. Không thay backend nên không chạy lại backend suite.
+- Hoàn tất triển khai các cải thiện UI-01..12 trong phạm vi đã nêu; chi nhánh public vẫn dùng chữ viết tắt do contract danh sách không có logo. Không xem Chromium QA là nghiệm thu thiết bị thật. diff --check PASS.
+
+
+### 21/10/2026 — Review code cập nhật 12 nhóm UI
+
+- Hai WARNING P2 xác nhận: UI-10 phản hồi lưu tên khách mất do refresh/remount (vấn đề cũ chưa xử lý hết); UI-09 form cấp liên kết mất spacing sau đổi disclosure (hồi quy mới). Chưa phát hiện CRITICAL trong phạm vi kiểm tra. Chi tiết ở docs/UI_CONSISTENCY_REVIEW.md; chưa sửa sản phẩm trong lượt review.
+- Ba phép thăm dò dev QA hoàn tất, 19.05s, run d0820213-2660-4acb-9e13-c916e8012fe3; không coi PASS script quan sát là hành vi đạt. Màu action-link với brand sáng vẫn dùng màu chữ đủ tương phản. Frontend local/QA đã tắt, dữ liệu local không thay đổi.
+
+
+### Sửa hai WARNING sau review — 21/10/2026
+
+- UI-10: thêm reloadCustomerProfile chỉ tải lại hồ sơ trong cùng phiên đã xác minh, kiểm tra session/request/user/tenant trước khi cập nhật. Form sửa họ tên giữ state và hiển thị xác nhận sau lưu; refreshCustomer khi đổi phiên vẫn giữ cơ chế remount/xóa bản nháp riêng.
+- UI-09: bọc nội dung cấp liên kết bằng space-y-3, giữ spacing riêng tại component.
+- Chuyển hai phép quan sát thành regression assertion: tên mới tồn tại sau reload, thông báo thành công hiển thị và form còn mở; khoảng cách password–button >=12 px. Đang chạy production QA cùng hồi quy phiên và role experience.
+
+- Kết quả sửa warning: production build/TypeScript PASS; **38/38 ca PASS (106.95s)** trên QA riêng `a3caccde-a19a-4f7f-90a4-8a40ae03168d`: 3 ca UI review (hai regression và một probe màu), 20 ca phiên đăng nhập, 15 ca role experience. Hai WARNING UI-09/UI-10 nêu trên đã sửa và kiểm chứng; không thay backend/API hay dữ liệu local.

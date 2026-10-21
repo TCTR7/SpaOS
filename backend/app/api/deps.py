@@ -24,10 +24,11 @@ _UNAUTHORIZED = HTTPException(
 
 
 class TokenData:
-    def __init__(self, user_id: uuid.UUID, tenant_id: uuid.UUID, role: str) -> None:
+    def __init__(self, user_id: uuid.UUID, tenant_id: uuid.UUID, role: str, auth_version: int = 0) -> None:
         self.user_id = user_id
         self.tenant_id = tenant_id
         self.role = role
+        self.auth_version = auth_version
 
 
 def get_token_data(
@@ -41,6 +42,7 @@ def get_token_data(
             user_id=uuid.UUID(payload["sub"]),
             tenant_id=uuid.UUID(payload["tenant_id"]),
             role=payload["role"],
+            auth_version=payload.get("ver", 0),
         )
     except (jwt.PyJWTError, KeyError, ValueError) as exc:
         logger.warning("Authentication token rejected (%s)", type(exc).__name__)
@@ -69,7 +71,7 @@ async def get_current_user(
         select(User).where(User.id == token.user_id, User.tenant_id == token.tenant_id)
     )
     user = result.scalar_one_or_none()
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.auth_version != token.auth_version:
         logger.warning("Authentication user missing or inactive within tenant context")
         raise _UNAUTHORIZED
     from app.services.branch_service import membership_for, account_for

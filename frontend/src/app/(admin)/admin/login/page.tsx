@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useRouter } from "next/navigation";
 import { Sparkles, Lock, Phone } from "lucide-react";
 import { loginAdmin, saveAuthSession } from "@/lib/api";
@@ -96,7 +97,7 @@ export default function AdminLoginPage(): React.ReactElement {
               <Label htmlFor="password">Mật khẩu</Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+                <PasswordInput
                   disabled={!hydrated || submitting}
                   id="password"
                   autoComplete="current-password"

@@ -46,7 +46,7 @@ def test_owner_grants_staff_and_staff_logs_in_without_slug(scenario):
     staff_page.locator("#activeBranch").select_option(branch["id"])
     expect(staff_page.locator("#activeBranch")).to_have_value(branch["id"])
     staff_page.goto(config.frontend_url + "/admin/branches")
-    expect(staff_page.get_by_role("alert").filter(has_text="Chỉ chủ hệ thống")).to_be_visible()
+    expect(staff_page.get_by_role("alert").filter(has_text="Bạn chưa thể quản lý chi nhánh")).to_be_visible()
 
 def test_public_home_selects_branch_by_name_and_preserves_customer_route(scenario):
     s = scenario

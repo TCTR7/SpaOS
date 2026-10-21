@@ -225,3 +225,14 @@ Regression đã ghi nhận ImmatureSignatureError khi token mới bị coi là p
 - Đổi chi nhánh dùng Web Locks để phối hợp form/giao dịch giữa các tab; trình duyệt thiếu API này bị chặn đổi với thông báo. Kiểm chứng trên HTTPS và trình duyệt hỗ trợ trước bàn giao. Backend JWT/tenant/RLS/row locks vẫn bắt buộc, không coi Web Locks là kiểm soát bảo mật dữ liệu.
 - Database ứng dụng chưa áp migration 0008 trong các lượt QA; các yêu cầu backup/restore/RLS/staging/migration và vận hành bên dưới vẫn phải hoàn tất riêng. Không deploy từ kết quả UI xanh.
 
+
+
+### UX theo vai trò — migration 0009 (21/10/2026)
+
+Backend/frontend phải phát hành cùng phiên bản. Sao lưu trước nâng cấp, diễn tập restore vào PostgreSQL riêng, rồi chạy alembic upgrade head; không chạy seed_demo hoặc reset dữ liệu. 0009 thêm dữ liệu liên hệ, auth_version và 7 bảng theo tenant (ca ngoại lệ, logo, recovery grant, biên nhận đặt lịch khách, bàn giao, sự kiện và job thông báo). Giữ các bảng này trong backup; công cụ recovery kiểm tra RLS thêm cho bảng hiện diện ở phiên bản đang phục hồi. Không xóa biên nhận/sự kiện để tái dùng UUID. Downgrade chỉ theo kế hoạch bảo trì và đối chiếu giao dịch, không tự hủy dữ liệu mới để rollback giao diện.
+
+Worker thông báo chạy theo lifespan backend, xử lý tenant lần lượt bằng runtime context, retry từ DB; không cần quyền bypass RLS. Giám sát hàng đợi chưa xử lý/lỗi kéo dài và việc worker tiếp tục chạy sau khởi động. Khi VAPID trống vẫn lưu in-app; jobs Push chỉ gửi khi cấu hình đủ. Provider có thể giao lại sau mất xác nhận mạng; thiết bị phải mở lịch để lấy trạng thái mới nhất. QA đặt VAPID rỗng và dùng mock, không chứng minh Push thật.
+
+Liên kết khôi phục: spa xác minh đúng khách trước khi chủ cấp; gửi riêng, hạn 30 phút, một lần; không ghi token/link/password vào logs hay ticket công khai. Cấp mới hủy liên kết cũ. Khôi phục/đổi mật khẩu tăng version, phiên cũ bị từ chối. Không sử dụng link khi chưa đối chiếu khách.
+
+Trước nghiệm thu ngoài local: HTTPS và Android/iPhone thật (quyền thông báo, ứng dụng màn hình chính, app đóng, thiết bị offline/rồi online); trình đọc màn hình/zoom/bàn phím ảo; pilot chủ/nhân viên/khách với nhiệm vụ UX_ROLE_REVIEW. Chưa có các kết quả này thì DC-03/DC-05/DC-07 và QA-04/T12 không tự đóng từ E2E.

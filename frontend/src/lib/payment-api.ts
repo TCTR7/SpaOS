@@ -22,5 +22,5 @@ export function formatPaymentCurrency(value: string | number): string {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
 }
 
-export const listCollections = (q: string, scope: "outstanding" | "all", offset = 0): Promise<import("./types").PaymentCollection[]> =>
-  apiRequest(`/payments/collections?q=${encodeURIComponent(q)}&scope=${scope}&limit=50&offset=${offset}`);
+export const listCollections = (q: string, scope: "outstanding" | "all", offset = 0, customerId?: string): Promise<import("./types").PaymentCollection[]> =>
+  apiRequest(`/payments/collections?q=${encodeURIComponent(q)}&scope=${scope}&limit=50&offset=${offset}${customerId ? "&customer_id=" + encodeURIComponent(customerId) : ""}`);

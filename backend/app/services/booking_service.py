@@ -20,6 +20,7 @@ from app.models.models import (
     PackageStatus,
     Service,
     StaffSchedule,
+    StaffDateOverride,
     Tenant,
     User,
     UserRole,
@@ -145,6 +146,10 @@ async def get_schedule_windows(
             )
         )
     ).scalars().all()
+    overrides = (await db.execute(select(StaffDateOverride).where(
+        StaffDateOverride.tenant_id == tenant.id, StaffDateOverride.staff_id.in_(staff_ids), StaffDateOverride.day == d))).scalars().all()
+    overridden = {row.staff_id for row in overrides}
+    rows = [row for row in rows if row.staff_id not in overridden] + list(overrides)
     day_off = {r.staff_id for r in rows if r.is_day_off}
     for r in rows:
         if r.staff_id in day_off:
@@ -428,6 +433,8 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
     booking_id = booking.id
     audit(db, tenant_id, actor, "BOOKING_CREATED", "booking", booking.id,
           {"customer_id": str(customer.id), "staff_id": str(staff_id), "start_time": start.isoformat()})
+    from app.services.notification_queue import enqueue_event
+    enqueue_event(db, tenant_id, booking.id, actor, "CREATED")
     if not commit:
         return booking
     await db.commit()  # nhả toàn bộ lock
@@ -489,6 +496,9 @@ async def update_booking_status(
     booking.status = new_status
     audit(db, tenant_id, actor, "BOOKING_STATUS_CHANGED", "booking", booking.id,
           {"from_status": previous_status.value, "to_status": new_status.value})
+    if actor is not None:
+        from app.services.notification_queue import enqueue_event
+        enqueue_event(db, tenant_id, booking.id, actor, new_status.value)
     await db.commit()
 
     await set_tenant_context(db, tenant_id)
@@ -527,6 +537,8 @@ async def cancel_booking(
     booking.status = BookingStatus.CANCELLED
     audit(db, tenant_id, actor, "BOOKING_CANCELLED", "booking", booking.id,
           {"from_status": previous_status.value})
+    from app.services.notification_queue import enqueue_event
+    enqueue_event(db, tenant_id, booking.id, actor, "CANCELLED")
     await db.commit()
     await set_tenant_context(db, tenant_id)
     full = await get_booking_full(db, tenant_id, booking_id)
@@ -650,6 +662,8 @@ async def reschedule_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User
            "note_changed": "note" in body.model_fields_set})
     if "note" in body.model_fields_set:
         booking.note = body.note
+    from app.services.notification_queue import enqueue_event
+    enqueue_event(db, tenant_id, booking.id, actor, "RESCHEDULED")
     await db.commit()
     await set_tenant_context(db, tenant_id)
     return await get_booking_full(db, tenant_id, booking_id)

@@ -29,6 +29,8 @@ export default function PaymentsPage(): React.ReactElement {
   const [source, setSource] = React.useState<PaymentCollection | null>(null);
   const [offset, setOffset] = React.useState(0);
   const [staff, setStaff] = React.useState<UserDetail[]>([]);
+  const [customerId, setCustomerId] = React.useState<string | undefined>();
+  React.useEffect(() => { setCustomerId(new URLSearchParams(window.location.search).get("customer_id") || undefined); }, []);
   const [query, setQuery] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [scope, setScope] = React.useState<"outstanding" | "all">("outstanding");
@@ -43,7 +45,7 @@ export default function PaymentsPage(): React.ReactElement {
   const [rowsScope, setRowsScope] = React.useState("");
   const [collectionError, setCollectionError] = React.useState<string | null>(null);
   const [collectionAttempt, setCollectionAttempt] = React.useState(0);
-  const collectionKey = JSON.stringify([user?.id, user?.tenant_id, search, scope, offset]);
+  const collectionKey = JSON.stringify([user?.id, user?.tenant_id, search, scope, offset, customerId]);
   const currentCollectionKey = React.useRef(collectionKey);
   currentCollectionKey.current = collectionKey;
   const collectionRequest = React.useRef(0);
@@ -61,7 +63,7 @@ export default function PaymentsPage(): React.ReactElement {
     const current = () => !cancelled && request === collectionRequest.current && currentCollectionKey.current === collectionKey;
     setRows([]); setRowsScope(collectionKey); setCollectionError(null);
     setLoading(true); setError(null);
-    void listCollections(search, scope, offset).then((data) => { if (current()) setRows(data); })
+    void listCollections(search, scope, offset, customerId).then((data) => { if (current()) setRows(data); })
       .catch((e: unknown) => { if (current()) setCollectionError(e instanceof Error ? e.message : "Không tải được danh sách thu tiền"); })
       .finally(() => { if (current()) setLoading(false); });
     return () => { cancelled = true; };
@@ -88,7 +90,7 @@ export default function PaymentsPage(): React.ReactElement {
     const request = ++collectionRequest.current;
     const today = formatDateISOInVN();
     const [data, total, current] = await Promise.all([
-      listCollections(search, scope, offset), getPaymentSummary(today, today),
+      listCollections(search, scope, offset, customerId), getPaymentSummary(today, today),
       selected ? apiRequest<PaymentInvoice>(`/payments/invoices/${selected.id}`) : Promise.resolve(null),
     ]);
     if (currentCollectionKey.current !== key || collectionRequest.current !== request) return;
@@ -125,6 +127,7 @@ export default function PaymentsPage(): React.ReactElement {
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold">Thu tiền</h1>
+      {customerId && <p className="text-sm">Đang xem khoản thu của khách đã chọn. <Button variant="outline" onClick={() => setCustomerId(undefined)}>Xem mọi khách</Button></p>}
       <p className="text-sm text-muted-foreground">Khách và dịch vụ có sẵn từ lịch hẹn, thẻ liệu trình. Xác nhận khi bạn đã thực nhận tiền.</p>
       {summary && <section data-testid="payment-summary" className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3">
         <div><p className="text-sm">Hôm nay đã thu</p><strong>{formatCurrency(summary.net_received)}</strong></div>

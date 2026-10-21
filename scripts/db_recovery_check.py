@@ -90,6 +90,8 @@ def main():
         business = ["users", "services", "staff_schedules", "customer_packages", "bookings",
                     "booking_items", "push_subscriptions", "notifications",
                     "payment_invoices", "payment_entries", "audit_logs", "branch_memberships", "owner_provisions"]
+        business += [name for name in ["manual_booking_batches", "staff_date_overrides", "tenant_logos", "recovery_grants", "booking_requests", "booking_handovers", "notification_events", "notification_dispatches"]
+                     if any(row["table"] == name for row in restored)]
         assert all(any(r["table"] == t and r["rls"] == "t" and r["force_rls"] == "t"
                        for r in restored) for t in business + ["login_accounts", "deployment_operators", "deployment_branding"])
         restored_sql("CREATE ROLE restore_probe NOLOGIN NOSUPERUSER NOBYPASSRLS; "

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { displayDate } from "@/lib/display-date";
 import {
   Award,
   BarChart3,
@@ -89,13 +90,18 @@ export default function AdminReportsPage(): React.ReactElement {
           Báo cáo Hiệu suất & Hoa hồng Kỹ thuật viên
         </h1>
         <p className="text-xs text-muted-foreground">
-          Thống kê tổng số lịch hoàn thành (COMPLETED), số buổi dịch vụ lẻ /
-          liệu trình và giá trị dịch vụ hoàn thành theo múi giờ Asia/Ho_Chi_Minh
+          Thống kê lịch đã hoàn thành, số buổi dịch vụ lẻ /
+          liệu trình và giá trị dịch vụ hoàn thành theo giờ Việt Nam
         </p>
       </div>
 
       <p className="text-sm text-muted-foreground">Giá trị dịch vụ hoàn thành không phải tiền đã thu. Xem Thu tiền để đối chiếu thực thu. Hoa hồng chỉ là ước tính, chưa phải khoản lương đã chốt.</p>
 
+      <div className="flex flex-wrap gap-2" aria-label="Chọn kỳ báo cáo nhanh">
+        <Button variant="outline" onClick={() => { setStartDate(today); setEndDate(today); }}>Hôm nay</Button>
+        <Button variant="outline" onClick={() => { const dow = new Date(today + "T12:00:00+07:00").getUTCDay(); setStartDate(addDaysISO(today, -((dow + 6) % 7))); setEndDate(today); }}>Tuần này</Button>
+        <Button variant="outline" onClick={() => { setStartDate(today.slice(0, 8) + "01"); setEndDate(today); }}>Tháng này</Button>
+      </div>
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -236,7 +242,7 @@ export default function AdminReportsPage(): React.ReactElement {
             Bảng chi tiết theo từng Kỹ thuật viên
           </CardTitle>
           <CardDescription>
-            Khoảng thời gian: {startDate} → {endDate}
+            Khoảng thời gian: {displayDate(startDate)} → {displayDate(endDate)}
           </CardDescription>
         </CardHeader>
         <CardContent className="min-w-0 p-0">
@@ -252,7 +258,7 @@ export default function AdminReportsPage(): React.ReactElement {
             </p>
           ) : (
             <table className="block w-full text-left text-sm lg:table lg:text-xs">
-              <thead className="hidden lg:table-header-group border-b border-border bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
+              <thead className="hidden lg:table-header-group border-b border-border bg-muted/60 text-xs font-semibold uppercase text-muted-foreground">
                 <tr>
                   <th className="block min-w-0 px-4 py-3 lg:table-cell">Kỹ thuật viên</th>
                   <th className="block min-w-0 px-4 py-3 lg:table-cell text-center">Lịch hoàn thành</th>

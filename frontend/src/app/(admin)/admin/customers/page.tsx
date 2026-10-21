@@ -1,6 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { CustomerVisits } from "@/components/admin/customer-visits";
+import { PackageHistory } from "@/components/package-history";
+import { RecoveryLink } from "@/components/admin/recovery-link";
 import { useBranchGuard } from "@/lib/branch-guard";
 import { useListDetail } from "@/lib/use-list-detail";
 import {
@@ -42,7 +46,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
 export default function AdminCustomersPage(): React.ReactElement {
-  const { user } = useAdminAuth();
+  const { user, tenant } = useAdminAuth();
   const detail = useListDetail();
   const customerRequest = React.useRef(0);
   const packageRequest = React.useRef(0);
@@ -316,7 +320,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">
-            Khách hàng & Quản lý Thẻ Liệu trình (CRM)
+            Khách hàng & Thẻ liệu trình
           </h1>
           <p className="text-xs text-muted-foreground">
             Tra cứu hồ sơ tình trạng da, lịch sử thẻ liệu trình và cấp gói liệu
@@ -395,7 +399,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                         SĐT: {c.phone_number}
                       </p>
                       {c.notes && (
-                        <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-600">
+                        <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
                           Ghi chú: {c.notes}
                         </p>
                       )}
@@ -443,7 +447,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                       {selectedCustomer.full_name}
                     </CardTitle>
                     {user?.role === "STAFF" && otherStaffCustomerIds.has(selectedCustomer.id) && (
-                      <Badge variant="outline" className="text-amber-700 bg-amber-50 gap-1 px-2 py-0.5 text-[11px]">
+                      <Badge variant="outline" className="text-amber-700 bg-amber-50 gap-1 px-2 py-0.5 text-xs">
                         <Lock className="h-3 w-3" />
                         Thuộc KTV khác quản lý
                       </Badge>
@@ -468,6 +472,8 @@ export default function AdminCustomersPage(): React.ReactElement {
                   </Badge>
                 ) : (
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Link className="inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold" href={"/admin/bookings?customer_id=" + selectedCustomer.id}>Đặt lịch cho khách</Link>
+                    {user?.role === "ADMIN" && <Link className="inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold" href={"/admin/payments?customer_id=" + selectedCustomer.id}>Xem khoản cần thu</Link>}
                     <Button
                       variant="outline"
                       size="sm"
@@ -485,9 +491,11 @@ export default function AdminCustomersPage(): React.ReactElement {
               </CardHeader>
 
               <CardContent className="pt-4 space-y-3">
+                <CustomerVisits key={selectedCustomer.id} customerId={selectedCustomer.id} />
                 {servicesError && <div role="alert"><p>{servicesError}</p><Button variant="outline" onClick={() => void loadPackageServices()}>Thử tải lại danh mục thẻ</Button></div>}
                 {user?.role === "ADMIN" && (
                   <div className="space-y-2">
+                    {tenant && <RecoveryLink key={selectedCustomer.id} customerId={selectedCustomer.id} slug={tenant.slug} />}
                     <Label htmlFor="customerOwner">KTV phụ trách hồ sơ</Label>
                     <select id="customerOwner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}
                       className="h-11 min-w-0 w-full rounded-md border px-3 text-base sm:h-9 sm:text-sm">
@@ -558,7 +566,9 @@ export default function AdminCustomersPage(): React.ReactElement {
                           </div>
 
                           <div className="space-y-1">
-                            <div className="flex items-center justify-between text-xs">
+                            <p className="text-xs text-muted-foreground">Đã đặt trước: {pkg.reserved_sessions ?? 0} buổi · Các buổi đã đặt chưa được tính là đã dùng.</p>
+                            <PackageHistory key={pkg.id} id={pkg.id} />
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                               <span>
                                 Đã thực hiện:{" "}
                                 <strong>
@@ -567,7 +577,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                                 </strong>
                               </span>
                               <span className="font-semibold text-primary">
-                                Còn lại: {pkg.remaining_sessions} buổi
+                                Có thể đặt: {pkg.available_sessions ?? pkg.remaining_sessions} buổi
                               </span>
                             </div>
                             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -669,7 +679,7 @@ export default function AdminCustomersPage(): React.ReactElement {
         pending={savingPackage}
         dirty={pkgServiceId !== (packageServices[0]?.id || "") || pkgName !== (packageServices.find((svc) => svc.id === pkgServiceId)?.name || "") || pkgSessions !== (packageServices.find((svc) => svc.id === pkgServiceId)?.total_sessions || 10) || !!pkgExpiry}
         title={`Cấp thẻ liệu trình mới — ${issueTarget?.full_name ?? ""}`}
-        description="Chọn dịch vụ gói (is_package = true) để khởi tạo thẻ liệu trình cho khách."
+        description="Chọn gói liệu trình để cấp thẻ cho khách."
       >
         <form onSubmit={(e) => void handleIssuePackage(e)} className="space-y-4">
           {packageServices.length === 0 ? (
@@ -694,7 +704,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                       setPkgSessions(found.total_sessions);
                     }
                   }}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
                   required
                 >
                   {packageServices.map((svc) => (

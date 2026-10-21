@@ -8,7 +8,7 @@ export function apiErrorMessage(status: number, detail: unknown): string {
     : status === 429 ? "Bạn thao tác quá nhanh. Vui lòng chờ một chút rồi thử lại."
     : "Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.";
   if (status >= 500 || typeof detail !== "string") return fallback;
-  const message = detail.trim();
-  if (!/[À-ỹ]/.test(message) || /tenant|slug|jwt|token|vapid|rls|sql|database|traceback|exception|constraint|validation|value_error|uuid|deployment|backend|frontend|service.worker|ADMIN|STAFF|CUSTOMER|\bAPI\b/i.test(message)) return fallback;
+  const message = detail.trim().replace(/PENDING\/CONFIRMED/g, "đang chờ hoặc đã xác nhận");
+  if (!/[À-ỹ]/.test(message) || /start_time|end_time|customer_id|staff_id|service_id|is_package|PENDING|CONFIRMED|COMPLETED|IN_PROGRESS|CANCELLED|NO_SHOW|tenant|slug|jwt|token|vapid|rls|sql|database|traceback|exception|constraint|validation|value_error|uuid|deployment|backend|frontend|service.worker|ADMIN|STAFF|CUSTOMER|\bAPI\b/i.test(message)) return fallback;
   return message;
 }

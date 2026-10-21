@@ -1,5 +1,7 @@
 "use client";
 import * as React from "react";
+import { SpaLogo } from "@/components/spa-logo";
+import { Badge } from "@/components/ui/card";
 import { useBranchGuard } from "@/lib/branch-guard";
 import { useAdminAuth } from "@/components/admin/auth-context";
 import { createBranch, fetchStaffList, grantBranchStaff } from "@/lib/api";
@@ -8,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 
 export default function BranchesPage(): React.ReactElement {
-  const { user, tenant, branches, refreshMe } = useAdminAuth();
+  const { user, tenant, branches, refreshMe, changeBranch } = useAdminAuth();
+  const [createdBranch, setCreatedBranch] = React.useState<string | null>(() => typeof window === "undefined" ? null : sessionStorage.getItem("spaos_setup_branch_" + tenant?.id + "_" + user?.id));
   const [name, setName] = React.useState("");
   const [staff, setStaff] = React.useState<UserDetail[]>([]);
   const [staffId, setStaffId] = React.useState("");
@@ -25,18 +28,19 @@ export default function BranchesPage(): React.ReactElement {
       .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Không tải được nhân viên"); });
     return () => { cancelled = true; };
   }, [owner, tenant?.id]);
-  if (!owner) return <p role="alert">Bạn chưa thể quản lý chi nhánh. Vui lòng liên hệ chủ spa.</p>;
-  return <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]"><h1 className="text-xl font-bold">Quản lý chi nhánh</h1>
-    {error && <p role="alert" className="text-rose-700">{error}</p>}{message && <p role="status">{message}</p>}
+  if (!owner) return <p role="alert" className="feedback-error">Bạn chưa thể quản lý chi nhánh. Vui lòng liên hệ chủ spa.</p>;
+  return <div className="mx-auto max-w-4xl min-w-0 space-y-5 [overflow-wrap:anywhere]"><h1 className="text-xl font-bold">Quản lý chi nhánh</h1>
+    {error && <p role="alert" className="text-rose-700">{error}</p>}{message && <p role="status" className="feedback-success">{message}</p>}
     <section className="space-y-3 rounded-xl border bg-card p-4"><h2 className="font-bold">Các chi nhánh của bạn</h2>
-      {branches.map((b) => <div key={b.tenant.id} className="flex flex-wrap justify-between gap-2 border-b py-2"><span>{b.tenant.name}</span><a className="text-sm underline" href={"/" + b.tenant.slug} target="_blank" rel="noreferrer">Trang đặt lịch</a></div>)}
+      {branches.map((b) => <div key={b.tenant.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-muted/20 p-4"><div className="flex min-w-0 flex-1 items-center gap-3"><SpaLogo name={b.tenant.name} src={b.tenant.logo_url} /><div className="min-w-0"><p className="font-semibold [overflow-wrap:anywhere]">{b.tenant.name}</p>{b.tenant.id === tenant?.id && <Badge variant="secondary" className="mt-1">Đang làm việc</Badge>}</div></div><a className="action-link" href={"/" + b.tenant.slug} target="_blank" rel="noreferrer">Trang đặt lịch</a></div>)}
     </section>
     <form className="space-y-3 rounded-xl border bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
-      await createBranch(name); await refreshMe(); setName(""); setMessage("Đã tạo chi nhánh. Chọn chi nhánh trên thanh phía trên để thiết lập dịch vụ và nhân sự.");
+      const created = await createBranch(name); setCreatedBranch(created.tenant.id); sessionStorage.setItem("spaos_setup_branch_" + tenant?.id + "_" + user?.id, created.tenant.id); setName(""); await refreshMe(); setMessage("Đã tạo chi nhánh. Chọn chi nhánh trên thanh phía trên để thiết lập dịch vụ và nhân sự.");
     } catch (e) { setError(e instanceof Error ? e.message : "Không tạo được chi nhánh"); } finally { setBusy(false); } }}>
       <h2 className="font-bold">Thêm chi nhánh</h2><Label htmlFor="branchName">Tên chi nhánh</Label><Input id="branchName" required maxLength={255} value={name} disabled={busy} onChange={(e) => setName(e.target.value)} />
       <Button disabled={busy || !name.trim()} type="submit">Tạo chi nhánh</Button>
     </form>
+    {createdBranch && <section className="space-y-2 rounded-xl border bg-card p-4"><h2 className="font-bold">Bước tiếp theo: thiết lập chi nhánh mới</h2><p className="text-sm">Bổ sung địa chỉ, dịch vụ và ca làm rồi kiểm tra giờ trống trước khi chia sẻ cho khách.</p><Button disabled={busy || !!name || !!staffId || !!target} onClick={() => { void changeBranch(createdBranch).catch((e: unknown) => { setError(e instanceof Error ? e.message : "Chưa chuyển được chi nhánh"); setBusy(false); }); }}>Chuyển sang thiết lập chi nhánh mới</Button></section>}
     <form className="space-y-3 rounded-xl border bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
       await grantBranchStaff(target, staffId); setStaffId(""); setTarget(""); setMessage("Đã thêm nhân viên vào chi nhánh. Nhân viên tiếp tục dùng số điện thoại và mật khẩu hiện tại.");
     } catch (e) { setError(e instanceof Error ? e.message : "Không thêm được nhân viên vào chi nhánh"); } finally { setBusy(false); } }}>

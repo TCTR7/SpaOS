@@ -25,10 +25,10 @@ def test_customer_uses_own_package_and_sees_reservation(browser_instance, api_he
         expect(page.get_by_text("Có thể đặt thêm: 3 buổi", exact=True)).to_be_visible()
         page.get_by_role("link", name="Dùng 1 buổi trong thẻ").click()
         wizard = BookingWizardPage(page)
-        page.get_by_role("button", name="Tiếp tục", exact=True).click()
+        expect(page.locator("#wizDate")).to_be_visible()
         wizard.step2_choose_auto_assign_staff()
         wizard.step2_select_date_and_first_slot((date.today() + timedelta(days=8)).isoformat())
-        with page.expect_response(lambda r: r.url.endswith("/api/v1/bookings") and r.request.method == "POST") as response:
+        with page.expect_response(lambda r: r.url.endswith("/api/v1/booking-requests") and r.request.method == "POST") as response:
             wizard.step3_confirm_booking("PACKAGE_" + unique_suffix())
         assert response.value.status == 201, response.value.text()
         booking = response.value.json()

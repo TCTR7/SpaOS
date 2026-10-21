@@ -11,8 +11,9 @@ def test_cancel_releases_reserved_session(scenario):
     expect(page.get_by_text("Có thể đặt thêm: 0 buổi", exact=True)).to_be_visible()
     expect(page.get_by_role("link", name="Dùng 1 buổi trong thẻ")).to_have_count(0)
     page.goto(s["url"] + "/appointments")
+    page.get_by_role("button", name="Hủy lịch", exact=True).click()
     with page.expect_response(lambda r: r.url.endswith("/" + booking["id"] + "/cancel")) as response:
-        page.get_by_role("button", name="Hủy lịch", exact=True).click()
+        page.get_by_role("button", name="Xác nhận hủy lịch", exact=True).click()
     assert response.value.status == 200
     expect(page.get_by_text("Bạn chưa có lịch hẹn nào sắp diễn ra.", exact=True)).to_be_visible()
     page.get_by_role("button", name="Lịch sử", exact=True).click()
@@ -51,7 +52,7 @@ def test_package_load_error_is_visible_and_recovers(scenario):
     pattern = "**/api/v1/customer-packages/me"
     page.route(pattern, lambda route: route.fulfill(status=503, json={"detail": "QA temporarily unavailable"}))
     page.goto(s["url"] + "/profile")
-    expect(page.get_by_role("main").get_by_role("alert").get_by_text("QA temporarily unavailable", exact=True)).to_be_visible()
+    expect(page.get_by_role("main").get_by_role("alert").get_by_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     expect(page.get_by_text("QA One Session", exact=True)).to_have_count(0)
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại thẻ", exact=True).click()
@@ -156,7 +157,7 @@ def test_slot_taken_before_confirmation_shows_conflict(scenario, api_helper):
     page.get_by_role("button", name="Tiếp tục", exact=True).click()
     rival = api_helper.create_booking(s["token"], start, [{"service_id": s["service"]["id"]}])
     try:
-        with page.expect_response(lambda r: r.url.endswith("/bookings") and r.request.method == "POST") as response:
+        with page.expect_response(lambda r: r.url.endswith("/booking-requests") and r.request.method == "POST") as response:
             wizard.step3_confirm_booking("QA stale slot")
         assert response.value.status == 409
         expect(page.get_by_text(response.value.json()["detail"], exact=True)).to_be_visible()

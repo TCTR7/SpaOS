@@ -113,3 +113,14 @@ Operator cấu hình màu HEX cấp deployment, chung mọi chi nhánh. Cấu h�
 
 ### Thông báo lịch được giao — 21/10/2026
 Theo chỉ thị PO triển khai thông báo: KTV thực hiện được đọc chính lịch đang được giao và nhận thông báo liên quan; không tự chuyển người phụ trách khách, không mở quyền hồ sơ/thẻ hoặc sửa lịch. Đây là ngoại lệ quyền chỉ đọc lịch so với quy định cũ; mọi kiểm tra chi nhánh/tenant và RLS giữ nguyên. Admin/Staff tạo lịch thành công gửi thông báo cho tài khoản khách tương ứng.
+
+
+### Phê duyệt cải thiện UX — 21/10/2026
+PO cho phép triển khai theo UX_ROLE_REVIEW. Ưu tiên luồng ba nhóm người dùng trên kiến trúc hiện hành. PO chốt nhân viên chỉ được giao thực hiện tiếp tục chỉ xem lịch; chủ spa/người phụ trách hồ sơ xác nhận trạng thái. Cải thiện giao diện không tự mở CRM, hợp nhất danh tính hay quyền thu ngân. Trạng thái từng phần và kiểm chứng ghi trong UX_ROLE_REVIEW/PROGRESS.
+
+
+### Quyết định UX bổ sung của PO — 21/10/2026
+
+PO yêu cầu hoàn thiện backlog UX. NV-08 giữ nguyên quyền STAFF, chưa thêm lễ tân/thu ngân. NV-07 dùng ghi chú bàn giao riêng từng lịch, chủ spa/người phụ trách được ghi; người đang được giao lịch chỉ đọc, không tự sao chép ghi chú sức khỏe. KH-07 spa xác minh khách rồi cấp liên kết dùng một lần để khách tự đặt mật khẩu; chưa tích hợp SMS OTP. Triển khai đang kiểm chứng, không coi quyết định này là bằng chứng đã nghiệm thu thiết bị/pilot.
+
+Tài khoản quản trị chung được sửa thông tin qua luồng xác minh mật khẩu: chủ spa chỉ sửa tài khoản nhân viên nếu có quyền chủ ở toàn bộ các chi nhánh của tài khoản đó; người dùng tự đổi bằng mật khẩu hiện tại. Không hợp nhất tài khoản theo SĐT. Mỗi bản ghi users được cập nhật trong tenant context tương ứng, thu hồi phiên cũ bằng auth_version; login_accounts tiếp tục RLS danh tính cấp deployment.

@@ -13,5 +13,6 @@ def test_admin_create_staff_and_save_7day_schedules(admin_page: Page) -> None:
     staff_page.add_staff(staff_name, phone, notes="KTV kiểm thử E2E")
     staff_page.wait_for_text(staff_name)
 
+    admin_page.get_by_label("Giờ bắt đầu Thứ 2", exact=True).fill("08:30")
     staff_page.save_week_schedule()
     staff_page.wait_for_text(f"Đã lưu lịch làm việc 7 ngày trong tuần cho KTV {staff_name}")

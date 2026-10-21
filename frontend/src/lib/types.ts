@@ -17,6 +17,8 @@ export interface TokenResponse {
 }
 
 export interface TenantInfo {
+  address?: string | null;
+  contact_phone?: string | null;
   id: string;
   slug: string;
   name: string;
@@ -45,6 +47,8 @@ export interface ServiceItem {
 }
 
 export interface PublicTenantResponse {
+  address?: string | null;
+  contact_phone?: string | null;
   id: string;
   slug: string;
   name: string;
@@ -81,6 +85,8 @@ export interface StaffScheduleItem {
 export type PackageStatus = "ACTIVE" | "COMPLETED" | "EXPIRED";
 
 export interface CustomerPackageItem {
+  reserved_sessions?: number;
+  available_sessions?: number;
   purchase_price?: string | null;
   id: string;
   tenant_id: string;

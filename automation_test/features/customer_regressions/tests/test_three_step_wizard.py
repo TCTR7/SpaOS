@@ -75,7 +75,7 @@ def test_package_confirmation_cannot_double_submit_or_leave_while_pending(scenar
             page.evaluate("window.qaBookingHeld = true")
         else:
             route.continue_()
-    page.route("**/api/v1/bookings", hold)
+    page.route("**/api/v1/booking-requests", hold)
     submit = page.get_by_role("button", name="Xác nhận Đặt lịch", exact=True)
     submit.evaluate("button => { button.click(); button.click(); }")
     page.wait_for_function("window.qaBookingHeld === true")
@@ -83,10 +83,10 @@ def test_package_confirmation_cannot_double_submit_or_leave_while_pending(scenar
     expect(page.get_by_role("button", name="Quay lại", exact=True)).to_be_disabled()
     expect(page.get_by_role("navigation", name="Các bước đặt lịch").get_by_role("button").first).to_be_disabled()
     assert len(held) == 1
-    with page.expect_response(lambda r: r.url.endswith("/bookings") and r.request.method == "POST") as response:
+    with page.expect_response(lambda r: r.url.endswith("/booking-requests") and r.request.method == "POST") as response:
         held[0].fulfill(response=held[0].fetch())
     assert response.value.status == 201
-    page.wait_for_url("**/appointments?booked=1")
+    page.wait_for_url("**/appointments?booked=1&booking_id=*")
     bookings = s["call"]("GET", "/bookings")
     assert len(bookings) == 1
     assert bookings[0]["items"][0]["customer_package_id"] == s["package"]["id"]

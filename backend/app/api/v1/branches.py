@@ -33,7 +33,7 @@ async def authorized_branches(db, user):
 async def public_branches(db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(select(Tenant).where(Tenant.status == "ACTIVE").order_by(Tenant.name, Tenant.id))).scalars().all()
     return {"brand_name": settings.BRAND_NAME,
-            "branches": [{"id": row.id, "name": row.name, "slug": row.slug} for row in rows]}
+            "branches": [{"id": row.id, "name": row.name, "slug": row.slug, "address": row.address, "contact_phone": row.contact_phone} for row in rows]}
 
 @router.get("/branches", response_model=list[BranchOut])
 async def list_branches(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_tenant_db)):

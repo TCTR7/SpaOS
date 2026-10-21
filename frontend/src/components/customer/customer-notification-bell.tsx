@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { NotificationBookingLink } from "@/components/notification-booking-link";
 import { useNotificationFeed } from "@/lib/use-notification-feed";
 import {
   Bell,
@@ -124,7 +125,7 @@ export function CustomerNotificationBell({
         )}
         {unreadCount > 0 && (
           <span
-            className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+            className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-xs font-bold text-white"
             style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
           >
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -155,7 +156,7 @@ export function CustomerNotificationBell({
                 <button
                   type="button"
                   disabled={readBusy} onClick={() => void handleMarkAllRead()}
-                  className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold"
+                  className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold"
                   style={{ color: "var(--brand-text)" }}
                 >
                   <CheckCheck className="h-3 w-3" />
@@ -165,17 +166,18 @@ export function CustomerNotificationBell({
             </div>
           </div>
 
+          {!pushSupported && <p className="px-4 py-3 text-xs text-muted-foreground">Thiết bị này chưa bật được thông báo. Bạn vẫn có thể xem thông báo tại đây. Trên iPhone, hãy thêm ứng dụng vào màn hình chính rồi mở lại để kiểm tra.</p>}
           {pushSupported && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2">
-              <span className="flex items-center gap-1.5 text-[11px] text-slate-700">
+              <span className="flex items-center gap-1.5 text-xs text-slate-700">
                 <Radio
                   className={cn(
                     "h-3.5 w-3.5",
                     pushSubscribed ? "text-emerald-600" : "text-slate-400"
                   )}
                 />
-                Nhắc lịch tự động:{" "}
-                <strong>{pushSubscribed ? "Bật" : "Tắt"}</strong>
+                Thông báo trên thiết bị:{" "}
+                <strong>{pushSubscribed ? "Đang bật" : "Chưa bật"}</strong>
               </span>
               {pushSubscribed ? (
                 <Button
@@ -199,8 +201,9 @@ export function CustomerNotificationBell({
             </div>
           )}
 
+          {pushSupported && !pushSubscribed && typeof Notification !== "undefined" && Notification.permission === "denied" && <p className="px-4 py-2 text-xs">Thông báo đang bị chặn. Mở cài đặt thông báo của trình duyệt cho trang này để cho phép, rồi thử bật lại.</p>}
           {pushMsg && (
-            <div className="border-b border-border bg-accent/50 px-3.5 py-1.5 text-[11px] text-accent-foreground">
+            <div className="border-b border-border bg-accent/50 px-3.5 py-1.5 text-xs text-accent-foreground">
               {pushMsg}
             </div>
           )}
@@ -224,9 +227,10 @@ export function CustomerNotificationBell({
                       {item.title}
                     </p>
                     <p className="text-slate-600">{item.body}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {formatDateTimeVN(item.created_at)}
                     </p>
+                    {item.booking_id && <NotificationBookingLink bookingId={item.booking_id} slug={slug} disabled={pushBusy} />}
                   </div>
                   {!item.is_read && (
                     <button

@@ -25,7 +25,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _token_response(user: User) -> TokenResponse:
     return TokenResponse(
-        access_token=create_access_token(user.id, user.tenant_id, user.role.value),
+        access_token=create_access_token(user.id, user.tenant_id, user.role.value, user.auth_version),
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserOut.model_validate(user),
     )

@@ -42,7 +42,7 @@ async def get_optional_tenant_ctx(
             user = (
                 await session.execute(select(User).where(User.id == user_id, User.tenant_id == tenant_id))
             ).scalar_one_or_none()
-            if user is None or not user.is_active:
+            if user is None or not user.is_active or user.auth_version != payload.get("ver", 0):
                 logger.warning("Booking authentication user missing or inactive within tenant context")
                 raise _UNAUTHORIZED
             if user.role in (UserRole.ADMIN, UserRole.STAFF):

@@ -292,3 +292,7 @@ export async function markCustomerNotificationRead(
 export function rescheduleCustomerBooking(slug: string, id: string, payload: { start_time: string; staff_id: string | null; note: string | null }): Promise<BookingRecord> {
   return customerApiRequest<BookingRecord>(`/bookings/${id}`, { method: "PATCH", slug, body: payload, requireAuth: true });
 }
+
+export function fetchCustomerBookingDetail(slug: string, id: string): Promise<BookingRecord> {
+  return customerApiRequest<BookingRecord>(`/bookings/${encodeURIComponent(id)}`, { slug, requireAuth: true });
+}

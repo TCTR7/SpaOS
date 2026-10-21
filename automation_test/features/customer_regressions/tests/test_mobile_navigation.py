@@ -29,7 +29,7 @@ def test_admin_navigation_more_history_and_content_clearance(scenario, width, he
     expect(modal).to_be_visible()
     links = modal.get_by_role("link")
     assert set(links.evaluate_all("es=>es.map(e=>e.getAttribute('href'))")) == {
-        "/admin/services", "/admin/staff", "/admin/reports", "/admin/settings", "/admin/branches"}
+        "/admin/services", "/admin/staff", "/admin/reports", "/admin/settings", "/admin/branches", "/admin/account"}
     page.evaluate("history.back()")
     expect(modal).to_have_count(0)
     expect(more).to_be_focused()
@@ -43,8 +43,8 @@ def test_admin_navigation_more_history_and_content_clearance(scenario, width, he
     expect(modal).to_have_count(0)
     nav.get_by_role("link", name="Lịch hẹn", exact=True).click()
     expect(nav.get_by_role("link", name="Lịch hẹn", exact=True)).to_have_attribute("aria-current", "page")
-    page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True).click()
-    form = page.get_by_role("dialog", name="Tạo lịch hẹn thủ công tại quầy", exact=True)
+    page.get_by_role("button", name="Tạo lịch hẹn", exact=True).click()
+    form = page.get_by_role("dialog", name="Tạo lịch hẹn tại quầy", exact=True)
     expect(form).to_be_visible()
     # Native modal keeps bottom navigation inert and its footer operable.
     nav.get_by_role("link").first.evaluate("e=>e.focus()")
@@ -62,8 +62,8 @@ def test_staff_only_authorized_navigation(scenario, api_helper):
     assert nav.get_by_role("link").evaluate_all("es=>es.map(e=>e.getAttribute('href'))") == ["/admin/bookings", "/admin/customers"]
     nav.get_by_role("button", name="Thêm", exact=True).click()
     modal = page.get_by_role("dialog", name="Thêm", exact=True)
-    expect(modal.get_by_role("link")).to_have_count(1)
-    expect(modal.get_by_role("link")).to_have_attribute("href", "/admin/services")
+    expect(modal.get_by_role("link")).to_have_count(3)
+    assert set(modal.get_by_role("link").evaluate_all("es=>es.map(e=>e.getAttribute('href'))")) == {"/admin/services", "/admin/work-hours", "/admin/account"}
 
 
 def test_more_escape_resize_and_desktop_navigation(scenario):
@@ -79,7 +79,7 @@ def test_more_escape_resize_and_desktop_navigation(scenario):
     page.set_viewport_size({"width": 844, "height": 390})
     expect(modal).to_have_count(0)
     expect(nav).to_be_hidden()
-    expect(page.locator("aside").get_by_role("link")).to_have_count(9)
+    expect(page.locator("aside").get_by_role("link")).to_have_count(10)
     expect(page.locator("aside").get_by_role("link", name="Danh mục Dịch vụ", exact=True)).to_have_attribute("aria-current", "page")
     page.set_viewport_size({"width": 390, "height": 844})
     expect(more).to_be_visible()

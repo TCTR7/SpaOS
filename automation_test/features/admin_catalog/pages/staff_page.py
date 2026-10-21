@@ -11,7 +11,7 @@ class AdminStaffPage(BasePage):
 
     def open(self) -> None:
         self.navigate("/admin/staff")
-        self.wait_for_text("Nhân sự Kỹ thuật viên & Ca làm việc")
+        self.wait_for_text("Nhân viên và lịch làm việc")
 
     def add_staff(
         self, full_name: str, phone: str, password: str = "Staff@123", notes: str = ""

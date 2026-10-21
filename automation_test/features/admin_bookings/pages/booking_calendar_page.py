@@ -12,7 +12,7 @@ class AdminBookingCalendarPage(BasePage):
         with self.page.expect_response(lambda r: "/api/v1/bookings?" in r.url and r.request.method == "GET") as response:
             self.navigate("/admin/bookings")
         assert response.value.status == 200
-        self.wait_for_text("Lịch hẹn & Điều phối Kỹ thuật viên")
+        expect(self.page.get_by_role("heading", name="Lịch hẹn", exact=True)).to_be_visible()
 
     def select_date(self, date_iso: str) -> None:
         date_input = self.page.locator(self.DATE_INPUT).first
@@ -32,7 +32,7 @@ class AdminBookingCalendarPage(BasePage):
             card.get_by_role("button", name="Chi tiết lịch hẹn", exact=True).click()
             card = self.page.get_by_role("dialog")
         btn = card.get_by_role("button", name=button_label)
-        if button_label in ("→ Hoàn thành", "→ Đã hủy", "→ Vắng mặt"):
+        if button_label in ("Hoàn thành buổi", "Hủy lịch", "Khách không đến"):
             btn.click()
             confirmation = self.page.get_by_role("button", name="Xác nhận đổi trạng thái", exact=True)
             with self.page.expect_response(lambda r: r.url.endswith("/status") and r.request.method == "PATCH") as response:

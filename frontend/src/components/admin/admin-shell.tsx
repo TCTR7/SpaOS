@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { SpaLogo } from "@/components/spa-logo";
+import { NetworkStatus } from "@/components/network-status";
 import { useBrandColor } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
 import Link from "next/link";
@@ -32,6 +34,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/admin/work-hours", label: "Ca làm của tôi", icon: CalendarDays, roles: ["STAFF"] },
+  { href: "/admin/account", label: "Tài khoản của tôi", icon: UserCheck, roles: ["ADMIN", "STAFF"] },
   { href: "/admin/dashboard", label: "Tổng quan", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/admin/branches", label: "Chi nhánh", icon: Users, roles: ["ADMIN"] },
   { href: "/admin/payments", label: "Thu tiền", icon: Wallet, roles: ["ADMIN"] },
@@ -67,7 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/admin/settings",
-    label: "Cấu hình Spa",
+    label: "Cài đặt spa",
     icon: Settings,
     roles: ["ADMIN"],
   },
@@ -171,23 +175,9 @@ function AdminShellContent({
     <div className="flex min-h-screen bg-background text-foreground" style={brandStyle(brandColor)}>
       {/* Sidebar Desktop */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
-        <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm"
-            style={{
-              backgroundColor: brandColor, color: "var(--brand-foreground)",
-            }}
-          >
-            {tenant.name.slice(0, 1).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-foreground">
-              {tenant.name}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              Chi nhánh đang làm việc
-            </p>
-          </div>
+        <div className="flex min-h-24 items-center gap-3 border-b border-border px-4 py-4">
+          <SpaLogo key={tenant.id} name={tenant.name} src={tenant.logo_url} />
+          <div className="min-w-0 flex-1"><p className="text-base font-bold leading-snug [overflow-wrap:anywhere]">{tenant.name}</p><p className="mt-1 text-xs text-muted-foreground">Chi nhánh đang làm việc</p></div>
         </div>
 
         <nav className="flex-1 space-y-1 p-3">
@@ -220,7 +210,7 @@ function AdminShellContent({
               <p className="truncate text-xs font-semibold text-foreground">
                 {user.full_name}
               </p>
-              <p className="truncate text-[11px] text-muted-foreground">
+              <p className="truncate text-xs text-muted-foreground">
                 {user.phone_number}
               </p>
             </div>
@@ -241,7 +231,8 @@ function AdminShellContent({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/90 px-4 backdrop-blur md:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <SpaLogo key={tenant.id} name={tenant.name} src={tenant.logo_url} className="h-10 w-10 rounded-xl md:hidden" />
             <div className="min-w-0">
               <label className="sr-only" htmlFor="activeBranch">Chi nhánh đang làm việc</label>
               <select id="activeBranch" className="h-11 w-full max-w-[210px] min-w-0 rounded-md border bg-background px-2 text-sm" disabled={branchBusy}
@@ -264,6 +255,7 @@ function AdminShellContent({
             </div>
           </div>
         </header>
+        <NetworkStatus />
 
         <Modal open={requestedBranch !== null} title="Bỏ thay đổi chưa lưu?"
           onClose={() => { if (!branchBusy) setRequestedBranch(null); }}>

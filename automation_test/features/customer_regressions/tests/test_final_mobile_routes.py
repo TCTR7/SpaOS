@@ -53,7 +53,7 @@ def test_dashboard_scoped_actions_metrics_error_retry_and_read_only_all(scenario
     pattern = "**/api/v1/dashboard?*"
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "QA dashboard unavailable"}))
     page.goto(config.frontend_url + "/admin/dashboard")
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA dashboard unavailable")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại tổng quan", exact=True).click()
     metrics = page.get_by_test_id("branch-dashboard")
@@ -65,7 +65,7 @@ def test_dashboard_scoped_actions_metrics_error_retry_and_read_only_all(scenario
     page.get_by_role("link", name="Xem tất cả chi nhánh", exact=True).click()
     expect(page.get_by_role("heading", name="Tổng quan tất cả chi nhánh", exact=True)).to_be_visible()
     expect(actions).to_have_count(0)
-    expect(page.get_by_role("status").filter(has_text="chỉ xem")).to_be_visible()
+    expect(page.get_by_role("status").filter(has_text="Đang xem tổng hợp")).to_be_visible()
     expect(page.get_by_role("link", name="Thu tiền chi nhánh hiện tại", exact=True)).to_have_count(0)
     fits(page)
     page.get_by_role("link", name="Tổng quan", exact=True).click()
@@ -103,7 +103,7 @@ def test_remaining_public_auth_and_admin_routes_long_errors_labels(scenario, wid
         page.locator("#" + phone).fill("0901234567")
         page.locator("#" + password).fill("NeverLogged@123")
         page.get_by_role("button", name=submit, exact=True).click()
-        expect(page.get_by_role("alert").filter(has_text=detail)).to_be_visible()
+        expect(page.get_by_role("alert").filter(has_text="Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")).to_be_visible()
         fits(page)
         if path == "/admin/login":
             expect(page.locator('a[href="/admin/register-tenant"]')).to_have_count(0)
@@ -131,7 +131,7 @@ def test_settings_failed_load_cannot_save_defaults_and_retry_recovers(scenario):
     pattern = "**/api/v1/tenants/me"
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "QA settings unavailable"}))
     page.goto(config.frontend_url + "/admin/settings")
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA settings unavailable")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     expect(page.get_by_role("button", name="Lưu thay đổi", exact=True)).to_be_disabled()
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại cấu hình", exact=True).click()

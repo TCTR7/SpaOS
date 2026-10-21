@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { ProfileEditor } from "@/components/customer/profile-editor";
+import { PackageHistory } from "@/components/package-history";
+import { customerAuthHref } from "@/lib/customer-return-to";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -67,15 +70,15 @@ export default function CustomerProfilePage(): React.ReactElement | null {
           </p>
           <div className="flex justify-center gap-2">
             <Link
-              href={`/${slug}/login`}
-              className="inline-flex h-9 items-center justify-center rounded-xl px-5 text-xs font-bold text-white shadow"
+              href={customerAuthHref(slug, "login", `/${slug}/profile`)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-xs font-bold text-white shadow"
               style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
             >
               Đăng nhập
             </Link>
             <Link
-              href={`/${slug}/register`}
-              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-card px-5 text-xs font-semibold text-foreground"
+              href={customerAuthHref(slug, "register", `/${slug}/profile`)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-card px-5 text-xs font-semibold text-foreground"
             >
               Đăng ký
             </Link>
@@ -94,7 +97,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
         <CardContent className="p-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white font-bold text-base shadow-xs"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white font-bold text-base shadow-sm"
               style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
             >
               {user.full_name.slice(0, 1).toUpperCase()}
@@ -126,6 +129,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
         </CardContent>
       </Card>
 
+      <ProfileEditor key={user.id} />
       {/* Treatment Packages Section */}
       <div className="grid min-w-0 gap-3 md:grid-cols-2">
         <div className="space-y-2 md:col-span-2">
@@ -181,7 +185,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                       <p className="text-sm font-bold text-foreground">
                         {pkg.package_name}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Ngày mở thẻ: {formatDateTimeVN(pkg.created_at)}
                         {pkg.expiry_date &&
                           ` • Hạn dùng: ${formatDateTimeVN(pkg.expiry_date)}`}
@@ -226,11 +230,12 @@ export default function CustomerProfilePage(): React.ReactElement | null {
                   {held && (
                     <p className="text-xs text-muted-foreground">Các buổi còn lại đã được đặt lịch. Xem mục Lịch hẹn để kiểm tra hoặc thay đổi.</p>
                   )}
+                  <PackageHistory key={pkg.id} id={pkg.id} slug={slug} />
                   {canBookWithPkg && (
                     <div className="flex justify-end pt-1">
                       <Link
                         href={`/${slug}/book?service_id=${pkg.service_id}&package_id=${pkg.id}`}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold text-white shadow-xs"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold text-white shadow-sm"
                         style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
                       >
                         <CalendarPlus className="h-3.5 w-3.5" />

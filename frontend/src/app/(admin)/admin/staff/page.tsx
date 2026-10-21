@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { DateOverrides } from "@/components/admin/date-overrides";
+import { CredentialForm } from "@/components/credential-form";
 import { useBranchGuard } from "@/lib/branch-guard";
 import { useListDetail } from "@/lib/use-list-detail";
 import { CalendarClock, Edit2, Plus, Save, UserCheck } from "lucide-react";
@@ -38,6 +40,9 @@ function buildDefaultWeekSchedules(): StaffScheduleItem[] {
 
 export default function AdminStaffPage(): React.ReactElement {
   const detail = useListDetail();
+  const [accountDirty, setAccountDirty] = React.useState(false);
+  const [accountBusy, setAccountBusy] = React.useState(false);
+  const [dateDirty, setDateDirty] = React.useState(false), [dateBusy, setDateBusy] = React.useState(false);
   const staffRequest = React.useRef(0);
   const selectedId = React.useRef<string | null>(null);
   const [schedError, setSchedError] = React.useState<string | null>(null);
@@ -77,6 +82,7 @@ export default function AdminStaffPage(): React.ReactElement {
     try {
       const list = await fetchStaffList();
       setStaffList(list);
+      if (selectedStaff) setSelectedStaff((current) => list.find((row) => row.id === current?.id) || null);
       if (list.length > 0 && !selectedStaff) {
         setSchedLoading(true);
         setSelectedStaff(list[0]);
@@ -164,13 +170,10 @@ export default function AdminStaffPage(): React.ReactElement {
           is_active: boolean;
         }> = {
           full_name: fullName.trim(),
-          phone_number: phoneNumber.trim(),
           notes: notes.trim() || null,
           is_active: isActive,
         };
-        if (password.trim()) {
-          payload.password = password.trim();
-        }
+
         const updated = await updateStaff(editingStaff.id, payload);
         setStaffList((prev) =>
           prev.map((s) => (s.id === updated.id ? updated : s))
@@ -302,9 +305,9 @@ export default function AdminStaffPage(): React.ReactElement {
                         : "border-border hover:bg-muted/50"
                     )}
                   >
-                    <button type="button" aria-pressed={active} disabled={savingSched}
+                    <button type="button" aria-pressed={active} disabled={savingSched || accountBusy || dateBusy}
                       onClick={(event) => {
-                        if (schedDirty && selectedStaff?.id !== st.id) setPendingStaff(st);
+                        if ((schedDirty || accountDirty || dateDirty) && selectedStaff?.id !== st.id) setPendingStaff(st);
                         else { if (selectedStaff?.id !== st.id) { setSchedules([]); setSchedLoading(true); } setSelectedStaff(st); detail.open(event.currentTarget); }
                       }} className="min-w-0 flex-1 py-1 text-left">
                       <div className="flex flex-wrap items-center gap-2">
@@ -312,20 +315,21 @@ export default function AdminStaffPage(): React.ReactElement {
                           {st.full_name}
                         </p>
                         <Badge variant={st.is_active ? "success" : "outline"}>
-                          {st.is_active ? "Active" : "Ngưng"}
+                          {st.is_active ? "Đang làm việc" : "Ngưng làm việc"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         SĐT: {st.phone_number}
                       </p>
                       {st.notes && (
-                        <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-600">
+                        <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
                           {st.notes}
                         </p>
                       )}
                     </button>
                     <Button
                       variant="ghost"
+                      aria-label={`Sửa thông tin ${st.full_name}`}
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -361,7 +365,7 @@ export default function AdminStaffPage(): React.ReactElement {
                   </CardTitle>
                   <CardDescription>
                     Hệ thống dùng ca làm việc này kết hợp với giờ mở cửa của Spa
-                    để tính khung giờ trống (Available Slots).
+                    để xác định giờ có thể nhận khách.
                   </CardDescription>
                 </div>
                 <Button
@@ -383,6 +387,16 @@ export default function AdminStaffPage(): React.ReactElement {
                   <div role="alert"><p>{schedError}</p><Button variant="outline" onClick={() => void loadSchedulesForStaff(selectedStaff.id)}>Thử tải lại ca làm</Button></div>
                 ) : (
                   <div className="space-y-2.5">
+                    <details className="rounded-lg border p-3">
+                      <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Sao chép giờ làm cho cả tuần</summary>
+                      <p className="mb-2 text-xs text-muted-foreground">Sao chép giờ từ Thứ 2; giữ nguyên các ngày nghỉ. Kiểm tra từng ngày rồi nhấn Lưu lịch tuần.</p>
+                      <Button type="button" variant="outline" disabled={savingSched} onClick={() => {
+                        const source = schedules.find((item) => item.day_of_week === 1);
+                        if (!source) return;
+                        setSchedules((previous) => previous.map((item) => ({ ...item, start_time: source.start_time, end_time: source.end_time })));
+                        setSchedDirty(true);
+                      }}>Áp dụng giờ Thứ 2 cho các ngày</Button>
+                    </details>
                     {schedules.map((s) => (
                       <div
                         key={s.day_of_week}
@@ -400,6 +414,7 @@ export default function AdminStaffPage(): React.ReactElement {
                         <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto">
                           <Input
                             type="time"
+                            aria-label={`Giờ bắt đầu ${DAY_OF_WEEK_LABELS[s.day_of_week]}`}
                             value={s.start_time.slice(0, 5)}
                             disabled={s.is_day_off || savingSched}
                             onChange={(e) =>
@@ -414,6 +429,7 @@ export default function AdminStaffPage(): React.ReactElement {
                           </span>
                           <Input
                             type="time"
+                            aria-label={`Giờ kết thúc ${DAY_OF_WEEK_LABELS[s.day_of_week]}`}
                             value={s.end_time.slice(0, 5)}
                             disabled={s.is_day_off || savingSched}
                             onChange={(e) =>
@@ -437,7 +453,7 @@ export default function AdminStaffPage(): React.ReactElement {
                             }
                             className="h-4 w-4 accent-primary"
                           />
-                          <span>Ngày nghỉ phép (Day-off)</span>
+                          <span>Nghỉ hằng tuần</span>
                         </label>
                       </div>
                     ))}
@@ -449,9 +465,13 @@ export default function AdminStaffPage(): React.ReactElement {
         </Card>
       </div>
 
+      {selectedStaff && detail.detailOpen && <div className="ml-auto w-full max-w-2xl space-y-4">
+        <DateOverrides key={selectedStaff.id + ":dates"} staffId={selectedStaff.id} onBusyChange={setDateBusy} onDirtyChange={setDateDirty} />
+        <CredentialForm key={selectedStaff.id + ":account"} staffId={selectedStaff.id} phone={selectedStaff.phone_number} onSaved={() => void loadStaff()} onBusyChange={setAccountBusy} onDirtyChange={setAccountDirty} />
+      </div>}
       {/* Add / Edit Staff Modal */}
-      <Modal open={!!pendingStaff} onClose={() => setPendingStaff(null)} title="Bỏ thay đổi ca làm chưa lưu?">
-        <p>Đổi KTV sẽ bỏ các thay đổi ca làm chưa lưu.</p>
+      <Modal open={!!pendingStaff} onClose={() => setPendingStaff(null)} title="Bỏ thay đổi chưa lưu?">
+        <p>Đổi nhân viên sẽ bỏ các thay đổi chưa lưu.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setPendingStaff(null)}>Tiếp tục chỉnh sửa</Button>
           <Button onClick={() => { setSelectedStaff(pendingStaff); setSchedules([]); setSchedLoading(true); setSchedDirty(false); setPendingStaff(null); detail.open(); }}>Bỏ thay đổi và chọn KTV</Button>
@@ -483,7 +503,7 @@ export default function AdminStaffPage(): React.ReactElement {
           <div className="space-y-1.5">
             <Label htmlFor="stPhone">Số điện thoại đăng nhập</Label>
             <Input
-              id="stPhone"
+              id="stPhone" readOnly={Boolean(editingStaff)}
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               placeholder="0900000015"
@@ -494,11 +514,11 @@ export default function AdminStaffPage(): React.ReactElement {
           <div className="space-y-1.5">
             <Label htmlFor="stPwd">
               {editingStaff
-                ? "Mật khẩu mới (Để trống nếu giữ nguyên)"
+                ? "Đổi mật khẩu ở mục Tài khoản đăng nhập bên dưới lịch làm"
                 : "Mật khẩu đăng nhập (>= 6 ký tự)"}
             </Label>
             <Input
-              id="stPwd"
+              id="stPwd" disabled={Boolean(editingStaff)}
               type="password"
               minLength={6}
               value={password}

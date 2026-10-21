@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useRefreshOnReturn } from "@/lib/use-refresh-on-return";
+import { customerAuthHref } from "@/lib/customer-return-to";
 import { useAvailableSlots } from "@/lib/use-available-slots";
+import { CalendarDownload } from "@/components/customer/calendar-download";
 import { ReschedulePreview } from "@/components/reschedule-preview";
 import { ApiError } from "@/lib/api";
 import Link from "next/link";
@@ -16,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   cancelCustomerBooking,
+  fetchCustomerBookingDetail,
   rescheduleCustomerBooking,
   fetchCustomerBookingPage,
 } from "@/lib/customer-api";
@@ -48,10 +52,29 @@ function AppointmentsInner(): React.ReactElement | null {
   listRef.current = list;
   const bookings = list.scope === listScope ? list.rows : [];
   const loading = list.scope !== listScope || list.loading;
+  const [cancelTarget, setCancelTarget] = React.useState<BookingRecord | null>(null);
+  const cancelFlight = React.useRef(false);
+  const mutationIdentity = JSON.stringify([slug, user?.id]);
+  const liveIdentity = React.useRef(mutationIdentity);
+  liveIdentity.current = mutationIdentity;
+  React.useEffect(() => { setCancelTarget(null); setRescheduleTarget(null); }, [mutationIdentity]);
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [justBooked, setJustBooked] = React.useState<boolean>(false);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+
+  const [lastUpdated, setLastUpdated] = React.useState(0);
+  const [linkedBooking, setLinkedBooking] = React.useState<BookingRecord | null>(null);
+  const [linkedError, setLinkedError] = React.useState("");
+  React.useEffect(() => {
+    const id = searchParams.get("booking_id");
+    setLinkedBooking(null); setLinkedError("");
+    if (!id || !user) return;
+    let cancelled = false;
+    void fetchCustomerBookingDetail(slug, id).then((booking) => { if (!cancelled) setLinkedBooking(booking); })
+      .catch(() => { if (!cancelled) setLinkedError("Không mở được lịch hẹn này. Hãy làm mới danh sách hoặc liên hệ spa."); });
+    return () => { cancelled = true; };
+  }, [slug, user?.id, searchParams, lastUpdated]);
 
   // Reschedule Modal State
   const [rescheduleTarget, setRescheduleTarget] =
@@ -87,6 +110,7 @@ function AppointmentsInner(): React.ReactElement | null {
     try {
       const data = await fetchCustomerBookingPage(slug, scope, offset);
       if (request !== listRequest.current || liveScope.current !== listScope) return;
+      setLastUpdated(Date.now());
       setList((value) => ({ scope: listScope, rows: Array.from(new Map([
         ...(append && value.scope === listScope ? value.rows : []), ...data.items,
       ].map((booking) => [booking.id, booking])).values()), loading: false, nextOffset: data.nextOffset, moreLoading: false, moreError: null }));
@@ -109,6 +133,7 @@ function AppointmentsInner(): React.ReactElement | null {
     }
     return () => { listRequest.current += 1; };
   }, [user, authLoading, loadBookings]);
+  useRefreshOnReturn(() => void loadBookings(), !cancellingId && !rescheduleTarget && !cancelTarget);
   const latestLoad = React.useRef(loadBookings);
   React.useLayoutEffect(() => { latestLoad.current = loadBookings; }, [loadBookings]);
 
@@ -129,19 +154,29 @@ function AppointmentsInner(): React.ReactElement | null {
   const themeColor = "var(--brand-color)";
 
   const handleCancel = async (bookingId: string): Promise<void> => {
+    if (cancelFlight.current) return;
+    cancelFlight.current = true;
+    const identity = mutationIdentity;
     setCancellingId(bookingId);
     setError(null);
     setSuccessMsg(null);
     try {
-      await cancelCustomerBooking(slug, bookingId);
+      const updated = await cancelCustomerBooking(slug, bookingId);
+      if (liveIdentity.current !== identity) return;
+      setCancelTarget(null);
+      setLinkedBooking((previous) => previous?.id === updated.id ? updated : previous);
       await latestLoad.current();
+      setSuccessMsg("Đã hủy lịch hẹn.");
     } catch (err) {
+      if (liveIdentity.current !== identity) return;
+      setCancelTarget(null);
       setError(
         err instanceof Error
           ? err.message
           : "Không thể hủy lịch (Lưu ý: chỉ được hủy trước giờ hẹn tối thiểu 2 giờ)."
       );
     } finally {
+      cancelFlight.current = false;
       setCancellingId(null);
     }
   };
@@ -168,13 +203,14 @@ function AppointmentsInner(): React.ReactElement | null {
     setRescheduleSubmitting(true);
     setRescheduleError(null);
     try {
-      await rescheduleCustomerBooking(slug, rescheduleTarget.id, {
+      const updated = await rescheduleCustomerBooking(slug, rescheduleTarget.id, {
         start_time: rescheduleSlotStart,
         staff_id: rescheduleKeepStaff ? rescheduleTarget.staff_id : null,
         note: rescheduleNote.trim() || null,
       });
 
       setRescheduleTarget(null);
+      setLinkedBooking((previous) => previous?.id === updated.id ? updated : previous);
       setSuccessMsg(
         `Đã dời lịch hẹn thành công sang ${formatDateTimeVN(rescheduleSlotStart)}!`
       );
@@ -209,8 +245,8 @@ function AppointmentsInner(): React.ReactElement | null {
             hủy lịch khi bận.
           </p>
           <Link
-            href={`/${slug}/login`}
-            className="inline-flex h-9 items-center justify-center rounded-xl px-5 text-xs font-bold text-white shadow"
+            href={customerAuthHref(slug, "login", `/${slug}/appointments`)}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-xs font-bold text-white shadow"
             style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
           >
             Đăng nhập ngay
@@ -265,9 +301,9 @@ function AppointmentsInner(): React.ReactElement | null {
           type="button"
           onClick={() => setScope("upcoming")}
           className={cn(
-            "rounded-lg py-2 transition",
+            "min-h-11 rounded-lg py-2 text-sm transition",
             scope === "upcoming"
-              ? "bg-card text-foreground shadow-xs"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground"
           )}
         >
@@ -277,9 +313,9 @@ function AppointmentsInner(): React.ReactElement | null {
           type="button"
           onClick={() => setScope("history")}
           className={cn(
-            "rounded-lg py-2 transition",
+            "min-h-11 rounded-lg py-2 text-sm transition",
             scope === "history"
-              ? "bg-card text-foreground shadow-xs"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground"
           )}
         >
@@ -287,8 +323,17 @@ function AppointmentsInner(): React.ReactElement | null {
         </button>
       </div>
 
+      {linkedError && <p role="alert" className="rounded-lg border p-3 text-sm">{linkedError}</p>}
+      {linkedBooking && <section aria-label="Lịch hẹn được mở" className="space-y-2 rounded-xl border-2 border-primary bg-card p-4">
+        <h2 className="font-bold">Lịch hẹn của bạn</h2>
+        <p>{formatDateTimeVN(linkedBooking.start_time)} • {BOOKING_STATUS_META[(bookings.find((item) => item.id === linkedBooking.id) || linkedBooking).status].label}</p>
+        <p className="text-sm">{linkedBooking.items.map((item) => item.service_name || serviceById.get(item.service_id) || "Dịch vụ").join(", ")}</p>
+        <p className="text-sm">Nhân viên: {linkedBooking.staff_name || "Spa tự sắp xếp"}</p>
+        <CalendarDownload booking={bookings.find((item) => item.id === linkedBooking.id) || linkedBooking} />
+        <p className="text-xs text-muted-foreground">Xem và quản lý lịch trong danh sách Sắp tới hoặc Lịch sử bên dưới.</p>
+      </section>}
       {!loading && <div className="space-y-2 text-xs" aria-live="polite">
-        <p>Đã tải {bookings.length} lịch{list.nextOffset !== null ? "; còn dữ liệu" : ""}.</p>
+        <p>{lastUpdated > 0 && !error ? "Cập nhật lúc " + new Date(lastUpdated).toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"}) + " · " : ""}Đã tải {bookings.length} lịch{list.nextOffset !== null ? "; còn dữ liệu" : ""}.</p>
         {list.nextOffset !== null && <Button variant="outline" disabled={list.moreLoading} onClick={() => void loadBookings(true)}>{list.moreLoading ? "Đang tải thêm..." : "Tải thêm lịch"}</Button>}
         {list.moreError && <p role="alert">{list.moreError} — Nhấn tải thêm để thử lại.</p>}
       </div>}
@@ -298,7 +343,7 @@ function AppointmentsInner(): React.ReactElement | null {
             Đang tải lịch hẹn...
           </CardContent>
         </Card>
-      ) : bookings.length === 0 ? (
+      ) : error && bookings.length === 0 ? <div className="space-y-2 rounded-xl border p-4"><p>Chưa kiểm tra được danh sách lịch. Thử tải lại trước khi đặt lịch mới.</p><Button variant="outline" onClick={() => void loadBookings()}>Thử tải lại lịch hẹn</Button></div> : bookings.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center space-y-3">
             <p className="text-xs text-muted-foreground">
@@ -309,7 +354,7 @@ function AppointmentsInner(): React.ReactElement | null {
             {scope === "upcoming" && (
               <Link
                 href={`/${slug}/book`}
-                className="inline-flex h-8 items-center justify-center rounded-lg px-4 text-xs font-semibold text-white"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-xs font-semibold text-white"
                 style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 + Đặt lịch mới
@@ -337,14 +382,14 @@ function AppointmentsInner(): React.ReactElement | null {
                         <Clock className="h-3.5 w-3.5 text-primary" />
                         {formatDateTimeVN(b.start_time)}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Tổng thời lượng: {b.total_duration_minutes} phút
                       </p>
                       <p className="break-words text-xs">KTV: {b.staff_name || (b.staff_id ? "Chưa có tên KTV" : "Spa tự sắp xếp")}</p>
                     </div>
                     <span
                       className={cn(
-                        "rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                        "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
                         meta.badgeClass
                       )}
                     >
@@ -377,7 +422,7 @@ function AppointmentsInner(): React.ReactElement | null {
                   </div>
 
                   {b.note && (
-                    <p className="rounded bg-white/60 px-2.5 py-1 text-[11px] italic text-slate-600">
+                    <p className="rounded bg-white/60 px-2.5 py-1 text-xs italic text-slate-600">
                       Ghi chú: {b.note}
                     </p>
                   )}
@@ -412,7 +457,7 @@ function AppointmentsInner(): React.ReactElement | null {
                           disabled={
                             cancellingId === b.id || !withinModifyWindow
                           }
-                          onClick={() => void handleCancel(b.id)}
+                          onClick={() => setCancelTarget(b)}
                           title={
                             withinModifyWindow
                               ? "Hủy lịch hẹn"
@@ -436,6 +481,18 @@ function AppointmentsInner(): React.ReactElement | null {
         </div>
       )}
 
+      <Modal open={Boolean(cancelTarget)} onClose={() => setCancelTarget(null)}
+        title="Hủy lịch hẹn này?" pending={Boolean(cancellingId)} historyGuard>
+        {cancelTarget && <div className="space-y-4">
+          <p className="font-semibold">{formatDateTimeVN(cancelTarget.start_time)}</p>
+          <p className="text-sm">{cancelTarget.items.map((item) => item.service_name || serviceById.get(item.service_id) || "Dịch vụ").join(", ")}</p>
+          <p className="text-sm text-muted-foreground">Sau khi hủy, khung giờ này có thể được người khác đặt. Khoản tiền đã thu (nếu có) cần liên hệ spa để đối chiếu.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={Boolean(cancellingId)} onClick={() => setCancelTarget(null)}>Giữ lịch hẹn</Button>
+            <Button variant="destructive" disabled={Boolean(cancellingId)} onClick={() => void handleCancel(cancelTarget.id)}>{cancellingId ? "Đang hủy..." : "Xác nhận hủy lịch"}</Button>
+          </div>
+        </div>}
+      </Modal>
       {/* Reschedule Booking Modal */}
       <Modal
         open={Boolean(rescheduleTarget)}
@@ -525,7 +582,7 @@ function AppointmentsInner(): React.ReactElement | null {
                         className={cn(
                           "flex min-h-11 flex-col items-center rounded-lg border py-2 px-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           active
-                            ? "border-transparent text-white shadow-xs"
+                            ? "border-transparent text-white shadow-sm"
                             : "border-border bg-card text-foreground hover:bg-muted/60"
                         )}
                         style={
@@ -535,7 +592,7 @@ function AppointmentsInner(): React.ReactElement | null {
                         <span>{formatTimeVN(slot.start_time)}</span>
                         <span
                           className={cn(
-                            "text-[10px]",
+                            "text-xs",
                             active ? "text-inherit" : "text-muted-foreground"
                           )}
                         >

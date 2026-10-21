@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { PasswordInput } from "@/components/ui/password-input";
+import { useCustomerReturnTo, customerAuthHref } from "@/lib/customer-return-to";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lock, Phone } from "lucide-react";
@@ -19,6 +21,10 @@ import { Input, Label } from "@/components/ui/input";
 export default function CustomerLoginPage(): React.ReactElement | null {
   const router = useRouter();
   const { slug, tenant, refreshCustomer } = useCustomerTenant();
+
+  const returnTo = useCustomerReturnTo(slug);
+  const [passwordSet, setPasswordSet] = React.useState(false);
+  React.useEffect(() => { setPasswordSet(new URLSearchParams(window.location.search).get("password_set") === "1"); }, []);
 
   const [phoneNumber, setPhoneNumber] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
@@ -42,7 +48,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
       });
       saveCustomerToken(slug, res.access_token);
       await refreshCustomer();
-      router.push(`/${slug}/book`);
+      router.replace(returnTo);
     } catch (err) {
       setError(
         err instanceof Error
@@ -59,7 +65,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
       <Card className="min-w-0 shadow-md [overflow-wrap:anywhere]">
         <CardHeader className="text-center space-y-1">
           <CardTitle className="text-lg font-bold">
-            Đăng nhập Khách hàng
+            Đăng nhập
           </CardTitle>
           <CardDescription>
             Đặt lịch nhanh & quản lý thẻ liệu trình tại{" "}
@@ -67,6 +73,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {passwordSet && <p role="status" className="mb-4 rounded-lg border p-3 text-sm">Đã đặt mật khẩu. Hãy đăng nhập bằng số điện thoại đã đăng ký tại spa.</p>}
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             {error && (
               <div role="alert" className="min-w-0 [overflow-wrap:anywhere] rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
@@ -96,7 +103,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
               <Label htmlFor="custPassword">Mật khẩu</Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+                <PasswordInput
                   id="custPassword"
                   type="password"
                   autoComplete="current-password"
@@ -109,6 +116,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
               </div>
             </div>
 
+            <p className="text-xs text-muted-foreground">Quên mật khẩu hoặc đã có hồ sơ tại spa? Liên hệ spa để được hỗ trợ đăng nhập.</p>
             <Button
               type="submit"
               className="w-full"
@@ -121,7 +129,7 @@ export default function CustomerLoginPage(): React.ReactElement | null {
             <div className="text-center text-xs text-muted-foreground">
               Lần đầu đến {tenant.name}?{" "}
               <Link
-                href={`/${slug}/register`}
+                href={customerAuthHref(slug, "register", returnTo)}
                 className="font-semibold hover:underline"
                 style={{ color: "var(--brand-text)" }}
               >

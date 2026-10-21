@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { SpaLogo } from "@/components/spa-logo";
+import { ContactLinks } from "@/components/contact-links";
+import { NetworkStatus } from "@/components/network-status";
 import { useBrandColor } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
 import Link from "next/link";
@@ -63,7 +66,7 @@ export function CustomerShell({
           </p>
           <Link
             href="/"
-            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground shadow"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground shadow"
           >
             Chọn chi nhánh
           </Link>
@@ -115,26 +118,12 @@ export function CustomerShell({
             href={baseHref}
             className="flex min-w-0 items-center gap-2.5"
           >
-            {tenant.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={tenant.logo_url}
-                alt={tenant.name}
-                className="h-9 w-9 rounded-xl object-cover border border-border"
-              />
-            ) : (
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-xs"
-                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
-              >
-                {tenant.name.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <SpaLogo key={tenant.id} name={tenant.name} src={tenant.logo_url} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-foreground">
+              <p className="text-base font-bold leading-snug text-foreground [overflow-wrap:anywhere]">
                 {tenant.name}
               </p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Mở cửa: {tenant.open_time.slice(0, 5)} –{" "}
                 {tenant.close_time.slice(0, 5)}
               </p>
@@ -150,10 +139,10 @@ export function CustomerShell({
                 />
                 <Link
                   href={`${baseHref}/profile`}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-foreground"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-foreground"
                 >
                   <UserIcon className="h-3.5 w-3.5" style={{ color: "var(--brand-text)" }} />
-                  <span className="max-w-[90px] truncate">
+                  <span className="max-w-[60px] truncate sm:max-w-[90px]">
                     {user.full_name}
                   </span>
                 </Link>
@@ -161,7 +150,7 @@ export function CustomerShell({
             ) : (
               <Link
                 href={`${baseHref}/login`}
-                className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-xs font-semibold text-white shadow-xs transition hover:opacity-90"
+                className="inline-flex min-h-11 items-center justify-center rounded-full px-3.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
                 style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
                 Đăng nhập
@@ -169,6 +158,8 @@ export function CustomerShell({
             )}
           </div>
         </header>
+        <NetworkStatus />
+        <div className="px-4"><ContactLinks address={tenant.address} phone={tenant.contact_phone} /></div>
 
         {/* Main Scrollable Content */}
         <main className="flex-1 px-4 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">

@@ -58,3 +58,8 @@ export async function withBranchChange<T>(action: () => Promise<T>, discard = fa
     });
   } finally { paused = false; syncLease(); }
 }
+
+/** Same-branch navigation only: protect this page without acquiring a branch-switch lock. */
+export function assertAdminNavigationSafe(): void {
+  if (state().pending || state().dirty) throw new Error("Hãy lưu hoặc hoàn tất công việc đang làm trước khi mở lịch hẹn.");
+}

@@ -169,6 +169,9 @@ export async function fetchTenantSettings(): Promise<TenantInfo> {
 }
 
 export async function updateTenantSettings(payload: {
+  address?: string | null;
+  contact_phone?: string | null;
+  logo_data?: string;
   name?: string;
   logo_url?: string | null;
   theme_color?: string | null;
@@ -560,3 +563,7 @@ export const grantBranchStaff = (branchId: string, sourceStaffId: string): Promi
   apiRequest(`/branches/${branchId}/staff-access`, { method: "POST", body: { source_staff_id: sourceStaffId } });
 export const fetchBranchDashboard = (day: string, all = false): Promise<import("./types").BranchDashboard> =>
   apiRequest(`/dashboard?day=${day}&all_branches=${all}`);
+
+export function fetchBookingDetail(id: string): Promise<BookingRecord> {
+  return apiRequest<BookingRecord>(`/bookings/${encodeURIComponent(id)}`);
+}
