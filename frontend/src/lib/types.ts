@@ -119,6 +119,7 @@ export interface BookingItemDetail {
 
 export interface BookingRecord {
   id: string;
+  can_manage?: boolean;
   tenant_id: string;
   customer_id: string;
   customer_name?: string | null;

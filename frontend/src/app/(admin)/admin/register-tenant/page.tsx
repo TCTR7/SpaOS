@@ -77,10 +77,10 @@ export default function RegisterTenantPage(): React.ReactElement {
             <Sparkles className="h-6 w-6" />
           </div>
           <CardTitle className="text-xl font-bold">
-            Khởi tạo Spa mới trên SpaOS
+            Thiết lập spa
           </CardTitle>
           <CardDescription>
-            Tạo không gian quản lý Multi-tenant riêng biệt cho Spa của bạn
+            Quản lý lịch hẹn, khách hàng và nhân viên của spa.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -104,7 +104,7 @@ export default function RegisterTenantPage(): React.ReactElement {
 
             <div className="space-y-1.5">
               <Label htmlFor="tenantSlug">
-                Đường dẫn định danh (Slug: chữ thường, số, gạch ngang)
+                Đường dẫn đặt lịch (chữ thường, số và dấu gạch ngang)
               </Label>
               <Input
                 id="tenantSlug"
@@ -117,7 +117,7 @@ export default function RegisterTenantPage(): React.ReactElement {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="adminFullName">Họ và tên Chủ Spa (ADMIN)</Label>
+              <Label htmlFor="adminFullName">Họ tên chủ spa</Label>
               <Input
                 id="adminFullName"
                 placeholder="Nguyễn Thị Hoa"

@@ -96,7 +96,7 @@ def test_remaining_public_auth_and_admin_routes_long_errors_labels(scenario, wid
     detail = "LongLoginFailure" * 30
     page.route("**/api/v1/auth/login", lambda r: r.fulfill(status=503, json={"detail": detail}))
     for path, phone, password, submit in [
-        ("/admin/login", "phone", "password", "Đăng nhập vào Dashboard"),
+        ("/admin/login", "phone", "password", "Đăng nhập"),
         ("/" + s["slug"] + "/login", "custPhone", "custPassword", "Đăng nhập"),
     ]:
         page.goto(config.frontend_url + path)

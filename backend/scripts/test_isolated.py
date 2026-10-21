@@ -24,6 +24,8 @@ async def main():
         env["DATABASE_URL"] = make_url(settings.DATABASE_URL).set(database=name).render_as_string(hide_password=False)
         env["MIGRATION_DATABASE_URL"] = make_url(settings.MIGRATION_DATABASE_URL).set(database=name).render_as_string(hide_password=False)
         env["ENVIRONMENT"] = "test"
+        # Never send real pushes with deployment secrets during QA. Tests opt in with mocks.
+        env["VAPID_PUBLIC_KEY"], env["VAPID_PRIVATE_KEY"] = "", ""
         env["OPERATOR_PHONE"], env["OPERATOR_PASSWORD"] = "", ""
         cwd = str(Path(__file__).resolve().parents[1])
         for command in ([sys.executable, "-m", "alembic", "upgrade", "head"],

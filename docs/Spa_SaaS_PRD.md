@@ -278,3 +278,10 @@ Xem [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) về deployment riêng 
 
 ### Bổ sung sau Sprint: thương hiệu theo deployment
 Operator chọn/xem trước/lưu màu chủ đạo; áp dụng trang Admin, đăng nhập, PWA khách và các chi nhánh cùng chủ. Mỗi deployment độc lập; Admin chi nhánh không đổi màu chung. Chưa cấu hình giữ tương thích màu chi nhánh cũ.
+
+
+### Điều chỉnh thông báo theo PO — 21/10/2026
+
+- Khách tự đặt lịch: báo admin, kỹ thuật viên thực hiện và người phụ trách hồ sơ trong chi nhánh. Nhân viên/admin tạo lịch cho tài khoản khách: khách nhận thông báo lịch mới, gồm tạo nhiều buổi tại quầy, không gửi trùng khi retry cùng yêu cầu.
+- Ngoại lệ đọc lịch được giao: KTV thực hiện được đọc chính lịch được phân công và thông báo liên quan dù chưa phụ trách hồ sơ. Quy định này thay phần cấm đọc lịch của khách khác ở trên trong phạm vi chỉ đọc; quyền CRM/thẻ/sửa lịch và chuyển người phụ trách không đổi.
+- Không coi Push là chắc chắn giao được; in-app được lưu trước khi gửi. Giới hạn BackgroundTasks và kiểm chứng thiết bị thật vẫn áp dụng.

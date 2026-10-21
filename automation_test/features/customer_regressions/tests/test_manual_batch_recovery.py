@@ -50,13 +50,13 @@ def test_lost_committed_response_never_duplicates_customer_package_or_sessions(s
     if mode == "reload":
         page.reload()
         expect(modal).to_be_visible()
-        expect(modal.get_by_role("button", name="Thử lại cùng yêu cầu", exact=True)).to_have_count(0)
+        expect(modal.get_by_role("button", name="Thử lại", exact=True)).to_have_count(0)
     elif mode == "check":
         modal.get_by_role("button", name="Kiểm tra sau", exact=True).click()
         expect(modal).to_have_count(0)
         page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True).click()
         expect(modal.get_by_placeholder("Số điện thoại (9-15 số) *", exact=True)).to_have_value(phone)
-    modal.get_by_role("button", name="Thử lại cùng yêu cầu" if mode == "retry" else "Kiểm tra kết quả", exact=True).click()
+    modal.get_by_role("button", name="Thử lại" if mode == "retry" else "Kiểm tra kết quả", exact=True).click()
     expect(modal).to_have_count(0)
     expect(page.get_by_role("status").filter(has_text="Đã lưu 3 buổi hẹn")).to_be_visible()
     assert posted == ([sent[0]] if mode == "retry" else [])

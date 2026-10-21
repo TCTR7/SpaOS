@@ -832,13 +832,13 @@ export default function AdminBookingsPage(): React.ReactElement {
         )}
         </DetailContainer>
 
-        {(!full || meta.next.length > 0) && (
+        {(!full || (booking.can_manage !== false && meta.next.length > 0)) && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] font-medium text-muted-foreground mr-1">
                 Trạng thái:
               </span>
-              {(full ? meta.next : meta.next.slice(0, 1)).map((nextSt) => {
+              {(booking.can_manage === false ? [] : full ? meta.next : meta.next.slice(0, 1)).map((nextSt) => {
                 const nextMeta = BOOKING_STATUS_META[nextSt];
                 return (
                   <Button
@@ -860,7 +860,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             {!full && <Button type="button" variant="outline" onClick={() => { setDetailTarget(booking); setStatusConfirmation(null); }}>
               Chi tiết lịch hẹn
             </Button>}
-            {full && (user?.role === "ADMIN" || user?.role === "STAFF") &&
+            {full && booking.can_manage !== false && (user?.role === "ADMIN" || user?.role === "STAFF") &&
               (booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                 <button
                   type="button"
@@ -1156,7 +1156,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           <p role="alert" className="text-sm">Chưa xác định kết quả. Hệ thống giữ mã chống lặp; không tạo khách, thẻ hay lịch mới khi kiểm tra.</p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" disabled={creatingBooking} onClick={() => void manualBatch.check()}>Kiểm tra kết quả</Button>
-            {manualBatch.canRetry && <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => void manualBatch.retry()}>Thử lại cùng yêu cầu</Button>}
+            {manualBatch.canRetry && <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => void manualBatch.retry()}>Thử lại</Button>}
             <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => setModalOpen(false)}>Kiểm tra sau</Button>
           </div>
         </div> : <Button type="submit" form="manual-booking-form" className="w-full sm:w-auto"
@@ -1675,9 +1675,9 @@ export default function AdminBookingsPage(): React.ReactElement {
                 <label className="flex items-center gap-2">
                   <input id="transferCustomer" type="checkbox" checked={transferCustomer}
                     onChange={(e) => setTransferCustomer(e.target.checked)} />
-                  Chuyển quyền hồ sơ cho KTV của giờ hẹn mới
+                  Giao khách cho kỹ thuật viên mới phụ trách
                 </label>
-                <p>Nếu bỏ chọn, người phụ trách hồ sơ giữ nguyên; KTV làm thay chưa được quyền xem/sửa hồ sơ khách.</p>
+                <p>Nếu bỏ chọn, người phụ trách khách vẫn giữ nguyên. Kỹ thuật viên làm thay chỉ quản lý hồ sơ khi được giao phụ trách.</p>
               </div>
             )}
             <div className="space-y-2">

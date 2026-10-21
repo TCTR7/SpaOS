@@ -84,7 +84,7 @@ def test_late_me_cannot_restore_old_user_or_erase_new_token(scenario, admin, old
         page.evaluate("window.qaHeldMe = true")
     page.route("**/api/v1/auth/me", hold)
     page.goto(url)
-    expect(page.get_by_text("Đang tải không gian quản trị SpaOS..." if admin else "Đang xác minh phiên đăng nhập...", exact=True)).to_be_visible()
+    expect(page.get_by_text("Đang tải..." if admin else "Đang kiểm tra đăng nhập...", exact=True)).to_be_visible()
     # Synchronize with the actual request, not a timeout or arbitrary sleep.
     page.wait_for_function("window.qaHeldMe === true")
     assert held

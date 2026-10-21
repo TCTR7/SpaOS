@@ -109,3 +109,7 @@ PO yêu cầu seed duy nhất tài khoản quản trị triển khai của mình
 
 ### Màu thương hiệu — đã triển khai 17/10/2026
 Operator cấu hình màu HEX cấp deployment, chung mọi chi nhánh. Cấu hình singleton public chỉ chứa màu, FORCE RLS chỉ Operator được ghi; dữ liệu nghiệp vụ tiếp tục tenant-scoped. Không chuyển thành control plane đa server.
+
+
+### Thông báo lịch được giao — 21/10/2026
+Theo chỉ thị PO triển khai thông báo: KTV thực hiện được đọc chính lịch đang được giao và nhận thông báo liên quan; không tự chuyển người phụ trách khách, không mở quyền hồ sơ/thẻ hoặc sửa lịch. Đây là ngoại lệ quyền chỉ đọc lịch so với quy định cũ; mọi kiểm tra chi nhánh/tenant và RLS giữ nguyên. Admin/Staff tạo lịch thành công gửi thông báo cho tài khoản khách tương ứng.

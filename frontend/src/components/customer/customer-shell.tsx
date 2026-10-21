@@ -55,7 +55,7 @@ export function CustomerShell({
             <AlertTriangle className="h-6 w-6" />
           </div>
           <h1 className="text-lg font-bold text-foreground">
-            Không tìm thấy Spa ({slug})
+            Không tìm thấy spa
           </h1>
           <p className="text-xs text-muted-foreground">
             Đường dẫn Spa không tồn tại hoặc đã ngưng hoạt động. Vui lòng kiểm
@@ -176,7 +176,7 @@ export function CustomerShell({
             {authError ? <><p role="alert">{authError}</p>
               <Button onClick={() => void refreshCustomer()}>Thử lại</Button>
               <Button variant="outline" onClick={() => void logoutCustomer()}>Đăng xuất</Button></>
-              : <p>Đang xác minh phiên đăng nhập...</p>}
+              : <p>Đang kiểm tra đăng nhập...</p>}
           </div>}
           {/* Keep an inline-login draft mounted, but inaccessible until verified. */}
           <div hidden={authLoading || Boolean(authError)}>{children}</div>

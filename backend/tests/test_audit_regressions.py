@@ -127,7 +127,7 @@ async def test_notification_fk_locks_do_not_deadlock_booking(client):
         await set_tenant_context(holder, tenant_id)
         holder_pid = (await holder.execute(text("SELECT pg_backend_pid()"))).scalar_one()
         await svc._lock_staff_row(holder, tenant_id, staff_id)
-        delivery = asyncio.create_task(_deliver(tenant_id, [Draft(staff_id, "Audit", "FK lock order")], "BOOKING_CREATED", booking_id))
+        delivery = asyncio.create_task(_deliver(tenant_id, [Draft(staff_id, "Audit", "FK lock order")], "BOOKING_RESCHEDULED", booking_id))
         try:
             async def wait_for_blocked_delivery():
                 while True:

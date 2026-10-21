@@ -197,7 +197,7 @@ def test_pending_push_permission_blocks_branch_in_other_tab(scenario):
     other = second_tab(s, page)
     page.get_by_role("button", name="Thông báo", exact=True).click()
     modal = page.get_by_role("dialog", name="Bảng thông báo", exact=True)
-    modal.get_by_role("button", name="Bật Push", exact=True).click()
+    modal.get_by_role("button", name="Bật thông báo", exact=True).click()
     page.wait_for_function("typeof window.qaResolvePermission === 'function'")
     page.keyboard.press("Escape")
     expect(modal).to_be_visible()

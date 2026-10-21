@@ -77,7 +77,7 @@ def test_staff_cannot_open_payment_ui_or_read_audit(scenario, api_helper):
     token = api_helper.login(s["slug"], s["staff"]["phone_number"], "Staff@123")["access_token"]
     page = s["page"](token, True)
     page.goto(config.frontend_url + "/admin/payments")
-    expect(page.get_by_role("alert").filter(has_text="Chỉ Admin")).to_be_visible()
+    expect(page.get_by_role("alert").filter(has_text="Bạn chưa thể xem trang thu tiền")).to_be_visible()
     expect(page.locator("#receiptAmount")).to_have_count(0)
     response = page.request.get(config.api_v1_url + "/payments/invoices", headers={"Authorization": "Bearer " + token})
     assert response.status == 403

@@ -109,7 +109,7 @@ export function AdminAuthProvider({
         clearAuthSession();
         if (!isPublicAuthRoute) router.replace("/admin/login");
       } else {
-        setAuthError("Chưa xác minh được phiên đăng nhập và quyền chi nhánh. Vui lòng thử lại.");
+        setAuthError("Chưa tải được tài khoản và chi nhánh. Vui lòng thử lại.");
       }
     } finally {
       if (current()) setLoading(false);
@@ -148,7 +148,7 @@ export function AdminAuthProvider({
     const request = ++operation.current;
     const current = (): boolean => operation.current === request && session === getAdminSessionIdentity();
     const target = branches.find((branch) => branch.tenant.id === id);
-    if (!token || !user || !target) throw new Error("Chưa xác minh được quyền chi nhánh. Vui lòng thử lại.");
+    if (!token || !user || !target) throw new Error("Chưa thể chuyển chi nhánh. Vui lòng thử lại.");
     let result: TokenResponse;
     try {
       result = await switchBranch(id);

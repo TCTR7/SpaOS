@@ -245,10 +245,10 @@ export default function AdminStaffPage(): React.ReactElement {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">
-            Nhân sự Kỹ thuật viên & Ca làm việc
+            Nhân viên và lịch làm việc
           </h1>
           <p className="text-xs text-muted-foreground">
-            Quản lý tài khoản Kỹ thuật viên (STAFF) và cấu hình khung giờ làm
+            Quản lý nhân viên và sắp xếp lịch làm
             việc 7 ngày trong tuần
           </p>
         </div>
@@ -465,7 +465,7 @@ export default function AdminStaffPage(): React.ReactElement {
         title={
           editingStaff
             ? "Cập nhật Kỹ thuật viên"
-            : "Thêm Kỹ thuật viên (STAFF)"
+            : "Thêm kỹ thuật viên"
         }
       >
         <form onSubmit={(e) => void handleSaveStaff(e)} className="space-y-4">

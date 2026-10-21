@@ -121,7 +121,7 @@ export default function PaymentsPage(): React.ReactElement {
   };
 
   if (authLoading) return <p>Đang tải...</p>;
-  if (user?.role !== "ADMIN") return <p role="alert">Chỉ Admin được quản lý thu tiền và nhật ký.</p>;
+  if (user?.role !== "ADMIN") return <p role="alert">Bạn chưa thể xem trang thu tiền. Vui lòng liên hệ chủ spa.</p>;
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold">Thu tiền</h1>

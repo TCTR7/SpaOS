@@ -11,7 +11,7 @@ from app.api.utils import commit_and_refresh
 from app.core.config import settings
 from app.core.database import set_tenant_context
 from app.models.models import Notification, PushSubscription, User, UserRole, Booking
-from app.services.customer_access import customer_scope
+from app.services.customer_access import booking_read_scope
 from app.schemas.sprint4 import (
     NotificationListOut,
     NotificationOut,
@@ -33,7 +33,7 @@ def visible_notifications(tenant_id, user):
     if user.role == UserRole.STAFF:
         base = base & Notification.booking_id.in_(select(Booking.id).where(
             Booking.tenant_id == tenant_id,
-            Booking.customer_id.in_(customer_scope(tenant_id, user))))
+            booking_read_scope(tenant_id, user)))
     return base
 
 

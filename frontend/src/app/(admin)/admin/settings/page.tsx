@@ -93,11 +93,10 @@ export default function AdminSettingsPage(): React.ReactElement {
     <div className="mx-auto min-w-0 max-w-2xl space-y-5 [overflow-wrap:anywhere]">
       <div>
         <h1 className="text-xl font-bold text-foreground">
-          Cấu hình Thông tin & Vận hành Spa
+          Cài đặt spa
         </h1>
         <p className="text-xs text-muted-foreground">
-          Thiết lập thương hiệu, giờ đóng/mở cửa và thời gian dọn phòng chuyển
-          tiếp (Buffer Time)
+          Thiết lập thông tin spa, giờ mở cửa và thời gian chuẩn bị giữa hai lịch hẹn.
         </p>
       </div>
 
@@ -198,7 +197,7 @@ export default function AdminSettingsPage(): React.ReactElement {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="bufferMinutes">
-                    Buffer nghỉ giữa 2 ca (phút)
+                    Thời gian chuẩn bị giữa hai lịch hẹn (phút)
                   </Label>
                   <Input
                     id="bufferMinutes"

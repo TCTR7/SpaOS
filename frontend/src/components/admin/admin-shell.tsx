@@ -19,7 +19,6 @@ import {
 import { useAdminAuth } from "./auth-context";
 import { NotificationBell } from "./notification-bell";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { BranchDirtyError, withBranchChange } from "@/lib/branch-guard";
@@ -79,7 +78,7 @@ export function AdminShell({
 }: {
   children: React.ReactNode;
 }): React.ReactElement {
-  return <React.Suspense fallback={<p role="status" className="p-4">Đang tải không gian quản trị SpaOS...</p>}>
+  return <React.Suspense fallback={<p role="status" className="p-4">Đang tải...</p>}>
     <AdminShellContent>{children}</AdminShellContent>
   </React.Suspense>;
 }
@@ -126,7 +125,7 @@ function AdminShellContent({
             <Button onClick={() => void refreshMe()}>Thử lại</Button>
             <Button variant="outline" onClick={() => void logout()}>Đăng xuất</Button>
           </div> : <><div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span>Đang tải không gian quản trị SpaOS...</span></>}
+          <span>Đang tải...</span></>}
         </div>
       </div>
     );
@@ -225,9 +224,6 @@ function AdminShellContent({
                 {user.phone_number}
               </p>
             </div>
-            <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
-              {user.role}
-            </Badge>
           </div>
           <Button
             variant="outline"
@@ -263,9 +259,6 @@ function AdminShellContent({
               <div className="text-right">
                 <p className="text-xs font-semibold text-foreground">
                   {user.full_name}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {user.role === "ADMIN" ? "Chủ Spa / Quản lý" : "Kỹ thuật viên"}
                 </p>
               </div>
             </div>

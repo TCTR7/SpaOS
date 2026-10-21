@@ -66,7 +66,7 @@ export default function OperatorPage(): React.ReactElement {
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
     {success && <div className="rounded-xl border bg-card p-4 text-sm" data-testid="owner-created">
       <p><strong>{success.owner_name}</strong> • {success.phone_number}</p><p>Chi nhánh: {success.branch_name}</p>
-      <p>Bàn giao SĐT và mật khẩu đã đặt qua kênh riêng. Chủ spa đăng nhập tại <a className="underline" href="/admin/login">/admin/login</a>.</p>
+      <p>Bàn giao SĐT và mật khẩu đã đặt qua kênh riêng. Chủ spa đăng nhập tại <a className="underline" href="/admin/login">trang đăng nhập</a>.</p>
     </div>}
     {operator && <OperatorBranding disabled={locked} />}
     {operator && <form onSubmit={(e) => void create(e)} className="grid gap-3 rounded-xl border bg-card p-5 sm:grid-cols-2">
@@ -77,12 +77,12 @@ export default function OperatorPage(): React.ReactElement {
       <div><Label htmlFor="ownerPassword">Mật khẩu bàn giao</Label><Input id="ownerPassword" type="password" autoComplete="new-password" minLength={8} required value={password} disabled={locked} onChange={(e) => setPassword(e.target.value)} /></div>
       <div><Label htmlFor="ownerConfirm">Nhập lại mật khẩu</Label><Input id="ownerConfirm" type="password" autoComplete="new-password" required value={confirm} disabled={locked} onChange={(e) => setConfirm(e.target.value)} /></div>
       <div className="sm:col-span-2"><BrandColorPicker id="ownerThemeColor" value={ownerColor || branding.theme_color} onChange={setOwnerColor} disabled={locked} /></div>
-      {attempt && !busy && <p className="text-sm sm:col-span-2">Kết quả lần trước chưa rõ. Thử lại cùng yêu cầu để đối chiếu.</p>}
+      {attempt && !busy && <p className="text-sm sm:col-span-2">Chưa xác nhận được tài khoản đã tạo. Nhấn thử lại để kiểm tra và tiếp tục.</p>}
       <Button type="submit" disabled={busy}>{busy ? "Đang tạo..." : attempt ? "Thử lại tạo tài khoản" : "Tạo tài khoản chủ spa"}</Button>
     </form>}
     {operator && <section className="space-y-3">
       <h2 className="font-bold">Tài khoản đã cấp</h2>
-      {rows.length === 0 && <p className="text-sm text-muted-foreground">Chưa có tài khoản được cấp từ trang này. Dữ liệu cũ được giữ nguyên.</p>}
+      {rows.length === 0 && <p className="text-sm text-muted-foreground">Chưa có tài khoản nào được tạo tại đây.</p>}
       {rows.map((row) => <article key={row.id} data-testid="provision-row" className="rounded-xl border p-4 text-sm"><strong>{row.owner_name}</strong><p>{row.phone_number} • {row.branch_name}</p><p className="text-xs text-muted-foreground">{formatDateTimeVN(row.created_at)}</p></article>)}
       <div className="flex gap-2"><Button variant="outline" disabled={locked || offset === 0} onClick={() => setOffset(Math.max(0,offset-50))}>Trang trước</Button><Button variant="outline" disabled={locked || rows.length<50} onClick={() => setOffset(offset+50)}>Trang sau</Button></div>
     </section>}

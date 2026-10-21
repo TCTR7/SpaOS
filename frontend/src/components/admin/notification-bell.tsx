@@ -70,10 +70,10 @@ export function NotificationBell(): React.ReactElement {
     try {
       await enableAdminWebPush(() => pushAlive.current);
       setPushSubscribed(true);
-      setPushMessage("Đã bật nhận thông báo đẩy trình duyệt!");
+      setPushMessage("Đã bật thông báo trên thiết bị này.");
     } catch (err) {
       setPushMessage(
-        err instanceof Error ? err.message : "Không thể bật Web Push"
+        err instanceof Error ? err.message : "Chưa thể bật thông báo. Vui lòng thử lại."
       );
     } finally {
       pushFlight.current = false;
@@ -89,10 +89,10 @@ export function NotificationBell(): React.ReactElement {
     try {
       await disableAdminWebPush(() => pushAlive.current);
       setPushSubscribed(false);
-      setPushMessage("Đã tắt Web Push trên thiết bị này.");
+      setPushMessage("Đã tắt thông báo trên thiết bị này.");
     } catch (err) {
       setPushMessage(
-        err instanceof Error ? err.message : "Không thể hủy Web Push"
+        err instanceof Error ? err.message : "Chưa thể tắt thông báo. Vui lòng thử lại."
       );
     } finally {
       pushFlight.current = false;
@@ -173,7 +173,7 @@ export function NotificationBell(): React.ReactElement {
                   )}
                 />
                 <span className="text-slate-700">
-                  Web Push:{" "}
+                  Thông báo trên thiết bị:{" "}
                   <strong>{pushSubscribed ? "Đang bật" : "Chưa bật"}</strong>
                 </span>
               </div>
@@ -184,7 +184,7 @@ export function NotificationBell(): React.ReactElement {
                   disabled={pushBusy}
                   onClick={() => void handleDisableWebPush()}
                 >
-                  Tắt Push
+                  Tắt thông báo
                 </Button>
               ) : (
                 <Button
@@ -192,7 +192,7 @@ export function NotificationBell(): React.ReactElement {
                   disabled={pushBusy}
                   onClick={() => void handleEnableWebPush()}
                 >
-                  Bật Push
+                  Bật thông báo
                 </Button>
               )}
             </div>

@@ -43,7 +43,7 @@ export default function DashboardPage(): React.ReactElement {
     {!all ? <nav aria-label="Công việc tại chi nhánh" className="flex flex-wrap gap-3">
       <Link className="inline-flex min-h-11 items-center rounded-lg border bg-card px-4 text-sm font-semibold" href="/admin/bookings">Xem lịch hẹn</Link>
       <Link className="inline-flex min-h-11 items-center rounded-lg border bg-card px-4 text-sm font-semibold" href="/admin/payments">Thu tiền chi nhánh hiện tại</Link>
-    </nav> : <p role="status" className="text-sm">Tổng hợp các chi nhánh được cấp quyền, chỉ xem. Chọn một chi nhánh để thao tác.</p>}
+    </nav> : <p role="status" className="text-sm">Đang xem tổng hợp. Chọn một chi nhánh để quản lý lịch hẹn và thu tiền.</p>}
     <div className="flex flex-wrap items-end gap-3"><div><Label htmlFor="dashboardDay">Ngày theo giờ Việt Nam</Label><Input id="dashboardDay" type="date" required value={day} onChange={(e) => { if (e.target.value) setDay(e.target.value); }} /></div>
       {branches.some((b) => b.tenant.id === tenant?.id && b.is_owner) &&
         <a className="text-sm underline" href={all ? "/admin/dashboard" : "/admin/dashboard?scope=all"}>{all ? "Xem chi nhánh hiện tại" : "Xem tất cả chi nhánh"}</a>}

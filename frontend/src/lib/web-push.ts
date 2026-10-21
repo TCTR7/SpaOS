@@ -20,7 +20,7 @@ function sessionGuard(slug: string | undefined, active: Active): () => void {
   return () => {
     const token = slug === undefined ? getStoredToken() : getCustomerToken(slug);
     const current = slug === undefined ? getAdminSessionIdentity() : getCustomerSessionIdentity(slug);
-    if (!active() || !token || current !== identity) throw new Error("Phiên đã thay đổi. Hãy bật thông báo lại từ tài khoản hiện tại.");
+    if (!active() || !token || current !== identity) throw new Error("Tài khoản đã thay đổi. Vui lòng bật lại thông báo.");
   };
 }
 
@@ -78,22 +78,22 @@ export async function enableAdminWebPush(active: Active = () => true): Promise<v
   const check = sessionGuard(undefined, active);
   check();
   if (!isWebPushSupported()) {
-    throw new Error("Trình duyệt không hỗ trợ Web Push Notification.");
+    throw new Error("Trình duyệt này chưa hỗ trợ thông báo. Hãy thử trình duyệt khác.");
   }
   const vapid = await fetchVapidPublicKey();
   check();
   if (!vapid.enabled || !vapid.public_key) {
-    throw new Error("Server chưa cấu hình VAPID_PUBLIC_KEY.");
+    throw new Error("Thông báo trên thiết bị chưa sẵn sàng. Vui lòng thử lại sau.");
   }
   const permission = await Notification.requestPermission();
   check();
   if (permission !== "granted") {
-    throw new Error("Trình duyệt đã từ chối quyền thông báo.");
+    throw new Error("Hãy cho phép nhận thông báo trong cài đặt trình duyệt rồi thử lại.");
   }
   const reg = await registerSpaServiceWorker();
   check();
   if (!reg) {
-    throw new Error("Không thể đăng ký Service Worker (/sw.js).");
+    throw new Error("Chưa thể bật thông báo trên thiết bị này. Vui lòng thử lại.");
   }
   await navigator.serviceWorker.ready;
   check();
@@ -105,7 +105,7 @@ export async function enableAdminWebPush(active: Active = () => true): Promise<v
   check();
   const json = sub.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-    throw new Error("Không đọc được khóa mã hóa Push Subscription.");
+    throw new Error("Chưa thể bật thông báo trên thiết bị này. Vui lòng thử lại.");
   }
   await subscribeWebPush({
     endpoint: json.endpoint,
@@ -131,22 +131,22 @@ export async function enableCustomerWebPush(slug: string, active: Active = () =>
   const check = sessionGuard(slug, active);
   check();
   if (!isWebPushSupported()) {
-    throw new Error("Thiết bị không hỗ trợ Web Push Notification.");
+    throw new Error("Thiết bị này chưa hỗ trợ thông báo. Hãy thử trình duyệt khác.");
   }
   const vapid = await fetchCustomerVapidKey(slug);
   check();
   if (!vapid.enabled || !vapid.public_key) {
-    throw new Error("Spa chưa cấu hình khóa VAPID.");
+    throw new Error("Thông báo trên thiết bị chưa sẵn sàng. Vui lòng thử lại sau.");
   }
   const permission = await Notification.requestPermission();
   check();
   if (permission !== "granted") {
-    throw new Error("Bạn đã từ chối quyền nhận thông báo trên trình duyệt.");
+    throw new Error("Hãy cho phép nhận thông báo trong cài đặt trình duyệt rồi thử lại.");
   }
   const reg = await registerSpaServiceWorker();
   check();
   if (!reg) {
-    throw new Error("Không thể đăng ký Service Worker (/sw.js).");
+    throw new Error("Chưa thể bật thông báo trên thiết bị này. Vui lòng thử lại.");
   }
   await navigator.serviceWorker.ready;
   check();
@@ -158,7 +158,7 @@ export async function enableCustomerWebPush(slug: string, active: Active = () =>
   check();
   const json = sub.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-    throw new Error("Không lấy được khóa đăng ký thiết bị.");
+    throw new Error("Chưa thể bật thông báo trên thiết bị này. Vui lòng thử lại.");
   }
   await subscribeCustomerWebPush(slug, {
     endpoint: json.endpoint,

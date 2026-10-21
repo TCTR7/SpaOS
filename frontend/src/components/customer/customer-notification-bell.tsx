@@ -74,10 +74,10 @@ export function CustomerNotificationBell({
     try {
       await enableCustomerWebPush(slug, () => pushAlive.current);
       setPushSubscribed(true);
-      setPushMsg("Đã bật thông báo nhắc lịch trên điện thoại!");
+      setPushMsg("Đã bật thông báo trên thiết bị này.");
     } catch (err) {
       setPushMsg(
-        err instanceof Error ? err.message : "Không thể bật thông báo đẩy"
+        err instanceof Error ? err.message : "Chưa thể bật thông báo. Vui lòng thử lại."
       );
     } finally {
       pushFlight.current = false;
@@ -93,10 +93,10 @@ export function CustomerNotificationBell({
     try {
       await disableCustomerWebPush(slug, () => pushAlive.current);
       setPushSubscribed(false);
-      setPushMsg("Đã tắt thông báo đẩy trên thiết bị này.");
+      setPushMsg("Đã tắt thông báo trên thiết bị này.");
     } catch (err) {
       setPushMsg(
-        err instanceof Error ? err.message : "Không thể tắt thông báo đẩy"
+        err instanceof Error ? err.message : "Chưa thể tắt thông báo. Vui lòng thử lại."
       );
     } finally {
       pushFlight.current = false;
@@ -193,7 +193,7 @@ export function CustomerNotificationBell({
                   style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
                   onClick={() => void handleEnablePush()}
                 >
-                  Bật Push
+                  Bật thông báo
                 </Button>
               )}
             </div>

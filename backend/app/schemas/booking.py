@@ -55,6 +55,7 @@ class BookingOut(BaseModel):
     tenant_id: uuid.UUID
     customer_id: uuid.UUID
     customer_name: Optional[str] = None
+    can_manage: bool = True
     staff_id: Optional[uuid.UUID] = None
     staff_name: Optional[str] = None
     start_time: datetime

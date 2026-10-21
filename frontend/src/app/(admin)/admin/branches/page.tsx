@@ -25,7 +25,7 @@ export default function BranchesPage(): React.ReactElement {
       .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Không tải được nhân viên"); });
     return () => { cancelled = true; };
   }, [owner, tenant?.id]);
-  if (!owner) return <p role="alert">Chỉ chủ hệ thống được quản lý chi nhánh.</p>;
+  if (!owner) return <p role="alert">Bạn chưa thể quản lý chi nhánh. Vui lòng liên hệ chủ spa.</p>;
   return <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]"><h1 className="text-xl font-bold">Quản lý chi nhánh</h1>
     {error && <p role="alert" className="text-rose-700">{error}</p>}{message && <p role="status">{message}</p>}
     <section className="space-y-3 rounded-xl border bg-card p-4"><h2 className="font-bold">Các chi nhánh của bạn</h2>
@@ -38,15 +38,15 @@ export default function BranchesPage(): React.ReactElement {
       <Button disabled={busy || !name.trim()} type="submit">Tạo chi nhánh</Button>
     </form>
     <form className="space-y-3 rounded-xl border bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
-      await grantBranchStaff(target, staffId); setStaffId(""); setTarget(""); setMessage("Đã cấp quyền chi nhánh cho nhân viên. Tài khoản dùng chung SĐT và mật khẩu hiện có.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Không cấp được quyền"); } finally { setBusy(false); } }}>
+      await grantBranchStaff(target, staffId); setStaffId(""); setTarget(""); setMessage("Đã thêm nhân viên vào chi nhánh. Nhân viên tiếp tục dùng số điện thoại và mật khẩu hiện tại.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Không thêm được nhân viên vào chi nhánh"); } finally { setBusy(false); } }}>
       <h2 className="font-bold">Cho nhân viên làm thêm chi nhánh</h2>
       <Label htmlFor="branchStaff">Nhân viên tại {tenant?.name}</Label>
       <select id="branchStaff" required disabled={busy} className="h-11 w-full min-w-0 text-base sm:text-sm rounded-md border bg-background px-2" value={staffId} onChange={(e) => setStaffId(e.target.value)}><option value="">Chọn nhân viên</option>{staff.filter((s) => s.is_active).map((s) => <option key={s.id} value={s.id}>{s.full_name} • {s.phone_number}</option>)}</select>
-      <Label htmlFor="targetBranch">Chi nhánh được cấp thêm</Label>
+      <Label htmlFor="targetBranch">Chi nhánh làm thêm</Label>
       <select id="targetBranch" required disabled={busy} className="h-11 w-full min-w-0 text-base sm:text-sm rounded-md border bg-background px-2" value={target} onChange={(e) => setTarget(e.target.value)}><option value="">Chọn chi nhánh</option>{branches.filter((b) => b.is_owner && b.tenant.id !== tenant?.id).map((b) => <option key={b.tenant.id} value={b.tenant.id}>{b.tenant.name}</option>)}</select>
-      <Button disabled={busy || !staffId || !target} type="submit">Cấp quyền chi nhánh</Button>
-      <p className="text-xs text-muted-foreground">Lịch làm việc và khách phụ trách được thiết lập riêng. Để thu hồi quyền ở một chi nhánh, tắt hoạt động nhân viên tại chi nhánh đó.</p>
+      <Button disabled={busy || !staffId || !target} type="submit">Thêm vào chi nhánh</Button>
+      <p className="text-xs text-muted-foreground">Sắp xếp lịch làm và giao khách riêng tại từng chi nhánh. Khi nhân viên ngừng làm tại một chi nhánh, tắt trạng thái hoạt động của họ tại đó.</p>
     </form>
   </div>;
 }

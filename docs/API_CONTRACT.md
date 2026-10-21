@@ -114,8 +114,8 @@ Quy ước: `start_date`, `end_date` = `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh
 | PATCH | `/notifications/{id}/read` | Bearer: mọi role | - | `200` Notification (`is_read=true`). `404` nếu không tồn tại hoặc của user/tenant khác |
 
 Ghi chú tự động bắn thông báo (`BackgroundTasks`, non-blocking — lỗi Web Push không bao giờ làm fail giao dịch đặt lịch; subscription trả `404/410` tự động bị xóa):
-- Khách tạo lịch (`POST /bookings`) hoặc khách hủy lịch (`POST /bookings/{id}/cancel`) -> Tạo thông báo in-app & bắn Web Push tới toàn bộ `ADMIN` và `STAFF` đang active của Spa (KTV được giao lịch nhận tiêu đề riêng).
-- Admin/Staff cập nhật trạng thái (`PATCH /bookings/{id}/status` sang `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `NO_SHOW`) hoặc hủy lịch -> Tạo thông báo in-app & bắn Web Push tới `CUSTOMER` sở hữu lịch hẹn.
+- Khách tạo/hủy/dời lịch -> thông báo in-app và Web Push cho ADMIN, KTV thực hiện lịch và KTV phụ trách hồ sơ hiện tại, chỉ trong cùng chi nhánh và đang hoạt động; không gửi người thực hiện thao tác. KTV thực hiện trùng người phụ trách chỉ nhận một lần. Kiểm tra lại quyền trước lưu và trước gửi Push.
+- Admin/Staff tạo lịch (`POST /bookings`, `POST /bookings/manual-batches`), cập nhật trạng thái, hủy hoặc dời lịch -> thông báo cho CUSTOMER sở hữu lịch đang hoạt động. CREATED dùng tiêu đề “Bạn có lịch hẹn mới”; Push dẫn về `/{slug}/appointments`. Mỗi lịch trong batch có một thông báo riêng. Chỉ chạy sau commit thành công; rollback không thông báo. Retry batch cùng request_id có thể khôi phục thông báo chưa lưu, nhưng thông báo CREATED đã lưu không bị gửi lại (khóa customer + kiểm tra tenant/booking/type/user). GET kết quả không phát thông báo. Không tự retry Push đã lỗi sau khi thông báo in-app được lưu.
 
 
 ### Web Push: điều hướng theo người nhận
@@ -252,3 +252,11 @@ Danh tính deployment_operators tách biệt UserRole và login_accounts nghiệ
 
 ### Dung sai đồng hồ JWT
 Token nghiệp vụ và Operator dùng leeway cố định 2 giây cho kiểm tra thời gian (iat/nbf/exp), nhằm chịu được hiệu chỉnh đồng hồ nhỏ. Vẫn xác minh chữ ký, audience, scope, version và quyền dữ liệu; token phát trước thời gian quá 2 giây hoặc hết hạn ngoài khoảng này bị từ chối. Không thay đổi thời lượng phiên.
+
+
+### 21/10/2026 — Thông báo tạo lịch và lịch được giao
+
+- `BookingOut` bổ sung `can_manage: boolean`: ADMIN và người phụ trách hồ sơ có thể quản lý theo quyền hiện hành; STAFF chỉ được giao thực hiện lịch của khách khác nhận `false`. Đây là thông tin giao diện, backend vẫn kiểm tra quyền trên từng mutation.
+- STAFF đọc `GET /bookings` và `GET /bookings/{id}` nếu đang phụ trách khách hoặc là `staff_id` hiện tại của lịch. Việc được giao thực hiện chỉ mở quyền đọc chính lịch đó (gồm thông tin lịch/dịch vụ/ghi chú lịch); không mở CRM, thẻ, hồ sơ sức khỏe, sửa/hủy/dời/đổi trạng thái hoặc quyền đối chiếu batch. Endpoint slots để sửa lịch vẫn theo quyền chủ hồ sơ.
+- Thông báo STAFF (danh sách, đếm, đọc một/tất cả) cùng phạm vi đọc lịch. Mất cả phụ trách hồ sơ và giao thực hiện thì thông báo cũ bị ẩn; không có quyền chéo tenant.
+- Không yêu cầu migration hoặc endpoint mới. VAPID chỉ bật Push ngoài ứng dụng; thiếu khóa vẫn lưu in-app. Runner QA đặt khóa rỗng mặc định, test Push dùng mock, không gửi bằng secrets deployment.

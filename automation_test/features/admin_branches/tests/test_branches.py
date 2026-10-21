@@ -38,7 +38,7 @@ def test_owner_grants_staff_and_staff_logs_in_without_slug(scenario):
     staff_page.locator("#phone").fill(s["staff"]["phone_number"])
     staff_page.locator("#password").fill("Staff@123")
     with staff_page.expect_response(lambda r: r.url.endswith("/auth/login")) as login:
-        staff_page.get_by_role("button", name="Đăng nhập vào Dashboard").click()
+        staff_page.get_by_role("button", name="Đăng nhập").click()
     assert login.value.status == 200
     expect(staff_page).to_have_url(config.frontend_url + "/admin/bookings")
     expect(staff_page.locator("#activeBranch option")).to_have_count(2)

@@ -10,7 +10,6 @@ import { Input, Label } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -64,11 +63,8 @@ export default function AdminLoginPage(): React.ReactElement {
             <Sparkles className="h-6 w-6" />
           </div>
           <CardTitle className="text-xl font-bold">
-            Đăng nhập Quản trị SpaOS
+            Đăng nhập
           </CardTitle>
-          <CardDescription>
-            Dành cho Chủ Spa (ADMIN) & Kỹ thuật viên / Lễ tân (STAFF)
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
@@ -115,10 +111,10 @@ export default function AdminLoginPage(): React.ReactElement {
             </div>
 
             <Button type="submit" className="w-full" disabled={!hydrated || submitting}>
-              {submitting ? "Đang xác thực..." : "Đăng nhập vào Dashboard"}
+              {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
 
-            <p className="text-center text-xs text-muted-foreground">Chưa có tài khoản? Liên hệ chủ spa để được cấp quyền.</p>
+            <p className="text-center text-xs text-muted-foreground">Chưa có tài khoản? Liên hệ chủ spa để được hỗ trợ.</p>
           </form>
         </CardContent>
       </Card>

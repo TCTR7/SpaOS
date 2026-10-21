@@ -9,7 +9,6 @@ import {
   PackagePlus,
   Plus,
   Search,
-  ShieldAlert,
   Ticket,
   User as UserIcon,
 } from "lucide-react";
@@ -206,7 +205,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       otherStaffCustomerIds.has(editingCustomer.id)
     ) {
       setError(
-        "Bảo mật quyền riêng tư: Bạn không có quyền chỉnh sửa hồ sơ khách hàng của Kỹ thuật viên khác."
+        "Bạn chỉ có thể sửa hồ sơ khách đang phụ trách."
       );
       return;
     }
@@ -258,7 +257,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       otherStaffCustomerIds.has(selectedCustomer.id)
     ) {
       setError(
-        "Bảo mật quyền riêng tư: Bạn không có quyền cấp thẻ liệu trình cho khách hàng của Kỹ thuật viên khác."
+        "Bạn chỉ có thể cấp thẻ cho khách đang phụ trách."
       );
       return;
     }
@@ -281,7 +280,7 @@ export default function AdminCustomersPage(): React.ReactElement {
       otherStaffCustomerIds.has(issueTarget.id)
     ) {
       setError(
-        "Bảo mật quyền riêng tư: Bạn không có quyền cấp thẻ liệu trình cho khách hàng của Kỹ thuật viên khác."
+        "Bạn chỉ có thể cấp thẻ cho khách đang phụ trách."
       );
       return;
     }
@@ -333,15 +332,6 @@ export default function AdminCustomersPage(): React.ReactElement {
       {error && (
         <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
           {error}
-        </div>
-      )}
-
-      {user?.role === "STAFF" && (
-        <div className="flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-xs font-medium text-sky-800">
-          <ShieldAlert className="h-4 w-4 text-sky-600 shrink-0" />
-          <span>
-            <strong>Chế độ Bảo mật Kỹ thuật viên:</strong> Hệ thống tự động phân lập dữ liệu — bạn chỉ xem và thao tác với khách hàng được giao cho mình. Chỉ Admin được chuyển người phụ trách.
-          </span>
         </div>
       )}
 

@@ -114,7 +114,7 @@ function ScopedCustomerTenantProvider({
     } catch (error) {
       if (!current()) return;
       if (error instanceof ApiError && error.status === 401) clearCustomerToken(normalizedSlug);
-      else setAuthError("Chưa xác minh được phiên đăng nhập. Kiểm tra kết nối và thử lại.");
+      else setAuthError("Chưa tải được tài khoản. Kiểm tra kết nối và thử lại.");
     } finally {
       if (current()) setAuthLoading(false);
     }

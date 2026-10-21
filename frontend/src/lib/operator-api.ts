@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error-message";
 export interface OperatorIdentity { id: string; full_name: string; phone_number: string }
 export interface OwnerProvision {
   id: string; tenant_id: string; owner_user_id: string; branch_name: string;
@@ -20,8 +21,8 @@ export async function operatorRequest<T>(path: string, body?: unknown): Promise<
     if (response.status === 401 && path !== "/login") {
       clearOperatorToken(); window.location.replace("/operator/login");
     }
-    const data = await response.json().catch(() => ({})) as { detail?: string | {msg?: string}[] };
-    const detail = typeof data.detail === "string" ? data.detail : Array.isArray(data.detail) ? data.detail.map((d) => d.msg).join(", ") : "Không thể xử lý yêu cầu.";
+    const data = await response.json().catch(() => null) as { detail?: unknown } | null;
+    const detail = apiErrorMessage(response.status, data?.detail);
     throw new OperatorError(response.status, detail);
   }
   return await response.json() as T;

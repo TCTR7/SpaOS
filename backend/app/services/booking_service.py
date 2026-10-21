@@ -26,7 +26,7 @@ from app.models.models import (
 )
 from app.schemas.booking import BookingCreate, BookingUpdate, BookingOut
 from app.services.audit_service import audit
-from app.services.customer_access import customer_access, booking_access, customer_scope
+from app.services.customer_access import customer_access, booking_access, customer_scope, booking_read_scope
 
 TZ = ZoneInfo(settings.DEFAULT_TIMEZONE)
 SLOT_STEP_MINUTES = 15
@@ -535,7 +535,7 @@ async def cancel_booking(
 
 
 # ---------------------------------------------------------------- list
-async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: List[Booking]) -> List[BookingOut]:
+async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: List[Booking], actor: Optional[User] = None) -> List[BookingOut]:
     """Project names for already-authorized rows in two bounded queries; no lazy relationships."""
     if not bookings:
         return []
@@ -548,7 +548,11 @@ async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: Lis
     services = dict((await db.execute(select(Service.id, Service.name).where(
         Service.tenant_id == tenant_id, Service.id.in_(service_ids)
     ))).all())
+    managed = set()
+    if actor is not None and actor.role == UserRole.STAFF:
+        managed = set((await db.execute(customer_scope(tenant_id, actor).where(User.id.in_({b.customer_id for b in bookings})))).scalars().all())
     return [BookingOut.model_validate(b).model_copy(update={
+        "can_manage": actor is None or actor.role != UserRole.STAFF or b.customer_id in managed,
         "customer_name": users.get(b.customer_id), "staff_name": users.get(b.staff_id),
         "items": [item.model_copy(update={"service_name": services.get(item.service_id)})
                   for item in BookingOut.model_validate(b).items],
@@ -571,7 +575,7 @@ async def list_bookings(
 ) -> List[Booking]:
     stmt = select(Booking).options(selectinload(Booking.items.and_(BookingItem.tenant_id == tenant_id))).where(Booking.tenant_id == tenant_id)
     if actor is not None and actor.role == UserRole.STAFF:
-        stmt = stmt.where(Booking.customer_id.in_(customer_scope(tenant_id, actor)))
+        stmt = stmt.where(booking_read_scope(tenant_id, actor))
     if customer_id is not None:
         stmt = stmt.where(Booking.customer_id == customer_id)
     if staff_id is not None:

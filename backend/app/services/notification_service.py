@@ -15,6 +15,7 @@ from app.services.booking_service import TZ
 logger = logging.getLogger("spaos.notifications")
 
 _STATUS_TITLES = {
+    "CREATED": "Bạn có lịch hẹn mới",
     "RESCHEDULED": "Lịch hẹn đã được thay đổi",
     "CONFIRMED": "Lịch hẹn đã được xác nhận",
     "IN_PROGRESS": "Buổi chăm sóc đã bắt đầu",
@@ -73,11 +74,21 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
                               {"key": f"customer:{tenant_id}:{customer_id}"})
         owner_id = (await session.execute(select(User.assigned_staff_id).where(
             User.id == customer_id, User.tenant_id == tenant_id))).scalar_one()
+        staff_id = (await session.execute(select(Booking.staff_id).where(
+            Booking.tenant_id == tenant_id, Booking.id == booking_id))).scalar_one()
         roles = dict((await session.execute(select(User.id, User.role).where(
             User.tenant_id == tenant_id, User.id.in_({d.user_id for d in drafts}),
             User.is_active.is_(True)))).all())
         drafts = [d for d in drafts if d.user_id in roles and (
-            roles[d.user_id] == UserRole.ADMIN or d.user_id == customer_id or d.user_id == owner_id)]
+            roles[d.user_id] == UserRole.ADMIN or d.user_id == customer_id or
+            (roles[d.user_id] == UserRole.STAFF and d.user_id in {owner_id, staff_id}))]
+        if ntype == "BOOKING_CREATED":
+            # Retries of a committed counter batch must not duplicate notifications/push.
+            existing = set((await session.execute(select(Notification.user_id).where(
+                Notification.tenant_id == tenant_id, Notification.booking_id == booking_id,
+                Notification.type == ntype, Notification.user_id.in_({d.user_id for d in drafts})
+            ))).scalars().all())
+            drafts = [d for d in drafts if d.user_id not in existing]
         if not drafts:
             return
         # Notification INSERTs acquire FK KEY SHARE locks on users and bookings.
@@ -136,7 +147,15 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
                               {"key": f"customer:{tenant_id}:{customer_id}"})
         owner_id = (await session.execute(select(User.assigned_staff_id).where(
             User.id == customer_id, User.tenant_id == tenant_id))).scalar_one()
-        jobs = [j for j in jobs if roles[j["user_id"]] != UserRole.STAFF or j["user_id"] == owner_id]
+        staff_id = (await session.execute(select(Booking.staff_id).where(
+            Booking.tenant_id == tenant_id, Booking.id == booking_id))).scalar_one()
+        eligible = set((await session.execute(select(User.id).where(
+            User.tenant_id == tenant_id, User.is_active.is_(True),
+            User.id.in_({j["user_id"] for j in jobs}),
+            or_(User.role == UserRole.ADMIN, User.id == customer_id,
+                (User.role == UserRole.STAFF) & User.id.in_([uid for uid in {owner_id, staff_id} if uid is not None]))
+        ))).scalars().all())
+        jobs = [j for j in jobs if j["user_id"] in eligible]
         results = await asyncio.gather(*[_send_one(j["sub"], j["payload"]) for j in jobs], return_exceptions=True)
     expired: List[uuid.UUID] = []
     for job, res in zip(jobs, results):
@@ -161,7 +180,7 @@ async def notify_booking_event(
     """Chạy trong BackgroundTasks: KHÔNG bao giờ raise (không ảnh hưởng transaction đặt lịch chính).
 
     event: CREATED | RESCHEDULED | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
-    to_staff=True  -> gửi ADMIN và KTV phụ trách hồ sơ hiện tại (trừ người thực hiện)
+    to_staff=True  -> gửi ADMIN, KTV thực hiện và người phụ trách hồ sơ (trừ người thực hiện thao tác)
     to_staff=False -> gửi CUSTOMER sở hữu lịch hẹn
     """
     try:
@@ -190,7 +209,8 @@ async def notify_booking_event(
                         select(User.id).where(
                             User.tenant_id == tenant_id,
                             or_(User.role == UserRole.ADMIN,
-                                (User.role == UserRole.STAFF) & (User.id == customer.assigned_staff_id)),
+                                (User.role == UserRole.STAFF) & User.id.in_([uid for uid in
+                                    {customer.assigned_staff_id, booking.staff_id} if uid is not None])),
                             User.is_active.is_(True),
                             User.id != actor_id,
                         )
@@ -212,7 +232,7 @@ async def notify_booking_event(
                 slug = (await session.execute(select(Tenant.slug).where(Tenant.id == tenant_id))).scalar_one()
                 drafts.append(Draft(
                     booking.customer_id, _STATUS_TITLES.get(event, "Cập nhật lịch hẹn"),
-                    f"Lịch hẹn lúc {when}", f"/{slug}/appointments",
+                    f"Lịch hẹn lúc {when}" + (f" - KTV {staff_name}" if staff_name else ""), f"/{slug}/appointments",
                 ))
         await _deliver(tenant_id, drafts, f"BOOKING_{event}", booking_id)
     except Exception:  # noqa: BLE001 - thông báo lỗi không được phép ảnh hưởng nghiệp vụ chính

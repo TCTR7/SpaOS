@@ -39,5 +39,5 @@ def test_unauthenticated_redirect_to_login(unauthenticated_page: Page) -> None:
     login_page.navigate("/admin/services")
     login_page.wait_for_url_contains("/admin/login")
     expect(
-        unauthenticated_page.get_by_text("Đăng nhập Quản trị SpaOS")
+        unauthenticated_page.get_by_role("heading", name="Đăng nhập", exact=True)
     ).to_be_visible()
