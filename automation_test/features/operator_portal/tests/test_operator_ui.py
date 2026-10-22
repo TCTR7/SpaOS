@@ -68,16 +68,19 @@ def test_operator_updates_branding_across_login_customer_and_light_palette(opera
     page = page_for()
     ui = OperatorPage(page)
     ui.login()
+    owner_phone = ui.fill_owner()
+    if page.locator("#ownerThemeColor").count():
+        page.locator("#ownerThemeColor").fill("#2563eb")
+    ui.submit()
+    expect(page.get_by_test_id("owner-created")).to_be_visible()
+    expect(page.locator("#ownerThemeColor")).to_have_count(0)
+    page.locator("summary").filter(has_text="Cài đặt giao diện").click()
     page.locator("#deploymentColor").fill("#2563eb")
     with page.expect_response(lambda r: r.url.endswith("/operator/branding") and r.request.method == "POST") as saved:
         page.get_by_role("button", name="Lưu màu thương hiệu", exact=True).click()
     assert saved.value.status == 200
     expect(page.get_by_role("status").filter(has_text="Đã lưu màu thương hiệu")).to_be_visible()
     expect(page.get_by_test_id("preview-deploymentColor").locator(".bg-primary")).to_have_css("background-color","rgb(37, 99, 235)")
-    owner_phone = ui.fill_owner()
-    page.locator("#ownerThemeColor").fill("#2563eb")
-    ui.submit()
-    expect(page.get_by_test_id("owner-created")).to_be_visible()
     owner = page_for()
     owner.goto(config.frontend_url + "/admin/login")
     expect(owner.get_by_role("button",name="Đăng nhập")).to_have_css("background-color","rgb(37, 99, 235)")
@@ -104,3 +107,23 @@ def test_operator_updates_branding_across_login_customer_and_light_palette(opera
     expect(owner.get_by_test_id("branch-dashboard")).to_be_visible()
     expect(owner.locator("html")).to_have_css("--brand-color","#ffff00")
     assert customer.locator('meta[name="theme-color"]').first.get_attribute("content") == "#ffff00"
+
+
+def test_operator_has_one_branding_editor_per_stage(operator_ui):
+    page_for, _ = operator_ui
+    page = page_for()
+    page.route("**/api/v1/operator/owners?*", lambda route: route.fulfill(json=[]))
+    ui = OperatorPage(page)
+    ui.login()
+    expect(page.locator("#ownerThemeColor")).to_be_visible()
+    expect(page.locator("#deploymentColor")).to_have_count(0)
+    ui.fill_owner()
+    ui.submit()
+    expect(page.get_by_test_id("owner-created")).to_be_visible()
+    page.unroute("**/api/v1/operator/owners?*")
+    page.reload()
+    expect(page.locator("#ownerName")).to_be_visible()
+    expect(page.get_by_test_id("provision-row").first).to_be_visible()
+    expect(page.locator("#ownerThemeColor")).to_have_count(0)
+    page.locator("summary").filter(has_text="Cài đặt giao diện").click()
+    expect(page.locator("#deploymentColor")).to_be_visible()

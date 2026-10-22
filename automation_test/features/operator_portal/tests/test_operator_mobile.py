@@ -18,9 +18,12 @@ def test_operator_routes_long_names_error_retry_and_brand_preview(operator_ui, w
     page.locator("#ownerName").fill("LongOwnerName" * 18)
     page.locator("#firstBranch").fill("LongBranchName" * 18)
     page.locator("#ownerPhone").fill("0901234567")
+    picker = "ownerThemeColor" if page.locator("#ownerThemeColor").count() else "deploymentColor"
+    if picker == "deploymentColor":
+        page.locator("summary").filter(has_text="Cài đặt giao diện").click()
     for color in ["#ffff00", "#000080"]:
-        page.locator("#ownerThemeColor").fill(color)
-        expect(page.get_by_test_id("preview-ownerThemeColor")).to_be_visible()
+        page.locator("#" + picker).fill(color)
+        expect(page.get_by_test_id("preview-" + picker)).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
     page.evaluate("document.documentElement.classList.add('dark')")
     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")

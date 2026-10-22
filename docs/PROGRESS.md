@@ -676,3 +676,16 @@ PO thống nhất triển khai version FE/BE và đối chiếu release, cổng 
 - Đang build lại frontend production local từ RC2; sẽ giữ trạng thái phục vụ local như khi bắt đầu task. Không đưa QA seed hoặc dữ liệu thử vào DB ứng dụng. Chưa deploy production, chưa đóng nghiệm thu thiết bị Android/iOS thật hay gate bảo mật framework hiện hữu.
 
 - Chốt local: npm run build/TypeScript PASS; đã restart frontend production (launcher 19072, listener 26712) và backend. GET /api/system/version trả frontend-d5b4676706ea; Swagger trả backend-9069d78cd763, cả hai version 0.2.0/release 20261022-operator-onboarding-rc2. Backend health và /, /admin/login, /operator/login đều HTTP200 sau chờ readiness. Không còn listener 3001/3002 hoặc container QA/restore; frontend 3000 giữ chạy như lúc bắt đầu task. git diff --check PASS.
+
+### 22/10/2026 — Sửa màu operator trùng và startup Render
+
+- PO báo hai khối màu ở operator và log Render UndefinedColumnError: tenants.address không tồn tại. Xác nhận Root Directory=backend, Build=pip install -r requirements.txt, Start=uvicorn trực tiếp; start cũ bỏ qua migrations 0009/0010.
+- UI chỉ hiện chọn màu trong form tạo lần đầu; sau khi có owner, màu chung chuyển vào Cài đặt giao diện (đóng mặc định), không có hai picker cùng lúc. Tạo tài khoản tiếp theo dùng màu chung hiện hành, không tái dùng giá trị ẩn từ lần tạo trước.
+- Thêm scripts.start_service: alembic upgrade head → bootstrap operator idempotent → Uvicorn với PORT, không reload. Mỗi bước lỗi thì dừng; Docker dùng cùng entrypoint. Alembic advisory lock serialize migration theo database. Lifespan kiểm tra revision và cột contact bằng runtime DATABASE_URL trước khi chạy worker; không tự stamp hoặc sửa DDL từ runtime role.
+- Hướng dẫn chính xác settings/backup/URL cùng database/kiểm tra deploy ở docs/RENDER_DEPLOYMENT.md. Chưa thay settings hay dữ liệu Render từ phiên này; người dùng cần đổi Start Command sang python -m scripts.start_service và redeploy source mới.
+- Backend QA riêng: 17/17 PASS (17.97s), gồm 7 kiểm tra schema guard/startup và 10 operator. Lượt UI trước bị mất phiên console, không ghi nhận PASS; đang chạy lại production operator QA để có kết quả rõ ràng.
+
+- Kết quả hotfix 0.2.1, release 20261022-render-startup-rc1: production QA build/TypeScript PASS; 11/11 operator E2E PASS (46.50s), run 9cd43cc5-d1fd-4f4f-abee-d4f1b1bfbed9. Bao gồm test chỉ một picker theo giai đoạn, lưu màu ảnh hưởng đúng quản trị/khách, mobile 320/390/768/1366, recovery, version và bàn giao. Backend 17/17 PASS nêu trên; không gọi đây là full backend suite của hotfix.
+- Root Directory backend, Build Command pip install -r requirements.txt giữ nguyên. Người dùng cần đổi Start Command Render thành python -m scripts.start_service và redeploy source mới sau backup; MIGRATION_DATABASE_URL cần trỏ đúng DB runtime và có quyền migration. Chưa điều khiển service Render hay ghi dữ liệu production. Đang chờ local build cuối hoàn tất, frontend local hiện không bật.
+
+- Chốt hotfix: local npm run build/TypeScript PASS; git diff --check PASS; không còn listener 3001/3002 hoặc container QA/restore. Frontend local giữ tắt, đã có build 0.2.1 để khởi động khi cần. Không thay DB/credentials Render hoặc dữ liệu local trong đợt này.

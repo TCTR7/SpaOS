@@ -252,3 +252,6 @@ Trước nghiệm thu ngoài local: HTTPS và Android/iPhone thật (quyền th�
 11. Hướng dẫn & Cài ứng dụng có thể bỏ qua/mở lại. Android dùng install prompt khi browser cung cấp; iOS hướng dẫn Safari/Share/Add to Home Screen. Không tự xin Notification permission. Kiểm tra thực tế HTTPS trên Android/iPhone, Zalo/Messenger in-app browser, start_url và push trước nghiệm thu; Chromium giả lập không xác nhận native install.
 
 Phụ thuộc mới qrcode và jspdf dùng tại trình duyệt cho xuất tài liệu. npm audit hiện còn cảnh báo của Next 14.2.15/PostCSS sẵn có; không tự nâng major Next trong đợt này. Cần xử lý riêng trước chốt production security readiness.
+
+## Hotfix deploy Render 0.2.1
+Xem [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md). Với Root Directory=backend và Build=pip install -r requirements.txt, Start Command phải là `python -m scripts.start_service`. Uvicorn trực tiếp không chạy migration. Lifespan từ chối schema cũ trước khi mở API/worker; advisory lock serialize DDL. Migration phải dùng MIGRATION_DATABASE_URL có quyền owner/DDL trỏ đúng database runtime; backup trước nâng cấp. /health 200 chỉ xuất hiện sau khi startup schema guard đạt; vẫn cần kiểm tra nghiệp vụ và release FE/BE. Không tự reset DB hoặc stamp head khi gặp tenants.address does not exist.
