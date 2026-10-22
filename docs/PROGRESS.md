@@ -638,3 +638,15 @@ docker-compose exec -T backend python -m scripts.test_isolated -q --tb=short
 - Chuyển hai phép quan sát thành regression assertion: tên mới tồn tại sau reload, thông báo thành công hiển thị và form còn mở; khoảng cách password–button >=12 px. Đang chạy production QA cùng hồi quy phiên và role experience.
 
 - Kết quả sửa warning: production build/TypeScript PASS; **38/38 ca PASS (106.95s)** trên QA riêng `a3caccde-a19a-4f7f-90a4-8a40ae03168d`: 3 ca UI review (hai regression và một probe màu), 20 ca phiên đăng nhập, 15 ca role experience. Hai WARNING UI-09/UI-10 nêu trên đã sửa và kiểm chứng; không thay backend/API hay dữ liệu local.
+
+
+### 21/10/2026 — Thiết kế lại trang chọn chi nhánh theo PO
+
+- Thay cột danh sách hẹp bằng trang rộng max-w-7xl: phần giới thiệu, lưới 1/2/3 cột, thẻ logo/tên/liên hệ/giờ mở cửa và CTA Xem lịch trống tới luồng đặt lịch. Tên thương hiệu mặc định SpaOS được hiển thị thành Đặt lịch spa; không suy đoán một thương hiệu từ chi nhánh bất kỳ.
+- API danh sách hiện thiếu logo/giờ; frontend bổ sung qua endpoint public tenant hiện có, tối đa 3 request đồng thời, hủy khi unmount/retry, xác minh id/slug trước khi ghép. Lỗi metadata không chặn chọn chi nhánh. Đây là tradeoff thêm một request mỗi chi nhánh; không sửa backend/contract hoặc dữ liệu local.
+- Giữ nguyên tên lưu trong dữ liệu, kể cả hậu tố mã test; không tự xóa/đổi tên chi nhánh. Mỗi thẻ hiển thị logo riêng; không chọn logo một chi nhánh làm logo chung cho nhiều chi nhánh.
+- Đang kiểm tra production QA: bố cục 320/768/1366 px, logo/giờ, link đặt lịch, metadata lỗi và hồi quy route mobile/tên dài/lỗi tải.
+
+- QA production `72e3190d-1ed9-42c7-90cb-28c228a10916`: build/TypeScript đạt, 19/19 ca PASS (85.28s). Sau đó chuẩn hóa một utility độ mờ đường viền sang cú pháp arbitrary value của Tailwind 3; đang chạy lại build cuối và bốn ca trang chi nhánh.
+
+- Bản cuối: production build/TypeScript đạt; 4/4 ca trang chi nhánh PASS (10.58s), run `781f8a11-9399-4a29-a475-be550416b273`. Kết hợp lượt 19 ca phía trên, không gọi lượt cuối là full suite. Không lưu ảnh/log/trace, không tự khởi động frontend local.
