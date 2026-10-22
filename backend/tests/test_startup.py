@@ -61,7 +61,7 @@ async def test_no_worker_starts_before_schema_is_ready(monkeypatch):
     worker.assert_not_called()
 
 
-@pytest.mark.parametrize("failed_stage", [0, 1])
+@pytest.mark.parametrize("failed_stage", [0, 1, 2])
 def test_start_does_not_open_server_after_failed_preparation(monkeypatch, failed_stage):
     calls = []
     monkeypatch.setattr(start_service.os, "chdir", lambda _: None)
@@ -82,7 +82,8 @@ def test_start_uses_render_port_after_successful_preparation(monkeypatch):
         calls.append(args) or SimpleNamespace(returncode=0))
     monkeypatch.setattr(start_service.os, "execv", lambda executable, args: executions.append(args))
     start_service.start()
-    assert calls[0][-3:] == ["alembic", "upgrade", "head"]
-    assert calls[1][-1] == "app.seed"
+    assert calls[0][-1] == "scripts.check_database"
+    assert calls[1][-3:] == ["alembic", "upgrade", "head"]
+    assert calls[2][-1] == "app.seed"
     assert executions[0][-2:] == ["--port", "10000"]
     assert "--reload" not in executions[0]

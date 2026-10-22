@@ -689,3 +689,8 @@ PO thống nhất triển khai version FE/BE và đối chiếu release, cổng 
 - Root Directory backend, Build Command pip install -r requirements.txt giữ nguyên. Người dùng cần đổi Start Command Render thành python -m scripts.start_service và redeploy source mới sau backup; MIGRATION_DATABASE_URL cần trỏ đúng DB runtime và có quyền migration. Chưa điều khiển service Render hay ghi dữ liệu production. Đang chờ local build cuối hoàn tất, frontend local hiện không bật.
 
 - Chốt hotfix: local npm run build/TypeScript PASS; git diff --check PASS; không còn listener 3001/3002 hoặc container QA/restore. Frontend local giữ tắt, đã có build 0.2.1 để khởi động khi cần. Không thay DB/credentials Render hoặc dữ liệu local trong đợt này.
+
+### 22/10/2026 — Restore reverted connection diagnostics
+- Restored scripts.check_database and startup/test integration after user revert. Existing migration/schema guard remained intact.
+- Diagnostics check both URLs via SELECT 1, report environment versus dotenv/default source without secrets. SQLSTATE 28P01 indicates rejected effective connection, not proof that the previously stored password was incorrect.
+- Isolated QA: 11/11 passed; temporary DB removed. Three existing Alembic path_separator deprecation warnings remain. Production credentials/deployment not accessed or verified; frontend not started.

@@ -134,3 +134,6 @@ PO thống nhất triển khai version FE/BE và đối chiếu release, cổng 
 
 ### Hotfix startup Render và màu operator — 22/10/2026
 Theo phản ánh PO, khởi động native Render phải migrate trước API bằng scripts.start_service; runtime schema guard dừng bản có DB chưa nâng cấp. Không dùng runtime để bypass RLS hoặc tự stamp schema. Màu vẫn là cấu hình chung deployment; giao diện chỉ hiện một chỗ chỉnh theo giai đoạn tạo/đã có chủ spa.
+
+### 22/10/2026 — Restored startup diagnostics
+Read-only connection checks restored before migration. Runtime and migration roles remain separate; no credential fallback or RLS bypass. Production authentication remains to be verified in its actual environment.

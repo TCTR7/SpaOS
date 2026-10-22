@@ -15,7 +15,9 @@ def start():
             raise ValueError()
     except ValueError:
         raise SystemExit("PORT must be an integer between 1 and 65535")
-    for module, arguments in (("alembic", ["upgrade", "head"]), ("app.seed", [])):
+    for module, arguments in (("scripts.check_database", []),
+                              ("alembic", ["upgrade", "head"]), ("app.seed", [])):
+        print(f"Startup: {module}", flush=True)
         result = subprocess.run([sys.executable, "-m", module, *arguments], cwd=root)
         if result.returncode:
             raise SystemExit(result.returncode)
