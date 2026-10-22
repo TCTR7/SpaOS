@@ -2,7 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -34,7 +34,16 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_migrations_online() -> None:
     engine = create_async_engine(DB_URL, poolclass=pool.NullPool)
     async with engine.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+        # Serialize releases against this database. Session lock survives the
+        # migration's transactions and is also released if the process crashes.
+        await connection.execute(text("SELECT pg_advisory_lock(hashtextextended('spaos:schema-migrations',0))"))
+        await connection.commit()
+        try:
+            await connection.run_sync(do_run_migrations)
+        finally:
+            await connection.rollback()
+            await connection.execute(text("SELECT pg_advisory_unlock(hashtextextended('spaos:schema-migrations',0))"))
+            await connection.commit()
     await engine.dispose()
 
 

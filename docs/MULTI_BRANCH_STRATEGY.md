@@ -131,3 +131,6 @@ PO thống nhất triển khai version FE/BE và đối chiếu release, cổng 
 
 ### Trạng thái bản 0.2.0 — 22/10/2026
 Đã triển khai code version, quản lý/khôi phục chủ spa, bộ bàn giao và hướng dẫn/PWA theo phê duyệt trên. Migration 0010 đã áp local sau backup/restore, không thay ID/dữ liệu cũ. Backend 119/119; production UI 33/33 và 6/6 bản cuối theo phạm vi trong PROGRESS. Operator chỉ quản lý tài khoản có provision đã xác minh; không tự tiếp quản owner legacy. Native PWA/push thiết bị thật và production deploy vẫn chưa nghiệm thu. Hướng một chủ spa/deployment và tenant context từng chi nhánh giữ nguyên.
+
+### Hotfix startup Render và màu operator — 22/10/2026
+Theo phản ánh PO, khởi động native Render phải migrate trước API bằng scripts.start_service; runtime schema guard dừng bản có DB chưa nâng cấp. Không dùng runtime để bypass RLS hoặc tự stamp schema. Màu vẫn là cấu hình chung deployment; giao diện chỉ hiện một chỗ chỉnh theo giai đoạn tạo/đã có chủ spa.

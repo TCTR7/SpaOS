@@ -304,3 +304,6 @@ Phạm vi bổ sung: địa chỉ/liên hệ chi nhánh; ảnh logo kiểm tra �
 - [x] Bộ bàn giao PNG/PDF/tin nhắn/QR tạo trong trình duyệt, tách nội dung quản lý và khách; không chứa mật khẩu hoặc recovery token.
 - [x] Manifest riêng quản lý/chi nhánh; hướng dẫn cài Android/iOS và chuỗi hướng dẫn ba vai trò có thể bỏ qua/mở lại.
 - [ ] Nghiệm thu native install/start_url/push trên Android/iOS thật qua HTTPS và các gate phát hành còn mở trong RELEASE_RUNBOOK. Icon PWA hiện dùng asset ứng dụng; chưa thay thành icon riêng cho từng spa.
+
+### Hotfix vận hành 0.2.1 — 22/10/2026
+Màu chung chỉ được chỉnh tại một nơi theo giai đoạn: trong form cấp chủ đầu tiên hoặc mục Cài đặt giao diện sau khi đã có chủ. Render/Docker dùng start_service để nâng schema trước mở API; schema guard phát hiện revision cũ/mất cột và ngăn worker chạy với DB chưa sẵn sàng. Không tự thay settings Render từ code; xem RENDER_DEPLOYMENT.md.

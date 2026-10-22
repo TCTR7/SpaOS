@@ -8,6 +8,8 @@ from app.core.release import BUILD_INFO
 
 @asynccontextmanager
 async def lifespan(app):
+    from app.core.schema import verify_database_schema
+    await verify_database_schema()
     from app.services.notification_queue import worker
     task = asyncio.create_task(worker()) if settings.ENVIRONMENT != "test" else None
     yield
