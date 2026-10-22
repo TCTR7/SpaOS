@@ -32,7 +32,7 @@ def test_directory_layout_branding_and_booking(scenario, width, columns):
 
 def test_directory_optional_details_failure_keeps_booking(scenario):
     page = scenario["page"]("", True)
-    page.route("**/api/v1/branches/public", lambda r: r.fulfill(json={"brand_name": "SpaOS", "branches": [{"id": "1", "slug": "one", "name": "Spa One"}]}))
+    page.route("**/api/v1/branches/public", lambda r: r.fulfill(json={"brand_name": "SpaOS", "branches": [{"id": "1", "slug": "one", "name": "Spa One"}, {"id":"2","slug":"two","name":"Spa Two"}]}))
     page.route("**/api/v1/public/tenants/one", lambda r: r.fulfill(status=503, json={}))
     page.goto(config.frontend_url + "/")
     expect(page.get_by_role("link", name="Xem lịch trống tại Spa One", exact=True)).to_be_visible()

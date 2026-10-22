@@ -120,6 +120,10 @@ def main():
             assert restored_sql(f"SET ROLE restore_probe; SET app.current_account_id='{account}'; SELECT count(*) FROM users;").strip() == "0", "Account context leaked business data"
             phone = restored_sql(f"SELECT phone_number FROM login_accounts WHERE id='{account}';").strip().replace("'", "''")
             assert restored_sql(f"SET ROLE restore_probe; SET app.login_phone='{phone}'; SELECT count(*) FROM login_accounts;").strip() == "1"
+        if any(r["table"] == "owner_recovery_grants" for r in restored):
+            assert any(r["table"] == "owner_recovery_grants" and r["rls"] == "t" and r["force_rls"] == "t" for r in restored)
+            assert restored_sql("SET ROLE restore_probe; SELECT count(*) FROM owner_recovery_grants;").strip() == "0"
+            assert restored_sql(f"SET ROLE restore_probe; SET app.current_tenant_id='{tenant}'; SELECT count(*) FROM owner_recovery_grants;").strip() == "0", "Tenant alone exposed owner recovery grants"
         operator = restored_sql("SELECT id FROM deployment_operators ORDER BY id LIMIT 1;").strip()
         if operator:
             uuid.UUID(operator)

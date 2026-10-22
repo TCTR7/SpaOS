@@ -8,11 +8,14 @@ import type { OperatorIdentity, OwnerCreate, OwnerProvision } from "@/lib/operat
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { formatDateTimeVN } from "@/lib/utils";
+import { OperatorSystem } from "@/components/operator-system";
+import { OperatorOwner } from "@/components/operator-owner";
 
 export default function OperatorPage(): React.ReactElement {
   const {branding,refresh} = useBranding();
   const [ownerColor,setOwnerColor] = React.useState<string | null>(null);
   const [operator, setOperator] = React.useState<OperatorIdentity | null>(null);
+  const [selectedOwner, setSelectedOwner] = React.useState<string|null>(null);
   const [rows, setRows] = React.useState<OwnerProvision[]>([]);
   const [offset, setOffset] = React.useState(0);
   const [branch, setBranch] = React.useState("");
@@ -47,13 +50,14 @@ export default function OperatorPage(): React.ReactElement {
       setAttempt(null); setPassword(""); setConfirm(""); setBranch(""); setName(""); setPhone("");
       await refresh(); announceBranding();
       setSuccess(record); setMessage("Đã tạo tài khoản chủ spa và chi nhánh đầu tiên.");
+      setSelectedOwner(record.id);
       try { await load(0); setOffset(0); } catch { setError("Tài khoản đã được tạo. Tải lại trang để xem danh sách mới."); }
     } catch (e) {
       if (e instanceof OperatorError && e.status < 500) setAttempt(null);
       setError(e instanceof Error ? e.message : "Chưa rõ kết quả. Thử lại cùng yêu cầu để tránh tạo trùng.");
     } finally { createFlight.current = false; setBusy(false); }
   };
-  return <main className="mx-auto min-w-0 [overflow-wrap:anywhere] max-w-3xl space-y-5 px-4 py-8">
+  return <main className="mx-auto min-w-0 [overflow-wrap:anywhere] max-w-5xl space-y-5 px-4 py-8">
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-bold">Cấp tài khoản chủ spa</h1>
       {operator && <Button variant="outline" disabled={locked} onClick={async () => {
         setBusy(true); setError(null);
@@ -62,6 +66,7 @@ export default function OperatorPage(): React.ReactElement {
       }}>Đăng xuất</Button>}
     </div>
     {operator && <p className="text-sm text-muted-foreground">Quản trị: {operator.full_name}</p>}
+    {operator && <OperatorSystem />}
     {error && <div role="alert" className="space-y-2 text-sm text-rose-700"><p>{error}</p><Button variant="outline" disabled={locked} onClick={() => { setError(null); setLoadAttempt((v) => v+1); }}>Thử tải lại danh sách</Button></div>}
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
     {success && <div className="rounded-xl border bg-card p-4 text-sm" data-testid="owner-created">
@@ -83,8 +88,10 @@ export default function OperatorPage(): React.ReactElement {
     {operator && <section className="space-y-3">
       <h2 className="font-bold">Tài khoản đã cấp</h2>
       {rows.length === 0 && <p className="text-sm text-muted-foreground">Chưa có tài khoản nào được tạo tại đây.</p>}
-      {rows.map((row) => <article key={row.id} data-testid="provision-row" className="rounded-xl border p-4 text-sm"><strong>{row.owner_name}</strong><p>{row.phone_number} • {row.branch_name}</p><p className="text-xs text-muted-foreground">{formatDateTimeVN(row.created_at)}</p></article>)}
+      <p className="text-xs text-muted-foreground">Thông tin bên dưới ghi nhận thời điểm cấp. Mở quản lý để xem thông tin hiện tại.</p>
+      {rows.map((row) => <article key={row.id} data-testid="provision-row" className="space-y-2 rounded-xl border p-4 text-sm"><strong>{row.owner_name}</strong><p>{row.phone_number} • {row.branch_name}</p><p className="text-xs text-muted-foreground">{formatDateTimeVN(row.created_at)}</p><Button variant="outline" disabled={locked} onClick={()=>setSelectedOwner(row.id)}>Quản lý & Bàn giao</Button></article>)}
       <div className="flex gap-2"><Button variant="outline" disabled={locked || offset === 0} onClick={() => setOffset(Math.max(0,offset-50))}>Trang trước</Button><Button variant="outline" disabled={locked || rows.length<50} onClick={() => setOffset(offset+50)}>Trang sau</Button></div>
     </section>}
+    {operator && selectedOwner && <OperatorOwner key={selectedOwner} id={selectedOwner}/>}
   </main>;
 }

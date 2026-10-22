@@ -5,7 +5,7 @@ import json
 import uuid
 from datetime import datetime, timedelta, timezone
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +20,17 @@ from app.services.audit_service import audit
 
 from app.schemas.branding import BrandingOut, BrandingUpdate
 from app.services.branding_service import get_branding, save_branding
+from app.schemas.operator import OwnerVerify, OwnerUpdate
+from app.schemas.experience import RecoveryClaim
+from app.services.owner_service import resolve_owner, owner_view, owner_memberships
+from app.models.models import OwnerRecoveryGrant, AuditLog
+from sqlalchemy import delete
+import secrets
 
 router = APIRouter(prefix="/operator", tags=["operator"])
 AUDIENCE = "spaos-operator"
 DUMMY_HASH = hash_password("not-a-valid-operator-password")
+
 
 async def operator_context(db, operator_id):
     await db.execute(text("SELECT set_config('app.current_operator_id',:id,true)"), {"id": str(operator_id)})
@@ -45,6 +52,13 @@ async def get_operator(credentials=Depends(bearer_scheme), db: AsyncSession = De
     if row is None or row.token_version != claims["version"]:
         raise HTTPException(401, "Phiên quản trị đã bị thu hồi")
     return row
+
+
+@router.get("/system")
+async def system_info(response: Response, operator=Depends(get_operator)):
+    from app.core.release import BUILD_INFO
+    response.headers["Cache-Control"] = "no-store"
+    return BUILD_INFO
 
 @router.post("/login", response_model=OperatorToken)
 async def login(body: OperatorLogin, db: AsyncSession = Depends(get_db)):
@@ -142,3 +156,99 @@ async def update_branding(body: BrandingUpdate, operator=Depends(get_operator), 
     result = await save_branding(db, operator.id, body.theme_color)
     await db.commit()
     return result
+
+
+def verify_operator_password(operator, body):
+    if not verify_password(body.current_password.get_secret_value(), operator.password_hash):
+        raise HTTPException(403, "Mật khẩu xác nhận không đúng")
+
+
+@router.get("/owners/{provision_id}")
+async def owner_detail(provision_id: uuid.UUID, operator=Depends(get_operator), db: AsyncSession = Depends(get_db)):
+    return await owner_view(db, operator.id, provision_id)
+
+
+@router.patch("/owners/{provision_id}")
+async def update_owner(provision_id: uuid.UUID, body: OwnerUpdate, operator=Depends(get_operator), db: AsyncSession = Depends(get_db)):
+    verify_operator_password(operator, body)
+    record, account, rows = await resolve_owner(db, operator.id, provision_id)
+    try:
+        account.phone_number = body.phone_number
+        await db.flush()
+        for _, user, tenant in rows:
+            await set_tenant_context(db, tenant.id)
+            user.full_name, user.phone_number = body.full_name, body.phone_number
+            user.auth_version += 1
+            audit(db, tenant.id, None, "OWNER_ACCOUNT_UPDATED", "user", user.id,
+                {"operator_id": str(operator.id), "fields": ["full_name", "phone_number"], "sessions_revoked": True})
+            await db.flush()
+        result = await owner_view(db, operator.id, provision_id)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "Số điện thoại đã được sử dụng; chưa thay đổi tài khoản")
+    return result
+
+
+@router.post("/owners/{provision_id}/recovery-link")
+async def owner_recovery_link(provision_id: uuid.UUID, body: OwnerVerify, operator=Depends(get_operator), db: AsyncSession = Depends(get_db)):
+    verify_operator_password(operator, body)
+    record, account, rows = await resolve_owner(db, operator.id, provision_id)
+    primary = next(u for _, u, _ in rows if u.id == record.owner_user_id)
+    if not primary.is_active:
+        raise HTTPException(409, "Tài khoản đang ngưng hoạt động")
+    await set_tenant_context(db, record.tenant_id)
+    await db.execute(delete(OwnerRecoveryGrant).where(OwnerRecoveryGrant.tenant_id == record.tenant_id,
+        OwnerRecoveryGrant.account_id == account.id, OwnerRecoveryGrant.operator_id == operator.id))
+    token = secrets.token_urlsafe(32)
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=30)
+    db.add(OwnerRecoveryGrant(tenant_id=record.tenant_id, operator_id=operator.id, account_id=account.id,
+        user_id=primary.id, auth_version=primary.auth_version, token_hash=hashlib.sha256(token.encode()).hexdigest(), expires_at=expiry))
+    audit(db, record.tenant_id, None, "OWNER_RECOVERY_ISSUED", "user", primary.id,
+        {"operator_id": str(operator.id), "identity_verified": True})
+    await db.commit()
+    return {"token": token, "expires_at": expiry}
+
+
+@router.get("/owners/{provision_id}/events")
+async def owner_events(provision_id: uuid.UUID, limit: int = Query(30, ge=1, le=100), offset: int = Query(0, ge=0),
+    operator=Depends(get_operator), db: AsyncSession = Depends(get_db)):
+    record, _, _ = await resolve_owner(db, operator.id, provision_id)
+    await set_tenant_context(db, record.tenant_id)
+    rows = (await db.execute(select(AuditLog).where(AuditLog.tenant_id == record.tenant_id,
+        AuditLog.entity_id == record.owner_user_id, AuditLog.action.in_([
+            "OWNER_PROVISIONED", "OWNER_ACCOUNT_UPDATED", "OWNER_RECOVERY_ISSUED", "OWNER_RECOVERY_COMPLETED"]))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id).limit(limit).offset(offset))).scalars().all()
+    return [{"id": r.id, "action": r.action, "created_at": r.created_at,
+        "operator_id": r.details.get("operator_id")} for r in rows]
+
+
+@router.post("/recovery", tags=["owner recovery"])
+async def recover_owner(body: RecoveryClaim, db: AsyncSession = Depends(get_db)):
+    digest = hashlib.sha256(body.token.encode()).hexdigest()
+    await db.execute(text("SELECT set_config('app.owner_recovery_hash',:hash,true)"), {"hash": digest})
+    invalid = HTTPException(400, "Liên kết không còn hiệu lực. Vui lòng liên hệ đơn vị triển khai.")
+    grant = (await db.execute(select(OwnerRecoveryGrant).where(OwnerRecoveryGrant.token_hash == digest))).scalar_one_or_none()
+    if not grant:
+        raise invalid
+    # Account lock serializes issue/update/claim and normal credentials changes.
+    account, rows = await owner_memberships(db, grant.account_id)
+    primary = next((u for link, u, _ in rows if u.id == grant.user_id and link.is_active and u.is_active), None)
+    await set_tenant_context(db, grant.tenant_id)
+    grant = (await db.execute(select(OwnerRecoveryGrant).where(OwnerRecoveryGrant.tenant_id == grant.tenant_id,
+        OwnerRecoveryGrant.token_hash == digest).execution_options(populate_existing=True).with_for_update())).scalar_one_or_none()
+    if not grant or not primary or grant.consumed_at or grant.expires_at <= datetime.now(timezone.utc) or grant.auth_version != primary.auth_version:
+        raise invalid
+    password_hash = hash_password(body.password)
+    account.password_hash = password_hash
+    for _, user, tenant in rows:
+        await set_tenant_context(db, tenant.id)
+        user.password_hash = password_hash
+        user.auth_version += 1
+        audit(db, tenant.id, None, "OWNER_RECOVERY_COMPLETED", "user", user.id,
+            {"operator_id": str(grant.operator_id), "sessions_revoked": True})
+        await db.flush()
+    await set_tenant_context(db, grant.tenant_id)
+    grant.consumed_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"updated": True}

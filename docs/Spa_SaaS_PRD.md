@@ -296,3 +296,11 @@ PO cho phép cập nhật theo UX_ROLE_REVIEW. Link dịch vụ/thẻ hợp lệ
 PO cho phép hoàn thiện UX_ROLE_REVIEW. Giữ STAFF hiện hành, không thêm lễ tân/thu ngân. Nhân viên chỉ được giao thực hiện tiếp tục chỉ xem; chủ spa/người phụ trách cập nhật trạng thái. Bàn giao là ghi chú riêng từng booking, không sao chép hồ sơ sức khỏe hoặc gửi note qua Push. Khách quên mật khẩu/kích hoạt hồ sơ tại quầy: spa xác minh rồi chủ cấp liên kết dùng một lần, hạn 30 phút, khách tự đặt mật khẩu; không SMS OTP, không mật khẩu chung.
 
 Phạm vi bổ sung: địa chỉ/liên hệ chi nhánh; ảnh logo kiểm tra định dạng; setup dựa dữ liệu thật; ca tuần chỉ đọc cho nhân viên và ngoại lệ ngày do chủ quản lý; quản lý tài khoản chung có xác minh và thu hồi phiên; thống nhất buổi đã dùng/đang giữ/có thể đặt; lịch sử thực tế của thẻ; sửa họ tên khách; phục hồi kết quả đặt lịch khách; outbox sự kiện/thông báo và retry Push. Mọi giao dịch tiếp tục cô lập tenant/RLS và khóa chống trùng hiện hành. Phạm vi API ở API_CONTRACT; trạng thái kiểm chứng ở PROGRESS. Thiết bị thật/HTTPS/pilot chưa được suy là đạt từ code hay E2E.
+
+### Cổng vận hành, bàn giao và hướng dẫn — 0.2.0 (22/10/2026)
+- [x] Version/release/build FE/BE đóng gói trước build, Swagger và operator đối chiếu browser/server/backend.
+- [x] Cổng khách/quản lý/operator có link rõ ràng; một chi nhánh đi thẳng, nhiều chi nhánh chọn theo tên.
+- [x] Operator sửa thông tin tài khoản chủ spa đã cấp và cấp link khôi phục 30 phút một lần; xác minh danh tính/mật khẩu operator, giữ RLS và thu hồi phiên cũ.
+- [x] Bộ bàn giao PNG/PDF/tin nhắn/QR tạo trong trình duyệt, tách nội dung quản lý và khách; không chứa mật khẩu hoặc recovery token.
+- [x] Manifest riêng quản lý/chi nhánh; hướng dẫn cài Android/iOS và chuỗi hướng dẫn ba vai trò có thể bỏ qua/mở lại.
+- [ ] Nghiệm thu native install/start_url/push trên Android/iOS thật qua HTTPS và các gate phát hành còn mở trong RELEASE_RUNBOOK. Icon PWA hiện dùng asset ứng dụng; chưa thay thành icon riêng cho từng spa.

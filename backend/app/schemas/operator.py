@@ -58,3 +58,29 @@ class ProvisionOut(BaseModel):
     owner_name: str
     phone_number: str
     created_at: datetime
+
+
+class OwnerVerify(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current_password: SecretStr
+    identity_verified: bool
+
+    @field_validator("identity_verified")
+    @classmethod
+    def verified(cls, value):
+        if value is not True:
+            raise ValueError("Cần xác minh đúng chủ spa trước khi thực hiện")
+        return value
+
+
+class OwnerUpdate(OwnerVerify):
+    full_name: str = Field(min_length=1, max_length=255)
+    phone_number: str
+    _phone = field_validator("phone_number")(_check_phone)
+
+    @field_validator("full_name")
+    @classmethod
+    def name(cls, value):
+        if not value.strip():
+            raise ValueError("Nhập họ tên chủ spa")
+        return value.strip()

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useRouter } from "next/navigation";
 import { Sparkles, Lock, Phone } from "lucide-react";
@@ -114,6 +115,8 @@ export default function AdminLoginPage(): React.ReactElement {
             <Button type="submit" className="w-full" disabled={!hydrated || submitting}>
               {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
+            <p className="text-sm text-muted-foreground">Quên mật khẩu? Liên hệ đơn vị triển khai để nhận liên kết đặt lại.</p>
+            <div className="flex flex-wrap justify-between gap-3 text-sm"><Link className="inline-flex min-h-11 items-center underline" href="/">Trang đặt lịch cho khách</Link><Link className="inline-flex min-h-11 items-center underline" href="/operator/login">Quản trị hệ thống</Link></div>
 
             <p className="text-center text-xs text-muted-foreground">Chưa có tài khoản? Liên hệ chủ spa để được hỗ trợ.</p>
           </form>

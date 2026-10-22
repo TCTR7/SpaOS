@@ -69,6 +69,7 @@ export function AdminAuthProvider({
 
   const isPublicAuthRoute =
     pathname?.startsWith("/admin/login") ||
+    pathname === "/admin/recover" ||
     pathname?.startsWith("/admin/register-tenant");
 
   const refreshMe = React.useCallback(async (): Promise<void> => {

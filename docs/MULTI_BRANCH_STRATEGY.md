@@ -124,3 +124,10 @@ PO cho phép triển khai theo UX_ROLE_REVIEW. Ưu tiên luồng ba nhóm ngư�
 PO yêu cầu hoàn thiện backlog UX. NV-08 giữ nguyên quyền STAFF, chưa thêm lễ tân/thu ngân. NV-07 dùng ghi chú bàn giao riêng từng lịch, chủ spa/người phụ trách được ghi; người đang được giao lịch chỉ đọc, không tự sao chép ghi chú sức khỏe. KH-07 spa xác minh khách rồi cấp liên kết dùng một lần để khách tự đặt mật khẩu; chưa tích hợp SMS OTP. Triển khai đang kiểm chứng, không coi quyết định này là bằng chứng đã nghiệm thu thiết bị/pilot.
 
 Tài khoản quản trị chung được sửa thông tin qua luồng xác minh mật khẩu: chủ spa chỉ sửa tài khoản nhân viên nếu có quyền chủ ở toàn bộ các chi nhánh của tài khoản đó; người dùng tự đổi bằng mật khẩu hiện tại. Không hợp nhất tài khoản theo SĐT. Mỗi bản ghi users được cập nhật trong tenant context tương ứng, thu hồi phiên cũ bằng auth_version; login_accounts tiếp tục RLS danh tính cấp deployment.
+
+
+### Phê duyệt triển khai cổng vận hành và bàn giao — 22/10/2026
+PO thống nhất triển khai version FE/BE và đối chiếu release, cổng vào ba nhóm người dùng, operator cập nhật/khôi phục chủ spa, bộ bàn giao PNG/PDF/tin nhắn/QR, PWA và hướng dẫn theo vai trò Android/iOS. Giữ mỗi chủ spa một deployment, RLS/tenant_id và tài khoản operator tách biệt. Đang triển khai, chưa nghiệm thu.
+
+### Trạng thái bản 0.2.0 — 22/10/2026
+Đã triển khai code version, quản lý/khôi phục chủ spa, bộ bàn giao và hướng dẫn/PWA theo phê duyệt trên. Migration 0010 đã áp local sau backup/restore, không thay ID/dữ liệu cũ. Backend 119/119; production UI 33/33 và 6/6 bản cuối theo phạm vi trong PROGRESS. Operator chỉ quản lý tài khoản có provision đã xác minh; không tự tiếp quản owner legacy. Native PWA/push thiết bị thật và production deploy vẫn chưa nghiệm thu. Hướng một chủ spa/deployment và tenant context từng chi nhánh giữ nguyên.

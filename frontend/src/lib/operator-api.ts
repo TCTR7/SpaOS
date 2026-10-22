@@ -10,10 +10,10 @@ export interface OwnerCreate {
 const KEY = "spaos_operator_token";
 const BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 export function clearOperatorToken(): void { window.sessionStorage.removeItem(KEY); }
-export async function operatorRequest<T>(path: string, body?: unknown): Promise<T> {
+export async function operatorRequest<T>(path: string, body?: unknown, method?: "PATCH"): Promise<T> {
   const token = typeof window === "undefined" ? null : window.sessionStorage.getItem(KEY);
   const response = await fetch(BASE + "/operator" + path, {
-    method: body === undefined ? "GET" : "POST",
+    method: method || (body === undefined ? "GET" : "POST"),
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store",
   });

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { SpaLogo } from "@/components/spa-logo";
+import { ProductGuide } from "@/components/product-guide";
 import { NetworkStatus } from "@/components/network-status";
 import { useBrandColor } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
@@ -114,6 +115,7 @@ function AdminShellContent({
 
   const isPublicAuthRoute =
     pathname?.startsWith("/admin/login") ||
+    pathname === "/admin/recover" ||
     pathname?.startsWith("/admin/register-tenant");
 
   if (isPublicAuthRoute) {
@@ -286,7 +288,7 @@ function AdminShellContent({
           </div>
         </Modal>
 
-        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}>{children}</div></main>
+        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><div className="mb-5"><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN":"STAFF"} identity={user.id}/></div>{children}</div></main>
       </div>
       <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
         {primaryItems.map((item) => {

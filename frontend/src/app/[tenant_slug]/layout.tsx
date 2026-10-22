@@ -36,7 +36,7 @@ export async function generateMetadata({
 
   return {
     title,
-    manifest: "/manifest.webmanifest",
+    manifest: "/" + encodeURIComponent(params.tenant_slug.trim().toLowerCase()) + "/app.webmanifest",
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",

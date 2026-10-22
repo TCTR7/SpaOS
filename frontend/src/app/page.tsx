@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowUpRight, Clock3, Leaf, MapPin, Phone } from "lucide-react";
 import { SpaLogo } from "@/components/spa-logo";
 import { API_BASE_URL } from "@/lib/api";
@@ -11,6 +12,7 @@ type Directory = { brand_name: string; branches: Branch[] };
 type Details = Pick<PublicTenantResponse, "logo_url" | "open_time" | "close_time">;
 
 export default function HomePage(): React.ReactElement {
+  const router = useRouter();
   const [data, setData] = React.useState<Directory | null>(null);
   const [details, setDetails] = React.useState<Record<string, Details>>({});
   const [error, setError] = React.useState<string | null>(null);
@@ -24,6 +26,7 @@ export default function HomePage(): React.ReactElement {
         if (!response.ok) throw new Error("Không tải được danh sách chi nhánh.");
         const value = await response.json() as Directory;
         if (controller.signal.aborted) return;
+        if(value.branches.length === 1){router.replace("/"+encodeURIComponent(value.branches[0].slug));return;}
         setData(value);
         // The directory contract has no logo/hours. Enrich progressively through
         // the existing public endpoint, with at most three concurrent requests.
@@ -46,17 +49,17 @@ export default function HomePage(): React.ReactElement {
     }
     void load();
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, router]);
   const brand = data?.brand_name && data.brand_name !== "SpaOS" ? data.brand_name : "Đặt lịch spa";
   const onlyBranch = data?.branches.length === 1 ? data.branches[0] : null;
   return <div className="min-h-screen bg-[#f7f8f5] text-[#213c35] [overflow-wrap:anywhere]">
     <header className="border-b border-[#213c35]/10 bg-white/70">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
         <div className="flex min-w-0 items-center gap-3">
           {onlyBranch && details[onlyBranch.id]?.logo_url ? <SpaLogo name={onlyBranch.name} src={details[onlyBranch.id].logo_url} /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9eee6]"><Leaf className="h-5 w-5" aria-hidden="true" /></span>}
           <span className="text-lg font-semibold tracking-tight">{brand}</span>
         </div>
-        <a href="#branches" className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-medium underline-offset-4 hover:underline">Chi nhánh <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></a>
+        <div className="flex w-full shrink-0 flex-wrap justify-between gap-2 sm:w-auto"><a href="#branches" className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-medium underline-offset-4 hover:underline">Chi nhánh <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></a><Link href="/admin/login" className="inline-flex min-h-11 items-center rounded-full border border-[#213c35]/30 px-4 text-sm font-semibold hover:bg-white">Đăng nhập quản lý</Link></div>
       </div>
     </header>
     <main className="mx-auto max-w-7xl px-5 pb-16 sm:px-8 lg:px-12">

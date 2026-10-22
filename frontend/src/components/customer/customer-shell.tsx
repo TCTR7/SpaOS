@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ProductGuide } from "@/components/product-guide";
 import { SpaLogo } from "@/components/spa-logo";
 import { ContactLinks } from "@/components/contact-links";
 import { NetworkStatus } from "@/components/network-status";
@@ -170,7 +171,7 @@ export function CustomerShell({
               : <p>Đang kiểm tra đăng nhập...</p>}
           </div>}
           {/* Keep an inline-login draft mounted, but inaccessible until verified. */}
-          <div hidden={authLoading || Boolean(authError)}>{children}</div>
+          <div hidden={authLoading || Boolean(authError)}><div className="mb-4 flex flex-wrap items-start justify-between gap-3"><ProductGuide key={user?.id||"guest"} role="CUSTOMER" slug={slug} identity={user?.id}/><Link className="inline-flex min-h-11 items-center text-xs underline" href="/admin/login">Đăng nhập quản lý</Link></div>{children}</div>
         </main>
 
         {/* Bottom Navigation Bar */}
