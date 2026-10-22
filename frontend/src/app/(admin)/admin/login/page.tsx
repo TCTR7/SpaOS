@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useRouter } from "next/navigation";
 import { Sparkles, Lock, Phone } from "lucide-react";
 import { loginAdmin, saveAuthSession } from "@/lib/api";
@@ -10,7 +11,6 @@ import { Input, Label } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -64,11 +64,8 @@ export default function AdminLoginPage(): React.ReactElement {
             <Sparkles className="h-6 w-6" />
           </div>
           <CardTitle className="text-xl font-bold">
-            Đăng nhập Quản trị SpaOS
+            Đăng nhập
           </CardTitle>
-          <CardDescription>
-            Dành cho Chủ Spa (ADMIN) & Kỹ thuật viên / Lễ tân (STAFF)
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
@@ -100,7 +97,7 @@ export default function AdminLoginPage(): React.ReactElement {
               <Label htmlFor="password">Mật khẩu</Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+                <PasswordInput
                   disabled={!hydrated || submitting}
                   id="password"
                   autoComplete="current-password"
@@ -115,10 +112,10 @@ export default function AdminLoginPage(): React.ReactElement {
             </div>
 
             <Button type="submit" className="w-full" disabled={!hydrated || submitting}>
-              {submitting ? "Đang xác thực..." : "Đăng nhập vào Dashboard"}
+              {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
 
-            <p className="text-center text-xs text-muted-foreground">Chưa có tài khoản? Liên hệ chủ spa để được cấp quyền.</p>
+            <p className="text-center text-xs text-muted-foreground">Chưa có tài khoản? Liên hệ chủ spa để được hỗ trợ.</p>
           </form>
         </CardContent>
       </Card>

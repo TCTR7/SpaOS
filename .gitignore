@@ -62,3 +62,6 @@ Thumbs.db
 # Local database recovery artifacts (contain customer data)
 /backups/
 *.dump
+
+# User-requested local review accounts (contains passwords)
+/local-data/

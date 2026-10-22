@@ -26,7 +26,7 @@ def test_collection_query_failure_hides_old_customer_and_retry_uses_current_quer
     expect(page.get_by_text("QA Filter A", exact=True)).to_be_visible()
     page.get_by_role("textbox", name="Tìm khách thu tiền", exact=True).fill("B")
     page.get_by_role("button", name="Tìm khách", exact=True).click()
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA query B failed")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     expect(page.get_by_text("QA Filter A", exact=True)).to_have_count(0)
     expect(page.get_by_text("Không có khoản thu phù hợp.", exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Xác nhận đã thu", exact=True)).to_have_count(0)
@@ -119,12 +119,12 @@ def test_pending_push_enable_cannot_attach_to_replacement_session(scenario, admi
         page.evaluate("async () => { window.qaReleasePush(); await new Promise(r => requestAnimationFrame(r)); delete window.qaPushStage; }")
     page.get_by_role("button", name="Thông báo" if admin else "Thông báo lịch hẹn", exact=True).click()
     modal = page.get_by_role("dialog", name="Bảng thông báo", exact=True)
-    modal.get_by_role("button", name="Bật Push", exact=True).click()
+    modal.get_by_role("button", name="Bật thông báo", exact=True).click()
     page.wait_for_function("window.qaPushStage === " + repr(stage))
     key = "spaos_admin_session_version" if admin else "spaos_customer_session_version_" + s["slug"]
     # Same token, new login generation: even identical JWTs must cancel the old continuation.
     page.evaluate("key => { localStorage.setItem(key, crypto.randomUUID()); window.qaReleasePush(); }", key)
-    expect(modal.get_by_text("Phiên đã thay đổi.", exact=False)).to_be_visible()
+    expect(modal.get_by_text("Tài khoản đã thay đổi.", exact=False)).to_be_visible()
     assert subscriptions == []
 
 
@@ -155,7 +155,7 @@ def test_existing_push_lookup_cannot_change_subscription_after_session_replaced(
     if mode == "disable":
         page.get_by_role("button", name="Thông báo" if admin else "Thông báo lịch hẹn", exact=True).click()
         modal = page.get_by_role("dialog", name="Bảng thông báo", exact=True)
-        button = modal.get_by_role("button", name="Tắt Push" if admin else "Tắt", exact=True)
+        button = modal.get_by_role("button", name="Tắt thông báo" if admin else "Tắt", exact=True)
         expect(button).to_be_visible()
         assert len(subscriptions) == 1
         subscriptions.clear()
@@ -165,7 +165,7 @@ def test_existing_push_lookup_cannot_change_subscription_after_session_replaced(
     key = "spaos_admin_session_version" if admin else "spaos_customer_session_version_" + s["slug"]
     page.evaluate("key => { localStorage.setItem(key, crypto.randomUUID()); window.qaReleaseExisting(); }", key)
     if mode == "disable":
-        expect(modal.get_by_text("Phiên đã thay đổi.", exact=False)).to_be_visible()
+        expect(modal.get_by_text("Tài khoản đã thay đổi.", exact=False)).to_be_visible()
     page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
     assert subscriptions == [] and removals == []
     assert page.evaluate("window.qaBrowserUnsubscribed === true") is False
@@ -195,10 +195,10 @@ def test_unchanged_session_can_enable_and_disable_push(scenario, admin):
     page.goto(config.frontend_url + "/admin/dashboard" if admin else s["url"] + "/profile")
     page.get_by_role("button", name="Thông báo" if admin else "Thông báo lịch hẹn", exact=True).click()
     modal = page.get_by_role("dialog", name="Bảng thông báo", exact=True)
-    modal.get_by_role("button", name="Bật Push", exact=True).click()
-    disable = modal.get_by_role("button", name="Tắt Push" if admin else "Tắt", exact=True)
+    modal.get_by_role("button", name="Bật thông báo", exact=True).click()
+    disable = modal.get_by_role("button", name="Tắt thông báo" if admin else "Tắt", exact=True)
     expect(disable).to_be_enabled()
     disable.click()
-    expect(modal.get_by_role("button", name="Bật Push", exact=True)).to_be_enabled()
+    expect(modal.get_by_role("button", name="Bật thông báo", exact=True)).to_be_enabled()
     assert calls == ["POST", "DELETE"]
     assert page.evaluate("window.qaBrowserUnsubscribed === true") is True

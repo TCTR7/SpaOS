@@ -10,11 +10,13 @@ def manual(s, width=390, height=844):
     page = s["page"](s["admin"], True)
     page.set_viewport_size({"width": width, "height": height})
     page.goto(config.frontend_url + "/admin/bookings")
-    opener = page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True)
+    opener = page.get_by_role("button", name="Tạo lịch hẹn", exact=True)
     expect(opener).to_be_enabled()
     opener.click()
-    modal = page.get_by_role("dialog", name="Tạo lịch hẹn thủ công tại quầy", exact=True)
+    modal = page.get_by_role("dialog", name="Tạo lịch hẹn tại quầy", exact=True)
     expect(modal).to_be_visible()
+    modal.get_by_role("group", name="Khách đặt lịch").get_by_role("button", name="QA Customer", exact=False).click()
+    modal.get_by_role("button", name="Đóng", exact=True).focus()
     return page, modal, opener
 
 
@@ -79,7 +81,7 @@ def test_reload_does_not_replay_or_claim_to_restore_unsaved_manual_draft(scenari
     modal.locator("#modalNote").fill("Unsaved before reload")
     page.reload()
     expect(page.get_by_role("dialog")).to_have_count(0)
-    opener = page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True)
+    opener = page.get_by_role("button", name="Tạo lịch hẹn", exact=True)
     expect(opener).to_be_enabled()
     opener.click()
     expect(page.locator("#modalNote")).to_have_value("")
@@ -95,7 +97,7 @@ def test_dialog_keeps_branch_theme_when_portaled(scenario):
     page = s["page"](s["admin"], True)
     page.route("**/api/v1/branding", lambda route: route.fulfill(json={"theme_color": "#be185d", "configured": False}))
     page.goto(config.frontend_url + "/admin/bookings")
-    opener = page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True)
+    opener = page.get_by_role("button", name="Tạo lịch hẹn", exact=True)
     expect(opener).to_be_enabled()
     expect(opener).to_have_css("background-color", "rgb(0, 0, 128)")
     opener.click()
@@ -107,6 +109,7 @@ def test_dialog_keeps_branch_theme_when_portaled(scenario):
 def test_manual_pending_cannot_dismiss_and_conflict_keeps_fields(scenario, status):
     s = scenario
     page, modal, _ = manual(s)
+    modal.get_by_role("group", name="Khách đặt lịch").get_by_role("button", name="QA Customer", exact=False).click()
     modal.locator("label").filter(has_text="QA One Session").get_by_role("checkbox").check()
     day = (datetime.now(timezone(timedelta(hours=7))) + timedelta(days=6)).date().isoformat()
     modal.locator("#modalDate").fill(day)
@@ -120,7 +123,7 @@ def test_manual_pending_cannot_dismiss_and_conflict_keeps_fields(scenario, statu
     page.evaluate("history.back()")
     expect(modal).to_be_visible()
     held.pop().fulfill(status=status, json={"detail": "QA slot conflict"})
-    expect(modal.get_by_text("QA slot conflict", exact=True)).to_be_visible()
+    expect(modal.get_by_text("Thông tin đã thay đổi hoặc bị trùng. Vui lòng kiểm tra lại." if status == 409 else "Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     expect(modal.locator("#modalDate")).to_have_value(day)
     if status == 409:
         expect(modal.locator("label").filter(has_text="QA One Session").get_by_role("checkbox")).to_be_checked()
@@ -143,12 +146,12 @@ def test_completion_requires_confirmation_and_uses_one_session(scenario):
     page.locator("input[type=date]").first.fill(day)
     page.get_by_test_id("booking-card-" + booking["id"]).get_by_role("button", name="Chi tiết lịch hẹn", exact=True).click()
     modal = page.get_by_role("dialog", name="Chi tiết lịch hẹn", exact=True)
-    modal.get_by_role("button", name="→ Hoàn thành", exact=True).click()
+    modal.get_by_role("button", name="Hoàn thành buổi", exact=True).click()
     expect(modal.get_by_role("region", name="Xác nhận đổi trạng thái")).to_contain_text("QA Customer")
     assert s["call"]("GET", "/customer-packages/me", headers={"Authorization": "Bearer " + s["token"]})[0]["used_sessions"] == 0
     modal.get_by_role("button", name="Giữ trạng thái hiện tại", exact=True).click()
     assert s["call"]("GET", "/bookings/" + booking["id"])["status"] == "CONFIRMED"
-    modal.get_by_role("button", name="→ Hoàn thành", exact=True).click()
+    modal.get_by_role("button", name="Hoàn thành buổi", exact=True).click()
     with page.expect_response(lambda r: r.request.method == "PATCH" and r.url.endswith("/status")):
         modal.get_by_role("button", name="Xác nhận đổi trạng thái", exact=True).click()
     expect(modal.get_by_text("Hoàn thành", exact=True)).to_be_visible()
@@ -179,7 +182,7 @@ def test_calendar_status_refresh_restores_scroll_position(scenario):
     before = page.evaluate("scrollY")
     assert before > 500
     with page.expect_response(lambda r: r.request.method == "PATCH" and r.url.endswith("/status")):
-        target.get_by_role("button", name="→ Đang thực hiện", exact=True).click()
+        target.get_by_role("button", name="Bắt đầu phục vụ", exact=True).click()
     expect(target.get_by_text("Đang thực hiện", exact=True)).to_be_visible()
     assert abs(page.evaluate("scrollY") - before) <= 3
     assert s["call"]("GET", "/bookings/" + booking["id"])["status"] == "IN_PROGRESS"

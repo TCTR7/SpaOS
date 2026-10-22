@@ -22,6 +22,7 @@ def open_edit(s, role, api_helper):
         page.goto(config.frontend_url + "/admin/bookings")
         day = datetime.fromisoformat(booking["start_time"].replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=7))).date().isoformat()
         page.locator("input[type=date]").first.fill(day)
+        if role == "staff": page.get_by_role("combobox", name="Phạm vi lịch của tôi", exact=True).select_option("accessible")
         page.get_by_test_id("booking-card-" + booking["id"]).get_by_role("button", name="Chi tiết lịch hẹn", exact=True).click()
         page.get_by_role("dialog").get_by_role("button", name="Đổi ngày / giờ / KTV", exact=True).click()
     return page, page.get_by_role("dialog"), booking
@@ -39,6 +40,7 @@ def test_note_only_keeps_snapshot_and_cover_staff_and_cannot_double_submit(scena
     else:
         day = datetime.fromisoformat(booking["start_time"].replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=7))).date().isoformat()
         page.locator("input[type=date]").first.fill(day)
+        if role == "staff": page.get_by_role("combobox", name="Phạm vi lịch của tôi", exact=True).select_option("accessible")
         page.get_by_test_id("booking-card-" + booking["id"]).get_by_role("button", name="Chi tiết lịch hẹn", exact=True).click()
         page.get_by_role("dialog").get_by_role("button", name="Đổi ngày / giờ / KTV", exact=True).click()
     submit = modal.get_by_role("button", name="Xác nhận đổi lịch", exact=True)
@@ -107,5 +109,5 @@ def test_completed_booking_cannot_get_new_suggestions_or_be_resubmitted(scenario
         s["call"]("PATCH", "/bookings/" + booking["id"] + "/status", json={"status": status})
     day = (datetime.now(timezone(timedelta(hours=7))) + timedelta(days=9)).date().isoformat()
     modal.locator("#rescheduleDate").fill(day)
-    expect(modal.get_by_role("alert")).to_contain_text("Chỉ được sửa lịch PENDING/CONFIRMED")
+    expect(modal.get_by_role("alert")).to_contain_text("Chỉ được sửa lịch đang chờ hoặc đã xác nhận")
     expect(modal.get_by_role("button", name="Xác nhận đổi lịch", exact=True)).to_be_disabled()

@@ -52,12 +52,13 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(user_id: uuid.UUID, tenant_id: uuid.UUID, role: str) -> str:
+def create_access_token(user_id: uuid.UUID, tenant_id: uuid.UUID, role: str, auth_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
     payload: Dict[str, Any] = {
         "sub": str(user_id),
         "tenant_id": str(tenant_id),
         "role": role,
+        "ver": auth_version,
         "iat": now,
         "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     }

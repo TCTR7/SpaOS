@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { NotificationBookingLink } from "@/components/notification-booking-link";
 import { useNotificationFeed } from "@/lib/use-notification-feed";
 import { useBranchGuard } from "@/lib/branch-guard";
 import {
@@ -70,10 +71,10 @@ export function NotificationBell(): React.ReactElement {
     try {
       await enableAdminWebPush(() => pushAlive.current);
       setPushSubscribed(true);
-      setPushMessage("Đã bật nhận thông báo đẩy trình duyệt!");
+      setPushMessage("Đã bật thông báo trên thiết bị này.");
     } catch (err) {
       setPushMessage(
-        err instanceof Error ? err.message : "Không thể bật Web Push"
+        err instanceof Error ? err.message : "Chưa thể bật thông báo. Vui lòng thử lại."
       );
     } finally {
       pushFlight.current = false;
@@ -89,10 +90,10 @@ export function NotificationBell(): React.ReactElement {
     try {
       await disableAdminWebPush(() => pushAlive.current);
       setPushSubscribed(false);
-      setPushMessage("Đã tắt Web Push trên thiết bị này.");
+      setPushMessage("Đã tắt thông báo trên thiết bị này.");
     } catch (err) {
       setPushMessage(
-        err instanceof Error ? err.message : "Không thể hủy Web Push"
+        err instanceof Error ? err.message : "Chưa thể tắt thông báo. Vui lòng thử lại."
       );
     } finally {
       pushFlight.current = false;
@@ -119,7 +120,7 @@ export function NotificationBell(): React.ReactElement {
           <Bell className="h-4 w-4" />
         )}
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground shadow">
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground shadow">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -134,8 +135,8 @@ export function NotificationBell(): React.ReactElement {
               <p className="text-sm font-semibold text-foreground">
                 Thông báo ({unreadCount} chưa đọc)
               </p>
-              <p className="text-[11px] text-muted-foreground">
-                Cập nhật lịch hẹn mới & hủy lịch theo thời gian thực
+              <p className="text-xs text-muted-foreground">
+                Lịch mới và các thay đổi lịch hẹn
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -163,6 +164,7 @@ export function NotificationBell(): React.ReactElement {
             </div>
           </div>
 
+          {!pushSupported && <p className="px-4 py-3 text-xs text-muted-foreground">Thiết bị này chưa bật được thông báo. Bạn vẫn có thể xem thông báo tại đây. Trên iPhone, hãy thêm ứng dụng vào màn hình chính rồi mở lại để kiểm tra.</p>}
           {pushSupported && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
               <div className="flex items-center gap-2 text-xs">
@@ -173,7 +175,7 @@ export function NotificationBell(): React.ReactElement {
                   )}
                 />
                 <span className="text-slate-700">
-                  Web Push:{" "}
+                  Thông báo trên thiết bị:{" "}
                   <strong>{pushSubscribed ? "Đang bật" : "Chưa bật"}</strong>
                 </span>
               </div>
@@ -184,7 +186,7 @@ export function NotificationBell(): React.ReactElement {
                   disabled={pushBusy}
                   onClick={() => void handleDisableWebPush()}
                 >
-                  Tắt Push
+                  Tắt thông báo
                 </Button>
               ) : (
                 <Button
@@ -192,14 +194,15 @@ export function NotificationBell(): React.ReactElement {
                   disabled={pushBusy}
                   onClick={() => void handleEnableWebPush()}
                 >
-                  Bật Push
+                  Bật thông báo
                 </Button>
               )}
             </div>
           )}
 
+          {pushSupported && !pushSubscribed && typeof Notification !== "undefined" && Notification.permission === "denied" && <p className="px-4 py-2 text-xs">Thông báo đang bị chặn. Mở cài đặt thông báo của trình duyệt cho trang này để cho phép, rồi thử bật lại.</p>}
           {pushMessage && (
-            <div className="border-b border-border bg-accent/50 px-4 py-1.5 text-[11px] text-accent-foreground">
+            <div className="border-b border-border bg-accent/50 px-4 py-1.5 text-xs text-accent-foreground">
               {pushMessage}
             </div>
           )}
@@ -228,9 +231,10 @@ export function NotificationBell(): React.ReactElement {
                       </p>
                     </div>
                     <p className="text-slate-600">{item.body}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {formatDateTimeVN(item.created_at)}
                     </p>
+                    {item.booking_id && <NotificationBookingLink bookingId={item.booking_id} disabled={pushBusy} />}
                   </div>
                   {!item.is_read && (
                     <button

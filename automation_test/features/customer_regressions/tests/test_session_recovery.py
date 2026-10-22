@@ -29,7 +29,7 @@ def test_me_outage_retains_token_hides_data_and_retries(scenario, admin, fault):
     page.route(pattern, lambda route: route.abort("internetdisconnected") if fault == "network"
                else route.fulfill(status=503, json={"detail": "QA unavailable"}))
     page.goto(url)
-    expect(page.get_by_role("alert").filter(has_text="Chưa xác minh")).to_be_visible()
+    expect(page.get_by_role("alert").filter(has_text="Chưa tải được tài khoản")).to_be_visible()
     expect(page.get_by_text("QA One Session", exact=True)).not_to_be_visible()
     expect(page.locator("#activeBranch")).to_have_count(0)
     assert page.evaluate("key => localStorage.getItem(key)", key) == (s["admin"] if admin else s["token"])
@@ -61,7 +61,7 @@ def test_branch_list_failure_has_retry_instead_of_false_empty_permissions(scenar
     page, key, url = session_page(s, True)
     page.route("**/api/v1/branches", lambda route: route.fulfill(status=503, json={"detail": "QA branches unavailable"}))
     page.goto(url)
-    expect(page.get_by_role("alert").filter(has_text="quyền chi nhánh")).to_be_visible()
+    expect(page.get_by_role("alert").filter(has_text="Chưa tải được tài khoản và chi nhánh")).to_be_visible()
     expect(page.locator("#activeBranch")).to_have_count(0)
     assert page.evaluate("key => localStorage.getItem(key)", key) == s["admin"]
     page.unroute("**/api/v1/branches")
@@ -84,7 +84,7 @@ def test_late_me_cannot_restore_old_user_or_erase_new_token(scenario, admin, old
         page.evaluate("window.qaHeldMe = true")
     page.route("**/api/v1/auth/me", hold)
     page.goto(url)
-    expect(page.get_by_text("Đang tải không gian quản trị SpaOS..." if admin else "Đang xác minh phiên đăng nhập...", exact=True)).to_be_visible()
+    expect(page.get_by_text("Đang tải..." if admin else "Đang kiểm tra đăng nhập...", exact=True)).to_be_visible()
     # Synchronize with the actual request, not a timeout or arbitrary sleep.
     page.wait_for_function("window.qaHeldMe === true")
     assert held
@@ -101,7 +101,7 @@ def test_late_me_cannot_restore_old_user_or_erase_new_token(scenario, admin, old
             route.fulfill(response=response)
         else:
             route.fulfill(status=401, json={"detail": "QA old expired"})
-    expect(page.get_by_role("alert").filter(has_text="Chưa xác minh")).to_be_visible()
+    expect(page.get_by_role("alert").filter(has_text="Chưa tải được tài khoản")).to_be_visible()
     assert page.evaluate("key => localStorage.getItem(key)", key) == "replacement-token"
     expect(page.get_by_text("QA One Session", exact=True)).not_to_be_visible()
     expect(page.locator("#activeBranch")).to_have_count(0)
@@ -127,7 +127,7 @@ def test_late_resource_401_does_not_clear_replacement_session(scenario, admin):
     page.evaluate("({key}) => localStorage.setItem(key, 'replacement-token')", {"key": key})
     for route in held:
         route.fulfill(status=401, json={"detail": "QA old expired"})
-    expect(page.get_by_text("QA old expired", exact=True)).to_be_visible()
+    expect(page.get_by_text("Thông tin đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.", exact=True)).to_be_visible()
     assert page.evaluate("key => localStorage.getItem(key)", key) == "replacement-token"
     assert "/admin/login" not in page.url
 
@@ -194,7 +194,7 @@ def test_logout_removes_portaled_private_dialog_before_new_validation(scenario):
       window.dispatchEvent(new CustomEvent('spaos:customer-session-changed', {detail: slug}));
     }""", s["slug"])
     expect(page.get_by_role("dialog")).to_have_count(0)
-    expect(page.get_by_role("alert").filter(has_text="Chưa xác minh")).to_be_visible()
+    expect(page.get_by_role("alert").filter(has_text="Chưa tải được tài khoản")).to_be_visible()
 
 
 def test_slow_push_cleanup_cannot_logout_a_new_customer_session(scenario):
@@ -211,7 +211,7 @@ def test_slow_push_cleanup_cannot_logout_a_new_customer_session(scenario):
     page.locator("#custPhone").fill(s["phone"])
     page.locator("#custPassword").fill("Customer@123")
     page.get_by_role("button", name="Đăng nhập", exact=True).click()
-    expect(page).to_have_url(s["url"] + "/book")
+    expect(page).to_have_url(s["url"] + "/profile")
     page.evaluate("""() => window.qaResolvePushCleanup({pushManager: {getSubscription: async () => ({
       endpoint: 'https://example.invalid/old-subscription', unsubscribe: async () => {window.qaWrongUnsubscribe = true;}
     })}})""")

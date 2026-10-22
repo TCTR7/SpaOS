@@ -185,7 +185,7 @@ export default function AdminServicesPage(): React.ReactElement {
         <Card>
           <CardContent className="min-w-0 p-0">
             <table className="block w-full text-left text-sm lg:table lg:text-xs">
-              <thead className="hidden lg:table-header-group border-b border-border bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
+              <thead className="hidden lg:table-header-group border-b border-border bg-muted/60 text-xs font-semibold uppercase text-muted-foreground">
                 <tr>
                   <th className="block min-w-0 px-4 py-3 lg:table-cell">Tên dịch vụ</th>
                   <th className="block min-w-0 px-4 py-3 lg:table-cell">Phân loại</th>

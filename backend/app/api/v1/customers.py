@@ -113,7 +113,7 @@ async def update_customer(
     return customer
 
 
-@customers_router.get("/{customer_id}/packages", response_model=List[CustomerPackageOut])
+@customers_router.get("/{customer_id}/packages", response_model=List[MyCustomerPackageOut])
 async def list_packages_of_customer(
     customer_id: uuid.UUID,
     _user: User = Depends(_admin_staff),
@@ -121,12 +121,8 @@ async def list_packages_of_customer(
     db: AsyncSession = Depends(get_tenant_db),
 ) -> List[CustomerPackage]:
     await customer_access(db, tenant_id, customer_id, _user)
-    stmt = (
-        select(CustomerPackage)
-        .where(CustomerPackage.tenant_id == tenant_id, CustomerPackage.customer_id == customer_id)
-        .order_by(CustomerPackage.created_at.desc())
-    )
-    return list((await db.execute(stmt)).scalars().all())
+    from app.services.package_views import package_views
+    return await package_views(db, tenant_id, customer_id)
 
 
 @packages_router.get("/me", response_model=List[MyCustomerPackageOut])
@@ -135,38 +131,8 @@ async def list_my_packages(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> List[MyCustomerPackageOut]:
-    """Customer and tenant are derived exclusively from the JWT."""
-    reserved = (
-        select(BookingItem.customer_package_id.label("package_id"), func.count(BookingItem.id).label("sessions"))
-        .join(Booking, Booking.id == BookingItem.booking_id)
-        .where(
-            BookingItem.tenant_id == tenant_id,
-            Booking.tenant_id == tenant_id,
-            Booking.customer_id == user.id,
-            Booking.status.in_((BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS)),
-            BookingItem.customer_package_id.is_not(None),
-        )
-        .group_by(BookingItem.customer_package_id)
-        .subquery()
-    )
-    rows = (await db.execute(
-        select(CustomerPackage, func.coalesce(reserved.c.sessions, 0))
-        .outerjoin(reserved, reserved.c.package_id == CustomerPackage.id)
-        .where(CustomerPackage.tenant_id == tenant_id, CustomerPackage.customer_id == user.id)
-        .order_by(CustomerPackage.created_at.desc(), CustomerPackage.id)
-    )).all()
-    now = datetime.now(timezone.utc)
-    result = []
-    for package, held in rows:
-        active = package.status == PackageStatus.ACTIVE and (
-            package.expiry_date is None or package.expiry_date > now
-        )
-        result.append(MyCustomerPackageOut(
-            **CustomerPackageOut.model_validate(package).model_dump(exclude={"remaining_sessions"}),
-            reserved_sessions=held,
-            available_sessions=max(0, package.total_sessions - package.used_sessions - held) if active else 0,
-        ))
-    return result
+    from app.services.package_views import package_views
+    return await package_views(db, tenant_id, user.id)
 
 
 @packages_router.get("", response_model=List[CustomerPackageOut])

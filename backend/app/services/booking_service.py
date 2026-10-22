@@ -20,13 +20,14 @@ from app.models.models import (
     PackageStatus,
     Service,
     StaffSchedule,
+    StaffDateOverride,
     Tenant,
     User,
     UserRole,
 )
 from app.schemas.booking import BookingCreate, BookingUpdate, BookingOut
 from app.services.audit_service import audit
-from app.services.customer_access import customer_access, booking_access, customer_scope
+from app.services.customer_access import customer_access, booking_access, customer_scope, booking_read_scope
 
 TZ = ZoneInfo(settings.DEFAULT_TIMEZONE)
 SLOT_STEP_MINUTES = 15
@@ -145,6 +146,10 @@ async def get_schedule_windows(
             )
         )
     ).scalars().all()
+    overrides = (await db.execute(select(StaffDateOverride).where(
+        StaffDateOverride.tenant_id == tenant.id, StaffDateOverride.staff_id.in_(staff_ids), StaffDateOverride.day == d))).scalars().all()
+    overridden = {row.staff_id for row in overrides}
+    rows = [row for row in rows if row.staff_id not in overridden] + list(overrides)
     day_off = {r.staff_id for r in rows if r.is_day_off}
     for r in rows:
         if r.staff_id in day_off:
@@ -428,6 +433,8 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
     booking_id = booking.id
     audit(db, tenant_id, actor, "BOOKING_CREATED", "booking", booking.id,
           {"customer_id": str(customer.id), "staff_id": str(staff_id), "start_time": start.isoformat()})
+    from app.services.notification_queue import enqueue_event
+    enqueue_event(db, tenant_id, booking.id, actor, "CREATED")
     if not commit:
         return booking
     await db.commit()  # nhả toàn bộ lock
@@ -489,6 +496,9 @@ async def update_booking_status(
     booking.status = new_status
     audit(db, tenant_id, actor, "BOOKING_STATUS_CHANGED", "booking", booking.id,
           {"from_status": previous_status.value, "to_status": new_status.value})
+    if actor is not None:
+        from app.services.notification_queue import enqueue_event
+        enqueue_event(db, tenant_id, booking.id, actor, new_status.value)
     await db.commit()
 
     await set_tenant_context(db, tenant_id)
@@ -527,6 +537,8 @@ async def cancel_booking(
     booking.status = BookingStatus.CANCELLED
     audit(db, tenant_id, actor, "BOOKING_CANCELLED", "booking", booking.id,
           {"from_status": previous_status.value})
+    from app.services.notification_queue import enqueue_event
+    enqueue_event(db, tenant_id, booking.id, actor, "CANCELLED")
     await db.commit()
     await set_tenant_context(db, tenant_id)
     full = await get_booking_full(db, tenant_id, booking_id)
@@ -535,7 +547,7 @@ async def cancel_booking(
 
 
 # ---------------------------------------------------------------- list
-async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: List[Booking]) -> List[BookingOut]:
+async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: List[Booking], actor: Optional[User] = None) -> List[BookingOut]:
     """Project names for already-authorized rows in two bounded queries; no lazy relationships."""
     if not bookings:
         return []
@@ -548,7 +560,11 @@ async def present_bookings(db: AsyncSession, tenant_id: uuid.UUID, bookings: Lis
     services = dict((await db.execute(select(Service.id, Service.name).where(
         Service.tenant_id == tenant_id, Service.id.in_(service_ids)
     ))).all())
+    managed = set()
+    if actor is not None and actor.role == UserRole.STAFF:
+        managed = set((await db.execute(customer_scope(tenant_id, actor).where(User.id.in_({b.customer_id for b in bookings})))).scalars().all())
     return [BookingOut.model_validate(b).model_copy(update={
+        "can_manage": actor is None or actor.role != UserRole.STAFF or b.customer_id in managed,
         "customer_name": users.get(b.customer_id), "staff_name": users.get(b.staff_id),
         "items": [item.model_copy(update={"service_name": services.get(item.service_id)})
                   for item in BookingOut.model_validate(b).items],
@@ -571,7 +587,7 @@ async def list_bookings(
 ) -> List[Booking]:
     stmt = select(Booking).options(selectinload(Booking.items.and_(BookingItem.tenant_id == tenant_id))).where(Booking.tenant_id == tenant_id)
     if actor is not None and actor.role == UserRole.STAFF:
-        stmt = stmt.where(Booking.customer_id.in_(customer_scope(tenant_id, actor)))
+        stmt = stmt.where(booking_read_scope(tenant_id, actor))
     if customer_id is not None:
         stmt = stmt.where(Booking.customer_id == customer_id)
     if staff_id is not None:
@@ -646,6 +662,8 @@ async def reschedule_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User
            "note_changed": "note" in body.model_fields_set})
     if "note" in body.model_fields_set:
         booking.note = body.note
+    from app.services.notification_queue import enqueue_event
+    enqueue_event(db, tenant_id, booking.id, actor, "RESCHEDULED")
     await db.commit()
     await set_tenant_context(db, tenant_id)
     return await get_booking_full(db, tenant_id, booking_id)

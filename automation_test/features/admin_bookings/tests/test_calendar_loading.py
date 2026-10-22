@@ -83,7 +83,7 @@ def test_latest_error_does_not_show_previous_day_and_can_retry(scenario):
             route.continue_()
     page.route("**/api/v1/bookings?*", fail_new_day)
     show_day(page, b)
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("New day unavailable")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     expect(page.get_by_test_id("booking-card-" + first["id"])).to_have_count(0)
     expect(page.get_by_text("Không có lịch hẹn nào trong ngày", exact=False)).to_have_count(0)
     page.unroute("**/api/v1/bookings?*", fail_new_day)
@@ -165,7 +165,7 @@ def test_reference_failure_keeps_calendar_and_blocks_unverified_create(scenario)
     show_day(page, day)
     expect(page.get_by_test_id("booking-card-" + booking["id"])).to_be_visible()
     expect(page.get_by_test_id("calendar-reference-error")).to_contain_text("Danh mục dịch vụ")
-    create = page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True)
+    create = page.get_by_role("button", name="Tạo lịch hẹn", exact=True)
     expect(create).to_be_disabled()
     page.unroute("**/api/v1/services**", fail_services)
     page.get_by_role("button", name="Thử tải lại thông tin", exact=True).click()
@@ -217,4 +217,4 @@ def test_mutation_refreshes_current_scope(scenario, scope_change, outcome):
     else:
         expect(card.get_by_text("Chờ xác nhận" if expected_status == "PENDING" else "Đã xác nhận", exact=True)).to_be_visible()
     if outcome != "success":
-        expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA update response unavailable")
+        expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")

@@ -10,7 +10,7 @@ class AdminCustomerPackagePage(BasePage):
 
     def open(self) -> None:
         self.navigate("/admin/customers")
-        self.wait_for_text("Khách hàng & Quản lý Thẻ Liệu trình (CRM)")
+        self.wait_for_text("Khách hàng & Thẻ liệu trình")
 
     def search_and_select_customer(self, keyword: str, customer_name: str) -> None:
         self.fill_field(self.SEARCH_INPUT, keyword)

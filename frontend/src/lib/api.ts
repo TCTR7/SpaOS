@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error-message";
 import { withAdminWrite } from "./branch-guard";
 import type {
   AvailableSlotsResponse,
@@ -124,20 +125,8 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
-    let detail = `Lỗi hệ thống (${response.status})`;
-    try {
-      const data = (await response.json()) as {
-        detail?: string | { msg?: string }[];
-      };
-      if (typeof data.detail === "string") {
-        detail = data.detail;
-      } else if (Array.isArray(data.detail) && data.detail.length > 0) {
-        detail = data.detail.map((d) => d.msg || "").join(", ");
-      }
-    } catch {
-      // ignore json parse failure
-    }
-    throw new ApiError(response.status, detail);
+    const data = await response.json().catch(() => null) as { detail?: unknown } | null;
+    throw new ApiError(response.status, apiErrorMessage(response.status, data?.detail));
   }
 
   options.onResponse?.(response);
@@ -180,6 +169,9 @@ export async function fetchTenantSettings(): Promise<TenantInfo> {
 }
 
 export async function updateTenantSettings(payload: {
+  address?: string | null;
+  contact_phone?: string | null;
+  logo_data?: string;
   name?: string;
   logo_url?: string | null;
   theme_color?: string | null;
@@ -571,3 +563,7 @@ export const grantBranchStaff = (branchId: string, sourceStaffId: string): Promi
   apiRequest(`/branches/${branchId}/staff-access`, { method: "POST", body: { source_staff_id: sourceStaffId } });
 export const fetchBranchDashboard = (day: string, all = false): Promise<import("./types").BranchDashboard> =>
   apiRequest(`/dashboard?day=${day}&all_branches=${all}`);
+
+export function fetchBookingDetail(id: string): Promise<BookingRecord> {
+  return apiRequest<BookingRecord>(`/bookings/${encodeURIComponent(id)}`);
+}

@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useCustomerBookingRequest } from "@/lib/use-customer-booking-request";
+import { PasswordInput } from "@/components/ui/password-input";
+import { useNearestAvailableDay } from "@/lib/use-nearest-available-day";
 import { useAvailableSlots } from "@/lib/use-available-slots";
 import { ApiError } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -46,6 +49,7 @@ function BookingWizardInner(): React.ReactElement | null {
   const { slug, tenant, user, refreshCustomer } = useCustomerTenant();
 
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
+  const bookingRequest = useCustomerBookingRequest(slug, user?.id);
   const bookingFlight = React.useRef(false);
   const [selectedLines, setSelectedLines] = React.useState<
     SelectedWizardLine[]
@@ -62,6 +66,10 @@ function BookingWizardInner(): React.ReactElement | null {
     slug, date: selectedDate, serviceIds: selectedLines.map((line) => line.service_id),
     staffId: selectedStaffId, enabled: Boolean(tenant) && selectedDate >= formatDateISOInVN(), autoSelect: false,
   });
+  const nearest = useNearestAvailableDay({ slug, date: selectedDate,
+    serviceIds: selectedLines.map((line) => line.service_id), staffId: selectedStaffId,
+    enabled: Boolean(tenant) && step === 2 && !slotsLoading && selectedLines.length > 0,
+    onFound: setSelectedDate });
   const [note, setNote] = React.useState<string>("");
 
   // Quick Auth in the confirmation step keeps the booking draft in memory.
@@ -74,20 +82,19 @@ function BookingWizardInner(): React.ReactElement | null {
   const [submitting, setSubmitting] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Preselect service_id or package_id from query params
+  // Consume a valid deep link once; background tenant refresh must not reset the draft.
+  const appliedLink = React.useRef("");
   React.useEffect(() => {
     if (!tenant) return;
-    const preSvcId = searchParams.get("service_id");
-    const prePkgId = searchParams.get("package_id");
-    if (preSvcId && tenant.services.some((s) => s.id === preSvcId)) {
-      setSelectedLines([
-        {
-          service_id: preSvcId,
-          customer_package_id: prePkgId || null,
-        },
-      ]);
-    }
-  }, [tenant, searchParams]);
+    const serviceId = searchParams.get("service_id");
+    const packageId = searchParams.get("package_id");
+    if (packageId || !serviceId || !tenant.services.some((service) => service.id === serviceId)) return;
+    const key = JSON.stringify([slug, serviceId]);
+    if (appliedLink.current === key) return;
+    appliedLink.current = key;
+    setSelectedLines([{ service_id: serviceId, customer_package_id: null }]);
+    setStep(2);
+  }, [tenant, slug, searchParams]);
 
   // Load customer active packages when logged in
   React.useEffect(() => {
@@ -100,13 +107,25 @@ function BookingWizardInner(): React.ReactElement | null {
     void (async () => {
       try {
         const pkgs = await fetchMyCustomerPackages(slug);
-        if (!cancelled) setMyPackages(pkgs.filter((p) => p.available_sessions > 0));
+        if (!cancelled) {
+          const usable = pkgs.filter((p) => p.available_sessions > 0);
+          setMyPackages(usable);
+          const packageId = searchParams.get("package_id");
+          const serviceId = searchParams.get("service_id");
+          const key = JSON.stringify([slug, user.id, serviceId, packageId]);
+          if (packageId && appliedLink.current !== key) {
+            const selected = usable.find((pkg) => pkg.id === packageId && pkg.service_id === serviceId);
+            appliedLink.current = key;
+            if (selected) { setSelectedLines([{ service_id: selected.service_id, customer_package_id: selected.id }]); setStep(2); }
+            else setError("Thẻ này chưa thể dùng để đặt lịch. Vui lòng chọn thẻ khác hoặc liên hệ spa.");
+          }
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải thẻ liệu trình.");
       }
     })();
     return () => { cancelled = true; };
-  }, [slug, user]);
+  }, [slug, user, searchParams]);
 
   const staffDirectory = tenant?.staff || [];
 
@@ -199,13 +218,14 @@ function BookingWizardInner(): React.ReactElement | null {
     setSubmitting(true);
     setError(null);
     try {
-      await createCustomerBooking(slug, {
+      const created = await bookingRequest.submit({
         start_time: selectedSlotStart,
         staff_id: selectedStaffId,
         note: note.trim() || null,
         items: selectedLines,
       });
-      router.push(`/${slug}/appointments?booked=1`);
+      if (created) router.push(`/${slug}/appointments?booked=1&booking_id=${encodeURIComponent(created.id)}`);
+      else { bookingFlight.current = false; setSubmitting(false); }
     } catch (err) {
       setError(
         err instanceof Error
@@ -223,8 +243,14 @@ function BookingWizardInner(): React.ReactElement | null {
 
   return (
     <div className="space-y-4">
+      {(bookingRequest.uncertain || bookingRequest.message) && <section aria-label="Kiểm tra kết quả đặt lịch" className="space-y-2 rounded-xl border p-4">
+        <p role="status">{bookingRequest.message || "Có một yêu cầu đặt lịch cần kiểm tra kết quả."}</p>
+        {bookingRequest.uncertain && <div className="flex flex-wrap gap-2"><Button disabled={bookingRequest.busy} onClick={async () => { const booking = await bookingRequest.check(); if (booking) router.push("/" + slug + "/appointments?booking_id=" + booking.id); }}>Kiểm tra lịch đã đặt</Button>
+        {bookingRequest.canRetry && <Button variant="outline" disabled={bookingRequest.busy} onClick={async () => { try { const booking = await bookingRequest.retry(); if (booking) router.push("/" + slug + "/appointments?booking_id=" + booking.id); } catch { /* recovery state remains visible */ } }}>Gửi lại đúng yêu cầu này</Button>}</div>}
+      </section>}
+      <fieldset disabled={bookingRequest.uncertain || bookingRequest.busy || submitting} className="m-0 min-w-0 space-y-4 border-0 p-0">
       {/* Stepper Header */}
-      <div className="rounded-2xl border border-border bg-card p-3.5 shadow-xs">
+      <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
         <nav aria-label="Các bước đặt lịch" className="grid grid-cols-3 gap-1 text-xs font-semibold">
           {[
             { num: 1, label: "1. Dịch vụ" },
@@ -245,7 +271,7 @@ function BookingWizardInner(): React.ReactElement | null {
                 className={cn(
                   "flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-lg px-1 py-2 transition disabled:opacity-50 [overflow-wrap:anywhere]",
                   isCurrent
-                    ? "font-bold text-white shadow-xs"
+                    ? "font-bold text-white shadow-sm"
                     : isDone
                       ? "text-emerald-700 font-semibold"
                       : "text-muted-foreground"
@@ -292,7 +318,7 @@ function BookingWizardInner(): React.ReactElement | null {
                         className={cn(
                           "flex w-full min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border p-3 text-left text-sm transition [overflow-wrap:anywhere]",
                           checked
-                            ? "border-primary bg-card shadow-xs"
+                            ? "border-primary bg-card shadow-sm"
                             : "border-border bg-card/70"
                         )}
                       >
@@ -300,7 +326,7 @@ function BookingWizardInner(): React.ReactElement | null {
                           <p className="font-bold text-foreground">
                             {pkg.package_name}
                           </p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             Đã dùng {pkg.used_sessions}/{pkg.total_sessions} •
                             Còn <strong>{pkg.available_sessions} buổi</strong>
                           </p>
@@ -320,6 +346,7 @@ function BookingWizardInner(): React.ReactElement | null {
             <h2 className="text-sm font-bold text-foreground">
               Chọn 1 hoặc nhiều dịch vụ ({selectedLines.length} đã chọn)
             </h2>
+            {tenant.services.length === 0 && <p className="rounded-lg border p-3 text-sm">Spa chưa có dịch vụ nhận lịch trực tuyến. Hãy liên hệ chi nhánh để được hỗ trợ.</p>}
             {tenant.services.map((svc) => {
               const checked = selectedLines.some(
                 (l) =>
@@ -345,7 +372,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       </span>
                       {svc.is_package && (
                         <Badge variant="default">
-                          Gói {svc.total_sessions} buổi
+                          Gói {svc.total_sessions} buổi · giá cả gói
                         </Badge>
                       )}
                     </div>
@@ -355,7 +382,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       </p>
                     )}
                     <p className="text-xs font-medium text-slate-600">
-                      ⏱ {svc.duration_minutes} phút •{" "}
+                      ⏱ {svc.duration_minutes} phút{svc.is_package ? "/buổi" : ""} •{" "}
                       <strong style={{ color: "var(--brand-text)" }}>
                         {formatCurrency(svc.price)}
                       </strong>
@@ -384,85 +411,10 @@ function BookingWizardInner(): React.ReactElement | null {
       {/* STEP 2: Select Technician or Auto-assign */}
       {step === 2 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-bold text-foreground">
-            Chọn Kỹ thuật viên thực hiện
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Bạn có thể để Spa tự động sắp xếp Kỹ thuật viên có ca trống hoặc
-            chọn đích danh Kỹ thuật viên yêu thích.
-          </p>
-
-          <button
-            type="button"
-            aria-pressed={selectedStaffId === null}
-            onClick={() => setSelectedStaffId(null)}
-            className={cn(
-              "flex w-full min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border bg-card p-4 text-left transition [overflow-wrap:anywhere]",
-              selectedStaffId === null
-                ? "ring-2 ring-primary border-primary"
-                : "border-border"
-            )}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
-              >
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground">
-                  Spa tự sắp xếp Kỹ thuật viên (Khuyên dùng)
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Nhiều khung giờ trống nhất, hệ thống tự động gán KTV rảnh
-                </p>
-              </div>
-            </div>
-            {selectedStaffId === null && (
-              <Badge variant="success">Đang chọn</Badge>
-            )}
-          </button>
-
-          {staffDirectory.length > 0 && (
-            <div className="space-y-2 pt-2">
-              <p className="text-xs font-semibold text-muted-foreground">
-                Hoặc chọn Kỹ thuật viên; giờ trống được kiểm tra theo ngày:
-              </p>
-              {staffDirectory.map(({ id: sid, full_name }) => {
-                const active = selectedStaffId === sid;
-                return (
-                  <button
-                    type="button"
-                    aria-pressed={active}
-                    key={sid}
-                    onClick={() => setSelectedStaffId(sid)}
-                    className={cn(
-                      "flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border bg-card p-3.5 text-left transition",
-                      active
-                        ? "ring-2 ring-primary border-primary"
-                        : "border-border"
-                    )}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-slate-700">
-                        <UserCheck className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
-                          {full_name}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Chọn ngày để xem giờ còn trống
-                        </p>
-                      </div>
-                    </div>
-                    {active && <Badge variant="success">Đang chọn</Badge>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm [overflow-wrap:anywhere]">
+            <span className="min-w-0 max-w-full">{selectedLines.map((line) => tenant.services.find((service) => service.id === line.service_id)?.name || "Dịch vụ").join(", ")} • {totalDuration} phút</span>
+            <Button type="button" variant="outline" onClick={() => setStep(1)}>Đổi dịch vụ</Button>
+          </div>
           {/* Date and technician belong to the same step. */}
           <Card>
             <CardContent className="p-4 space-y-3">
@@ -470,6 +422,10 @@ function BookingWizardInner(): React.ReactElement | null {
                 <Calendar className="h-4 w-4 text-primary" />
                 Chọn ngày hẹn (Múi giờ Việt Nam)
               </Label>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => setSelectedDate(formatDateISOInVN())}>Hôm nay</Button>
+                <Button type="button" variant="outline" onClick={() => setSelectedDate(addDaysISO(formatDateISOInVN(), 1))}>Ngày mai</Button>
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -530,7 +486,7 @@ function BookingWizardInner(): React.ReactElement | null {
               <Card>
                 <CardContent className="p-6 text-center text-xs text-amber-800 bg-amber-50 rounded-xl">
                   Rất tiếc, ngày {selectedDate} không còn khung giờ trống nào đủ{" "}
-                  {totalDuration} phút. Vui lòng chọn ngày tiếp theo!
+                  {totalDuration} phút. Hãy tìm ngày khác hoặc đổi nhân viên.
                 </CardContent>
               </Card>
             ) : (
@@ -560,7 +516,7 @@ function BookingWizardInner(): React.ReactElement | null {
                       </span>
                       <span
                         className={cn(
-                          "text-[10px]",
+                          "text-xs",
                           isSelected
                             ? "text-inherit"
                             : "text-muted-foreground"
@@ -574,6 +530,92 @@ function BookingWizardInner(): React.ReactElement | null {
               </div>
             )}
           </div>
+          <div className="space-y-2">
+            <Button type="button" variant="outline" className="h-auto min-h-11 max-w-full whitespace-normal text-left" disabled={nearest.searching || slotsLoading} onClick={() => void nearest.search()}>{nearest.searching ? "Đang tìm ngày còn chỗ..." : "Tìm ngày còn chỗ trong 7 ngày tiếp theo"}</Button>
+            {nearest.message && <p role="status" className="text-sm text-muted-foreground">{nearest.message}</p>}
+          </div>
+          <details className="rounded-xl border p-3" open={selectedStaffId !== null || undefined}>
+            <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{selectedStaffId ? "Nhân viên: " + (staffDirectory.find((staff) => staff.id === selectedStaffId)?.full_name || "Đã chọn") : "Spa tự sắp xếp · Chọn nhân viên quen"}</summary>
+          <h2 className="text-sm font-bold text-foreground">
+            Chọn nhân viên thực hiện
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Bạn có thể để Spa tự động sắp xếp Kỹ thuật viên có ca trống hoặc
+            chọn đích danh Kỹ thuật viên yêu thích.
+          </p>
+
+          <button
+            type="button"
+            aria-pressed={selectedStaffId === null}
+            onClick={() => setSelectedStaffId(null)}
+            className={cn(
+              "flex w-full min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border bg-card p-4 text-left transition [overflow-wrap:anywhere]",
+              selectedStaffId === null
+                ? "ring-2 ring-primary border-primary"
+                : "border-border"
+            )}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+                style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
+              >
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">
+                  Spa tự sắp xếp
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Spa chọn nhân viên phù hợp với giờ bạn đặt
+                </p>
+              </div>
+            </div>
+            {selectedStaffId === null && (
+              <Badge variant="success">Đang chọn</Badge>
+            )}
+          </button>
+
+          {staffDirectory.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <p className="text-xs font-semibold text-muted-foreground">
+                Hoặc chọn Kỹ thuật viên; giờ trống được kiểm tra theo ngày:
+              </p>
+              {staffDirectory.map(({ id: sid, full_name }) => {
+                const active = selectedStaffId === sid;
+                return (
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    key={sid}
+                    onClick={() => setSelectedStaffId(sid)}
+                    className={cn(
+                      "flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border bg-card p-3.5 text-left transition",
+                      active
+                        ? "ring-2 ring-primary border-primary"
+                        : "border-border"
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-slate-700">
+                        <UserCheck className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+                          {full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Chọn ngày để xem giờ còn trống
+                        </p>
+                      </div>
+                    </div>
+                    {active && <Badge variant="success">Đang chọn</Badge>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          </details>
         </div>
       )}
 
@@ -721,7 +763,7 @@ function BookingWizardInner(): React.ReactElement | null {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="wizAuthPassword">Mật khẩu *</Label>
-                    <Input
+                    <PasswordInput
                       id="wizAuthPassword"
                       name="password"
                       type="password"
@@ -801,7 +843,7 @@ function BookingWizardInner(): React.ReactElement | null {
             <Button
               type="button"
               size="sm"
-              disabled={submitting || slotsLoading || !user || !selectedSlotStart}
+              disabled={submitting || slotsLoading || !user || !selectedSlotStart || !bookingRequest.ready}
               style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               onClick={() => void handleConfirmBooking()}
             >
@@ -810,6 +852,7 @@ function BookingWizardInner(): React.ReactElement | null {
           )}
         </div>
       </div>
+      </fieldset>
     </div>
   );
 }

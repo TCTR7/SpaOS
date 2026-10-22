@@ -114,7 +114,7 @@ async def test_production_registration_disabled_and_public_names_only(client, mo
     assert result.status_code == 403
     result = await client.get(f"{B}/branches/public")
     assert result.status_code == 200
-    assert all(set(row) == {"id", "name", "slug"} for row in result.json()["branches"])
+    assert all(set(row) == {"id", "name", "slug", "address", "contact_phone"} for row in result.json()["branches"])
 
 
 @pytest.mark.asyncio

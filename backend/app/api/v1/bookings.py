@@ -17,7 +17,7 @@ from app.schemas.booking import (
     SlotOut,
 )
 from app.services import booking_service as svc
-from app.services.notification_service import notify_booking_event
+from app.services.notification_queue import drain_events
 from app.services.customer_access import booking_access
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
@@ -70,9 +70,8 @@ async def create_booking(
     db: AsyncSession = Depends(get_tenant_db),
 ) -> BookingOut:
     booking = await svc.create_booking(db, tenant_id, user, body)
-    if user.role == UserRole.CUSTOMER:  # khách tự đặt -> báo ADMIN/STAFF (non-blocking, lỗi push không ảnh hưởng đặt lịch)
-        background_tasks.add_task(notify_booking_event, tenant_id, booking.id, "CREATED", user.id, True)
-    return (await svc.present_bookings(db, tenant_id, [booking]))[0]
+    background_tasks.add_task(drain_events, tenant_id)
+    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
 
 
 @router.get("", response_model=List[BookingOut])
@@ -107,14 +106,16 @@ async def list_bookings(
     )
     response.headers["X-Has-More"] = str(len(rows) > limit).lower()
     response.headers["X-Next-Offset"] = str(offset + limit) if len(rows) > limit else ""
-    return await svc.present_bookings(db, tenant_id, rows[:limit])
+    return await svc.present_bookings(db, tenant_id, rows[:limit], actor=user)
 
 
 @router.post("/manual-batches", response_model=ManualBatchOut, status_code=201)
-async def create_manual_batch(body: ManualBatchIn, actor: User = Depends(_admin_staff),
+async def create_manual_batch(body: ManualBatchIn, background_tasks: BackgroundTasks, actor: User = Depends(_admin_staff),
                               tenant_id: uuid.UUID = Depends(get_current_tenant_id),
                               db: AsyncSession = Depends(get_tenant_db)):
-    return await manual_booking_service.create_batch(db, tenant_id, actor, body)
+    result = await manual_booking_service.create_batch(db, tenant_id, actor, body)
+    background_tasks.add_task(drain_events, tenant_id)
+    return result
 
 
 @router.get("/manual-batches/{request_id}", response_model=ManualBatchOut)
@@ -131,11 +132,11 @@ async def get_booking(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> BookingOut:
-    await booking_access(db, tenant_id, booking_id, user)
+    await booking_access(db, tenant_id, booking_id, user, allow_assigned=True)
     booking = await svc.get_booking_full(db, tenant_id, booking_id)
     if booking is None or (user.role == UserRole.CUSTOMER and booking.customer_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch hẹn")
-    return (await svc.present_bookings(db, tenant_id, [booking]))[0]
+    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
 
 
 @router.get("/{booking_id}/available-slots", response_model=AvailableSlotsOut)
@@ -177,9 +178,8 @@ async def update_status(
     db: AsyncSession = Depends(get_tenant_db),
 ) -> BookingOut:
     booking, changed = await svc.update_booking_status(db, tenant_id, booking_id, body.status, actor=user)
-    if changed:  # báo CUSTOMER sở hữu lịch hẹn
-        background_tasks.add_task(notify_booking_event, tenant_id, booking.id, booking.status.value, user.id, False)
-    return (await svc.present_bookings(db, tenant_id, [booking]))[0]
+    if changed: background_tasks.add_task(drain_events, tenant_id)
+    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingOut)
@@ -191,11 +191,8 @@ async def cancel_booking(
     db: AsyncSession = Depends(get_tenant_db),
 ) -> BookingOut:
     booking, changed = await svc.cancel_booking(db, tenant_id, user, booking_id)
-    if changed:  # khách hủy -> báo ADMIN/STAFF; Admin/Staff hủy -> báo khách
-        background_tasks.add_task(
-            notify_booking_event, tenant_id, booking.id, "CANCELLED", user.id, user.role == UserRole.CUSTOMER
-        )
-    return (await svc.present_bookings(db, tenant_id, [booking]))[0]
+    if changed: background_tasks.add_task(drain_events, tenant_id)
+    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
 
 
 @router.patch("/{booking_id}", response_model=BookingOut)
@@ -205,6 +202,5 @@ async def edit_booking(booking_id: uuid.UUID, body: BookingUpdate,
                        tenant_id: uuid.UUID = Depends(get_current_tenant_id),
                        db: AsyncSession = Depends(get_tenant_db)):
     booking = await svc.reschedule_booking(db, tenant_id, user, booking_id, body)
-    background_tasks.add_task(notify_booking_event, tenant_id, booking.id, "RESCHEDULED",
-                              user.id, user.role == UserRole.CUSTOMER)
-    return (await svc.present_bookings(db, tenant_id, [booking]))[0]
+    background_tasks.add_task(drain_events, tenant_id)
+    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]

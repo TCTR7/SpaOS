@@ -18,22 +18,24 @@ def test_customer_outside_first_200_has_name_and_is_searchable_for_manual_bookin
     page = s["page"](s["admin"], True)
     reads, writes = [], []
     page.on("request", lambda r: reads.append(r.url) if "/api/v1/customers?" in r.url else None)
-    page.on("request", lambda r: writes.append(r.url) if r.method == "POST" and r.url.endswith("/bookings") else None)
+    page.on("request", lambda r: writes.append(r.url) if r.method == "POST" and any(r.url.endswith(path) for path in ("/bookings", "/bookings/manual-batches", "/booking-requests")) else None)
     page.goto(config.frontend_url + "/admin/bookings")
     day = datetime.fromisoformat(booking["start_time"].replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=7))).date().isoformat()
     page.locator("input[type=date]").first.fill(day)
     card = page.get_by_test_id("booking-card-" + booking["id"])
     expect(card).to_contain_text("QA Customer")
     expect(card).to_contain_text("QA Staff")
-    page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True).click()
+    page.get_by_role("button", name="Tạo lịch hẹn", exact=True).click()
     modal = page.get_by_role("dialog")
-    expect(modal.get_by_role("combobox", name="Khách đặt lịch").locator("option[value='" + s["customer"]["id"] + "']")).to_have_count(0)
+    expect(modal.get_by_role("group", name="Khách đặt lịch").get_by_role("button", name="QA Customer", exact=False)).to_have_count(0)
     expect(modal.get_by_text("Đã tải 50 khách", exact=False)).to_contain_text("còn kết quả")
-    modal.locator("#manualCustomerSearch").fill(s["phone"])
     with page.expect_response(lambda r: "/customers?" in r.url and "q=" in r.url):
-        modal.get_by_role("button", name="Tìm khách", exact=True).click()
-    modal.get_by_role("combobox", name="Khách đặt lịch").select_option(s["customer"]["id"])
-    expect(modal.get_by_text("QA One Session", exact=False)).to_be_visible()
+        modal.locator("#manualCustomerSearch").fill(s["phone"])
+    modal.get_by_role("group", name="Khách đặt lịch").get_by_role("button", name="QA Customer", exact=False).click()
+    expect(modal.get_by_text("QA One Session", exact=True)).to_be_visible()
+    card = modal.locator("label").filter(has_text="QA One Session")
+    expect(card).to_contain_text("Đã đặt trước 1")
+    expect(card.get_by_role("checkbox")).to_be_disabled()
     assert writes == [], "Searching/selecting a customer must not submit the booking form"
     assert len(reads) == 2, "No per-card lookup or automatic crawl of the CRM"
     assert "limit=50" in reads[0]
@@ -69,7 +71,7 @@ def test_calendar_more_than_200_rows_reports_partial_retries_and_loads_next(scen
     expect(page.get_by_test_id("booking-card-" + rows[0]["id"])).to_contain_text("Customer outside CRM page")
     state["fail_more"] = True
     page.get_by_role("button", name="Tải thêm lịch", exact=True).click()
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA page unavailable")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     expect(page.locator('[data-testid^="booking-card-"]')).to_have_count(200)
     state["fail_more"] = False
     page.get_by_role("button", name="Tải thêm lịch", exact=True).click()
@@ -110,6 +112,7 @@ def test_public_staff_does_not_disappear_when_today_has_no_slots(scenario):
     wizard = BookingWizardPage(page)
     wizard.open_wizard(s["slug"])
     wizard.step1_select_service_by_name("QA Treatment")
+    page.locator("details > summary").click()
     staff = page.get_by_role("button", name="QA Staff", exact=False)
     expect(staff).to_be_visible()
     staff.click()

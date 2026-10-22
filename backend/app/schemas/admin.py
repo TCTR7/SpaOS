@@ -17,6 +17,8 @@ class TenantDetailOut(BaseModel):
     id: uuid.UUID
     slug: str
     name: str
+    address: Optional[str] = None
+    contact_phone: Optional[str] = None
     logo_url: Optional[str] = None
     theme_color: Optional[str] = None
     open_time: time
@@ -26,7 +28,15 @@ class TenantDetailOut(BaseModel):
 
 
 class TenantUpdate(BaseModel):
+    logo_data: Optional[str] = Field(default=None, max_length=360000)
+    @field_validator("contact_phone")
+    @classmethod
+    def contact(cls, value):
+        return _check_phone(value) if value else None
+
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    address: Optional[str] = Field(default=None, max_length=500)
+    contact_phone: Optional[str] = Field(default=None, max_length=20)
     logo_url: Optional[str] = Field(default=None, max_length=500)
     theme_color: Optional[str] = Field(default=None, max_length=20)
     open_time: Optional[time] = None
@@ -94,6 +104,8 @@ class PublicTenantOut(BaseModel):
     id: uuid.UUID
     slug: str
     name: str
+    address: Optional[str] = None
+    contact_phone: Optional[str] = None
     logo_url: Optional[str] = None
     theme_color: Optional[str] = None
     open_time: time

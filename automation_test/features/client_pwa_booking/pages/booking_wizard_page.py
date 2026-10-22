@@ -16,8 +16,8 @@ class BookingWizardPage(BasePage):
         self.click_by_text("Tiếp tục")
 
     def step2_choose_auto_assign_staff(self) -> None:
-        self.wait_for_text("Spa tự sắp xếp Kỹ thuật viên")
-        self.click_by_text("Spa tự sắp xếp Kỹ thuật viên")
+        self.page.locator("details > summary").click()
+        self.page.get_by_role("button", name="Spa tự sắp xếp", exact=False).click()
 
     def step2_select_date_and_first_slot(self, date_iso: str) -> None:
         with self.page.expect_response(

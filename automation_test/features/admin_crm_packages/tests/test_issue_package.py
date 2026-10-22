@@ -23,4 +23,4 @@ def test_search_customer_and_issue_treatment_package(
 
     crm_page.wait_for_text(pkg_title)
     crm_page.wait_for_text("0 / 12 buổi")
-    crm_page.wait_for_text("Còn lại: 12 buổi")
+    crm_page.wait_for_text("Có thể đặt: 12 buổi")

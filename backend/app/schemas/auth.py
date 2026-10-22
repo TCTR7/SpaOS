@@ -69,6 +69,8 @@ class TenantOut(BaseModel):
     id: uuid.UUID
     slug: str
     name: str
+    address: Optional[str] = None
+    contact_phone: Optional[str] = None
     logo_url: Optional[str] = None
     theme_color: Optional[str] = None
     buffer_minutes: int

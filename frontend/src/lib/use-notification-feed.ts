@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { useRefreshOnReturn } from "./use-refresh-on-return";
 import type { NotificationItem, NotificationsListResponse } from "./types";
 
 /** One mutation at a time; pre-mutation reads cannot restore an obsolete counter. */
@@ -52,6 +53,7 @@ export function useNotificationFeed(scope: string, actions: {
       if (current()) setError("Không cập nhật được thông báo. Hãy thử lại.");
     } finally { if (current()) { flight.current = false; setReadBusy(false); } }
   };
+  useRefreshOnReturn(() => void load(), !readBusy);
   const loadNotifications = React.useCallback(() => load(), [load]);
   return { items, unreadCount, loading, readBusy, error, loadNotifications,
     handleMarkOneRead: (id: string) => mark(id), handleMarkAllRead: () => mark() };

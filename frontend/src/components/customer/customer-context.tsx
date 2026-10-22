@@ -26,6 +26,7 @@ interface CustomerTenantContextValue {
   authLoading: boolean;
   authError: string | null;
   refreshCustomer: () => Promise<void>;
+  reloadCustomerProfile: () => Promise<void>;
   logoutCustomer: () => Promise<void>;
 }
 
@@ -40,6 +41,7 @@ const CustomerTenantContext = React.createContext<CustomerTenantContextValue>({
   authLoading: true,
   authError: null,
   refreshCustomer: async () => {},
+  reloadCustomerProfile: async () => {},
   logoutCustomer: async () => {},
 });
 
@@ -114,7 +116,7 @@ function ScopedCustomerTenantProvider({
     } catch (error) {
       if (!current()) return;
       if (error instanceof ApiError && error.status === 401) clearCustomerToken(normalizedSlug);
-      else setAuthError("Chưa xác minh được phiên đăng nhập. Kiểm tra kết nối và thử lại.");
+      else setAuthError("Chưa tải được tài khoản. Kiểm tra kết nối và thử lại.");
     } finally {
       if (current()) setAuthLoading(false);
     }
@@ -139,6 +141,21 @@ function ScopedCustomerTenantProvider({
       window.removeEventListener(CUSTOMER_SESSION_CHANGED, invalidated);
     };
   }, [normalizedSlug, refreshCustomer]);
+
+  // A profile-only reload preserves form feedback. Session changes still use
+  // refreshCustomer and discard all private drafts through authGeneration.
+  const reloadCustomerProfile = React.useCallback(async (): Promise<void> => {
+    const session = getCustomerSessionIdentity(normalizedSlug);
+    const request = authRequest.current;
+    if (!verifiedIdentity.current || verifiedIdentity.current !== session) return;
+    const me = await fetchCustomerMe(normalizedSlug);
+    if (request !== authRequest.current || session !== getCustomerSessionIdentity(normalizedSlug) || verifiedIdentity.current !== session) return;
+    if (me.user.role !== "CUSTOMER" || me.tenant.slug !== normalizedSlug || me.user.tenant_id !== me.tenant.id || me.user.id !== user?.id) {
+      clearCustomerToken(normalizedSlug);
+      return;
+    }
+    setUser(me.user);
+  }, [normalizedSlug, user?.id]);
 
   const logoutCustomer = React.useCallback(async (): Promise<void> => {
     const token = getCustomerToken(normalizedSlug);
@@ -174,6 +191,7 @@ function ScopedCustomerTenantProvider({
         authLoading,
         authError,
         refreshCustomer,
+        reloadCustomerProfile,
         logoutCustomer,
       }}
     >

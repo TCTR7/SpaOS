@@ -13,6 +13,7 @@ def prepare(s):
     modal.get_by_placeholder("Họ và tên khách hàng *", exact=True).fill("QA Batch Recovery")
     modal.get_by_placeholder("Số điện thoại (9-15 số) *", exact=True).fill(phone)
     modal.locator("label").filter(has_text="QA Treatment").get_by_role("checkbox").check()
+    modal.get_by_role("button", name="Tùy chọn đặt nhiều buổi", exact=True).click()
     modal.get_by_role("button", name="⚡ Lên lịch đủ 3 buổi", exact=True).click()
     dates = modal.locator("input[type=date]")
     expect(dates).to_have_count(3)
@@ -38,7 +39,7 @@ def test_lost_committed_response_never_duplicates_customer_package_or_sessions(s
         route.fulfill(status=503, json={"detail": "QA response lost after commit"})
     page.route("**/api/v1/bookings/manual-batches", lose)
     modal.get_by_role("button", name="Xác nhận tạo 3 buổi hẹn", exact=True).click()
-    expect(modal.get_by_text("QA response lost after commit", exact=True)).to_be_visible()
+    expect(modal.get_by_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     assert len(sent) == 1
     page.unroute("**/api/v1/bookings/manual-batches", lose)
     posted = []
@@ -50,13 +51,13 @@ def test_lost_committed_response_never_duplicates_customer_package_or_sessions(s
     if mode == "reload":
         page.reload()
         expect(modal).to_be_visible()
-        expect(modal.get_by_role("button", name="Thử lại cùng yêu cầu", exact=True)).to_have_count(0)
+        expect(modal.get_by_role("button", name="Thử lại", exact=True)).to_have_count(0)
     elif mode == "check":
         modal.get_by_role("button", name="Kiểm tra sau", exact=True).click()
         expect(modal).to_have_count(0)
-        page.get_by_role("button", name="Tạo lịch hẹn thủ công", exact=True).click()
+        page.get_by_role("button", name="Tạo lịch hẹn", exact=True).click()
         expect(modal.get_by_placeholder("Số điện thoại (9-15 số) *", exact=True)).to_have_value(phone)
-    modal.get_by_role("button", name="Thử lại cùng yêu cầu" if mode == "retry" else "Kiểm tra kết quả", exact=True).click()
+    modal.get_by_role("button", name="Thử lại" if mode == "retry" else "Kiểm tra kết quả", exact=True).click()
     expect(modal).to_have_count(0)
     expect(page.get_by_role("status").filter(has_text="Đã lưu 3 buổi hẹn")).to_be_visible()
     assert posted == ([sent[0]] if mode == "retry" else [])
@@ -79,12 +80,12 @@ def test_uncommitted_failure_keeps_request_id_when_editing(scenario):
         route.fulfill(status=503, json={"detail": "QA request not committed"})
     page.route("**/api/v1/bookings/manual-batches", fail)
     modal.get_by_role("button", name="Xác nhận tạo 3 buổi hẹn", exact=True).click()
-    expect(modal.get_by_text("QA request not committed", exact=True)).to_be_visible()
+    expect(modal.get_by_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     modal.get_by_role("button", name="Kiểm tra kết quả", exact=True).click()
     expect(modal.get_by_text("Chưa có lịch nào được lưu", exact=False)).to_be_visible()
     modal.locator("#modalNote").fill("Edited after checking")
     modal.get_by_role("button", name="Xác nhận tạo 3 buổi hẹn", exact=True).click()
-    expect(modal.get_by_text("QA request not committed", exact=True)).to_be_visible()
+    expect(modal.get_by_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     assert len(sent) == 2 and sent[0]["request_id"] == sent[1]["request_id"]
     assert sent[0]["note"] != sent[1]["note"]
     assert s["call"]("GET", "/customers", params={"q": phone}) == []

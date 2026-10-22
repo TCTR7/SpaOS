@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error-message";
 import { API_BASE_URL, ApiError } from "./api";
 import { listPage, type ListPage } from "./list-page";
 import type {
@@ -90,20 +91,8 @@ export async function customerApiRequest<T>(
   }
 
   if (!response.ok) {
-    let detail = `Lỗi hệ thống (${response.status})`;
-    try {
-      const data = (await response.json()) as {
-        detail?: string | { msg?: string }[];
-      };
-      if (typeof data.detail === "string") {
-        detail = data.detail;
-      } else if (Array.isArray(data.detail) && data.detail.length > 0) {
-        detail = data.detail.map((d) => d.msg || "").join(", ");
-      }
-    } catch {
-      // ignore json parse error
-    }
-    throw new ApiError(response.status, detail);
+    const data = await response.json().catch(() => null) as { detail?: unknown } | null;
+    throw new ApiError(response.status, apiErrorMessage(response.status, data?.detail));
   }
 
   options.onResponse?.(response);
@@ -302,4 +291,8 @@ export async function markCustomerNotificationRead(
 
 export function rescheduleCustomerBooking(slug: string, id: string, payload: { start_time: string; staff_id: string | null; note: string | null }): Promise<BookingRecord> {
   return customerApiRequest<BookingRecord>(`/bookings/${id}`, { method: "PATCH", slug, body: payload, requireAuth: true });
+}
+
+export function fetchCustomerBookingDetail(slug: string, id: string): Promise<BookingRecord> {
+  return customerApiRequest<BookingRecord>(`/bookings/${encodeURIComponent(id)}`, { slug, requireAuth: true });
 }

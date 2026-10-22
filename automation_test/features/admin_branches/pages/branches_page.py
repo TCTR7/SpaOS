@@ -21,5 +21,5 @@ class BranchesPage:
         self.page.locator("#branchStaff").select_option(staff_id)
         self.page.locator("#targetBranch").select_option(branch_id)
         with self.page.expect_response(lambda r: r.url.endswith("/staff-access") and r.request.method == "POST") as response:
-            self.page.get_by_role("button", name="Cấp quyền chi nhánh", exact=True).click()
+            self.page.get_by_role("button", name="Thêm vào chi nhánh", exact=True).click()
         assert response.value.status == 201, response.value.text()

@@ -8,7 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "SpaOS - Đặt lịch & Quản lý Spa",
   description:
-    "Nền tảng Đặt lịch & Quản lý Spa chuẩn SaaS, theo dõi thẻ liệu trình và nhận nhắc lịch tự động.",
+    "Đặt lịch spa, theo dõi thẻ liệu trình và nhận thông báo cập nhật lịch hẹn.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

@@ -20,7 +20,7 @@ def test_public_tenant_not_found_is_distinct_from_outage_and_can_retry(scenario,
                else route.fulfill(status=status, json={"detail": "QA tenant unavailable"}))
     page.goto(s["url"])
     if status == 404:
-        expect(page.get_by_role("heading", name="Không tìm thấy Spa (" + s["slug"] + ")", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name="Không tìm thấy spa", exact=True)).to_be_visible()
         expect(page.get_by_role("button", name="Thử lại", exact=True)).to_have_count(0)
     else:
         expect(page.get_by_role("alert").filter(has_text="Không tải được thông tin Spa")).to_be_visible()

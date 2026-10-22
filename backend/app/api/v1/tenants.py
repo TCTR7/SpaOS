@@ -37,6 +37,7 @@ async def get_public_tenant_info(slug: str, db: AsyncSession = Depends(get_db)) 
         id=tenant.id,
         slug=tenant.slug,
         name=tenant.name,
+        address=tenant.address, contact_phone=tenant.contact_phone,
         logo_url=tenant.logo_url,
         theme_color=branding.theme_color if branding.configured else tenant.theme_color,
         open_time=tenant.open_time,
@@ -61,7 +62,22 @@ async def update_my_tenant(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> Tenant:
-    apply_patch(tenant, body, nullable=("logo_url", "theme_color"))
+    data = body.model_dump(exclude_unset=True)
+    logo_data = data.pop("logo_data", None)
+    if logo_data is not None:
+        import base64, binascii, uuid
+        from app.api.v1.experience import validate_png
+        from app.models.models import TenantLogo
+        from sqlalchemy import text
+        try: image = base64.b64decode(logo_data, validate=True)
+        except (ValueError, binascii.Error): raise HTTPException(422, "Ảnh không hợp lệ")
+        validate_png(image)
+        await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"), {"key": f"logo:{tenant.id}"})
+        logo = (await db.execute(select(TenantLogo).where(TenantLogo.tenant_id == tenant.id))).scalar_one_or_none()
+        if logo: logo.data = image
+        else: db.add(TenantLogo(tenant_id=tenant.id, data=image))
+        data["logo_url"] = f"/api/v1/public/tenants/{tenant.slug}/logo?v={uuid.uuid4().hex}"
+    apply_patch(tenant, TenantUpdate(**data), nullable=("logo_url", "theme_color", "address", "contact_phone"))
     if tenant.close_time <= tenant.open_time:
         raise HTTPException(
             status_code=getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", 422),

@@ -102,6 +102,8 @@ async def update_staff(
                 staff.password_hash = account.password_hash
         elif password:
             staff.password_hash = hash_password(password)
+        if password or "phone_number" in data:
+            staff.auth_version += 1
         if (password or "phone_number" in data) and not link:
             await provision_account(db, staff)
         await commit_and_refresh(db, tenant_id, staff)

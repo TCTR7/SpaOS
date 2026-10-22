@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { PasswordInput } from "@/components/ui/password-input";
+import { useCustomerReturnTo, customerAuthHref } from "@/lib/customer-return-to";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lock, Phone, User as UserIcon } from "lucide-react";
@@ -19,6 +21,8 @@ import { Input, Label } from "@/components/ui/input";
 export default function CustomerRegisterPage(): React.ReactElement | null {
   const router = useRouter();
   const { slug, tenant, refreshCustomer } = useCustomerTenant();
+
+  const returnTo = useCustomerReturnTo(slug);
 
   const [fullName, setFullName] = React.useState<string>("");
   const [phoneNumber, setPhoneNumber] = React.useState<string>("");
@@ -44,7 +48,7 @@ export default function CustomerRegisterPage(): React.ReactElement | null {
       });
       saveCustomerToken(slug, res.access_token);
       await refreshCustomer();
-      router.push(`/${slug}/book`);
+      router.replace(returnTo);
     } catch (err) {
       setError(
         err instanceof Error
@@ -61,7 +65,7 @@ export default function CustomerRegisterPage(): React.ReactElement | null {
       <Card className="min-w-0 shadow-md [overflow-wrap:anywhere]">
         <CardHeader className="text-center space-y-1">
           <CardTitle className="text-lg font-bold">
-            Đăng ký Thành viên
+            Tạo tài khoản
           </CardTitle>
           <CardDescription>
             Tạo tài khoản khách hàng tại{" "}
@@ -112,7 +116,7 @@ export default function CustomerRegisterPage(): React.ReactElement | null {
               <Label htmlFor="regPassword">Mật khẩu (tối thiểu 6 ký tự)</Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
+                <PasswordInput
                   id="regPassword"
                   type="password"
                   minLength={6}
@@ -137,7 +141,7 @@ export default function CustomerRegisterPage(): React.ReactElement | null {
             <div className="text-center text-xs text-muted-foreground">
               Đã có tài khoản?{" "}
               <Link
-                href={`/${slug}/login`}
+                href={customerAuthHref(slug, "login", returnTo)}
                 className="font-semibold hover:underline"
                 style={{ color: "var(--brand-text)" }}
               >

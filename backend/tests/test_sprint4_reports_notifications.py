@@ -272,7 +272,7 @@ async def test_booking_events_create_notifications_and_push(client, monkeypatch)
     assert k0_n["unread_count"] == 0 and k1_n["items"][0]["title"] == "Lịch hẹn mới được giao cho bạn"
     assert (await notes(ch))["items"] == []  # người đặt không tự nhận thông báo
     pushed = {s["endpoint"] for s in sent}
-    assert all(json.loads(s["payload"])["url"] == "/admin/bookings" for s in sent)
+    assert all(json.loads(s["payload"])["url"] == "/admin/bookings?booking_id=" + booking["id"] for s in sent)
     assert pushed == {ep_admin, ep_dead}  # 2 thiết bị của ADMIN/STAFF đã đăng ký; khách không bị gửi
     assert '"type": "BOOKING_CREATED"' in sent[0]["payload"]
     # Subscription trả 410 bị dọn
@@ -286,7 +286,7 @@ async def test_booking_events_create_notifications_and_push(client, monkeypatch)
     cust_n = await notes(ch)
     assert cust_n["unread_count"] == 1 and cust_n["items"][0]["type"] == "BOOKING_CONFIRMED"
     assert cust_n["items"][0]["title"] == "Lịch hẹn đã được xác nhận"
-    assert all(json.loads(s["payload"])["url"] == f"/{ctx['slug']}/appointments" for s in sent)
+    assert all(json.loads(s["payload"])["url"] == f"/{ctx['slug']}/appointments?booking_id={booking['id']}" for s in sent)
     assert {s["endpoint"] for s in sent} == {ep_cust}
     assert (await notes(ah))["unread_count"] == 1  # không tăng thêm
 

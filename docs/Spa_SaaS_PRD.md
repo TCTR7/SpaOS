@@ -278,3 +278,21 @@ Xem [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) về deployment riêng 
 
 ### Bổ sung sau Sprint: thương hiệu theo deployment
 Operator chọn/xem trước/lưu màu chủ đạo; áp dụng trang Admin, đăng nhập, PWA khách và các chi nhánh cùng chủ. Mỗi deployment độc lập; Admin chi nhánh không đổi màu chung. Chưa cấu hình giữ tương thích màu chi nhánh cũ.
+
+
+### Điều chỉnh thông báo theo PO — 21/10/2026
+
+- Khách tự đặt lịch: báo admin, kỹ thuật viên thực hiện và người phụ trách hồ sơ trong chi nhánh. Nhân viên/admin tạo lịch cho tài khoản khách: khách nhận thông báo lịch mới, gồm tạo nhiều buổi tại quầy, không gửi trùng khi retry cùng yêu cầu.
+- Ngoại lệ đọc lịch được giao: KTV thực hiện được đọc chính lịch được phân công và thông báo liên quan dù chưa phụ trách hồ sơ. Quy định này thay phần cấm đọc lịch của khách khác ở trên trong phạm vi chỉ đọc; quyền CRM/thẻ/sửa lịch và chuyển người phụ trách không đổi.
+- Không coi Push là chắc chắn giao được; in-app được lưu trước khi gửi. Giới hạn BackgroundTasks và kiểm chứng thiết bị thật vẫn áp dụng.
+
+
+### Cải thiện UX theo vai trò — phê duyệt 21/10/2026
+PO cho phép cập nhật theo UX_ROLE_REVIEW. Link dịch vụ/thẻ hợp lệ có thể bỏ qua bước chọn dịch vụ để tới chọn giờ, nhưng khách phải tự chọn slot. Giữ ba bước cho trường hợp chưa chọn dịch vụ. Tìm ngày có chỗ kiểm tra tối đa bảy ngày kế tiếp, không giữ chỗ trước xác nhận. Khách hủy lịch phải xác nhận rõ. Nhân viên chỉ được giao thực hiện tiếp tục chỉ xem lịch; chủ spa/người phụ trách hồ sơ xác nhận trạng thái theo PO. Xem UX_ROLE_REVIEW và PROGRESS để biết phần đã triển khai/kiểm chứng và phần còn trong backlog.
+
+
+### Điều chỉnh trải nghiệm theo PO — 21/10/2026
+
+PO cho phép hoàn thiện UX_ROLE_REVIEW. Giữ STAFF hiện hành, không thêm lễ tân/thu ngân. Nhân viên chỉ được giao thực hiện tiếp tục chỉ xem; chủ spa/người phụ trách cập nhật trạng thái. Bàn giao là ghi chú riêng từng booking, không sao chép hồ sơ sức khỏe hoặc gửi note qua Push. Khách quên mật khẩu/kích hoạt hồ sơ tại quầy: spa xác minh rồi chủ cấp liên kết dùng một lần, hạn 30 phút, khách tự đặt mật khẩu; không SMS OTP, không mật khẩu chung.
+
+Phạm vi bổ sung: địa chỉ/liên hệ chi nhánh; ảnh logo kiểm tra định dạng; setup dựa dữ liệu thật; ca tuần chỉ đọc cho nhân viên và ngoại lệ ngày do chủ quản lý; quản lý tài khoản chung có xác minh và thu hồi phiên; thống nhất buổi đã dùng/đang giữ/có thể đặt; lịch sử thực tế của thẻ; sửa họ tên khách; phục hồi kết quả đặt lịch khách; outbox sự kiện/thông báo và retry Push. Mọi giao dịch tiếp tục cô lập tenant/RLS và khóa chống trùng hiện hành. Phạm vi API ở API_CONTRACT; trạng thái kiểm chứng ở PROGRESS. Thiết bị thật/HTTPS/pilot chưa được suy là đạt từ code hay E2E.

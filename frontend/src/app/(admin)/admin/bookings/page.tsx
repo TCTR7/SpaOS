@@ -1,6 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { BookingHandover } from "@/components/admin/booking-handover";
+import { customerDetail } from "@/lib/experience-api";
+import { useRefreshOnReturn } from "@/lib/use-refresh-on-return";
+import { AvailabilityFinder } from "@/components/admin/availability-finder";
 import { useManualBatch } from "@/lib/use-manual-batch";
 import { useAvailableSlots } from "@/lib/use-available-slots";
 import { ReschedulePreview } from "@/components/reschedule-preview";
@@ -23,6 +27,7 @@ import {
   rescheduleBooking,
   fetchAvailableSlots,
   fetchBookingPage,
+  fetchBookingDetail,
   fetchCustomerPage,
   fetchCustomerPackages,
   fetchServices,
@@ -83,6 +88,8 @@ function createEmptySessionRow(dateISO: string): ScheduledSessionRow {
 export default function AdminBookingsPage(): React.ReactElement {
   const { user } = useAdminAuth();
 
+  const [showAvailability, setShowAvailability] = React.useState(false);
+  const [staffScope, setStaffScope] = React.useState<"performing" | "accessible">("performing");
   const [viewMode, setViewMode] = React.useState<"day" | "week">("day");
   const [selectedDate, setSelectedDate] = React.useState<string>(() =>
     formatDateISOInVN()
@@ -92,8 +99,9 @@ export default function AdminBookingsPage(): React.ReactElement {
     ""
   );
 
+  const effectiveStaffId = user?.role === "STAFF" && staffScope === "performing" ? user.id : filterStaffId;
   const scopeKey = JSON.stringify([user?.tenant_id, user?.id, user?.role,
-    viewMode, selectedDate, filterStaffId, filterStatus]);
+    viewMode, selectedDate, effectiveStaffId, filterStatus]);
   const referenceScope = JSON.stringify([user?.tenant_id, user?.id, user?.role]);
   const scopeRef = React.useRef(scopeKey);
   const referenceScopeRef = React.useRef(referenceScope);
@@ -133,13 +141,35 @@ export default function AdminBookingsPage(): React.ReactElement {
       referenceRequest.current += 1;
     };
   }, []);
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const day = params.get("date");
+    const status = params.get("status");
+    if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      const parsed = new Date(day + "T00:00:00Z");
+      if (Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day) setSelectedDate(day);
+    }
+    if (status && Object.prototype.hasOwnProperty.call(BOOKING_STATUS_META, status)) setFilterStatus(status as BookingStatus);
+  }, []);
   const [error, setError] = React.useState<string | null>(null);
   const [manualNotice, setManualNotice] = React.useState({ scope: "", text: "" });
   const [statusBusyId, setStatusBusyId] = React.useState<string | null>(null);
   const [detailTarget, setDetailTarget] = React.useState<BookingRecord | null>(null);
+  React.useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("booking_id");
+    if (!user || !id) return;
+    let cancelled = false;
+    void fetchBookingDetail(id).then((booking) => { if (!cancelled) setDetailTarget(booking); })
+      .catch(() => { if (!cancelled) setError("Không mở được lịch này. Lịch có thể không còn trong phạm vi bạn được xem. Hãy làm mới lịch hoặc liên hệ chủ spa."); });
+    return () => { cancelled = true; };
+  }, [user?.id, user?.tenant_id]);
   const [statusConfirmation, setStatusConfirmation] = React.useState<BookingStatus | null>(null);
 
   // Manual Booking Modal State
+  const [showCourse, setShowCourse] = React.useState(false);
+  const [handoverDirty, setHandoverDirty] = React.useState(false);
+  const [handoverBusy, setHandoverBusy] = React.useState(false);
+  const [updatedAt, setUpdatedAt] = React.useState("");
   const [modalOpen, setModalOpen] = React.useState<boolean>(false);
   const [modalCustomerId, setModalCustomerId] = React.useState<string>("");
   const [customerQuery, setCustomerQuery] = React.useState("");
@@ -208,24 +238,17 @@ export default function AdminBookingsPage(): React.ReactElement {
 
   // Calculate max sessions allowed by selected treatment package(s) or multi-session service(s)
   const maxCourseSessions = React.useMemo((): number => {
-    if (selectedLines.length === 0) return 1;
-    let maxSessions = 1;
+    const limits: number[] = [];
     for (const line of selectedLines) {
       if (line.customer_package_id) {
-        const pkg = customerPackages.find(
-          (p) => p.id === line.customer_package_id
-        );
-        if (pkg && pkg.remaining_sessions > maxSessions) {
-          maxSessions = pkg.remaining_sessions;
-        }
+        const pkg = customerPackages.find((item) => item.id === line.customer_package_id);
+        if (pkg) limits.push(pkg.available_sessions ?? pkg.remaining_sessions);
       } else {
-        const svc = serviceMap.get(line.service_id);
-        if (svc && svc.is_package && svc.total_sessions > maxSessions) {
-          maxSessions = svc.total_sessions;
-        }
+        const service = serviceMap.get(line.service_id);
+        if (service?.is_package) limits.push(service.total_sessions);
       }
     }
-    return Math.min(maxSessions, 20);
+    return limits.length ? Math.min(20, ...limits) : 1;
   }, [selectedLines, customerPackages, serviceMap]);
 
   const hasMultiSessionSelection = maxCourseSessions > 1;
@@ -262,8 +285,16 @@ export default function AdminBookingsPage(): React.ReactElement {
     setCustomerPage({ query: "", nextOffset: cust.status === "fulfilled" ? cust.value.nextOffset : null, loading: false, error: null });
   }, [user, referenceScope]);
 
+  const liveCustomerPage = React.useRef(customerPage); liveCustomerPage.current = customerPage;
+  React.useEffect(() => {
+    if (!modalOpen || quickNewCustomer || !referencesReady || customerQuery.trim() === customerPage.query) return;
+    const timer = window.setTimeout(() => { if (customerQuery.trim() !== liveCustomerPage.current.query) void searchCustomers(); }, 300);
+    return () => window.clearTimeout(timer);
+    // Only typing starts this search; result updates must not start a crawl.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerQuery, modalOpen, quickNewCustomer, referencesReady]);
   const searchCustomers = async (append = false): Promise<void> => {
-    if (!referencesReady || customerPage.loading) return;
+    if (!referencesReady || (append && customerPage.loading)) return;
     const query = append ? customerPage.query : customerQuery.trim();
     const offset = append ? customerPage.nextOffset : 0;
     if (offset === null) return;
@@ -304,7 +335,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       const data = await fetchBookingPage({
         date_from: dateFrom,
         date_to: dateTo,
-        staff_id: filterStaffId || undefined,
+        staff_id: effectiveStaffId || undefined,
         status: filterStatus || undefined,
         limit: 200,
         offset,
@@ -315,6 +346,7 @@ export default function AdminBookingsPage(): React.ReactElement {
         rows.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime() || a.id.localeCompare(b.id));
         return { scope: scopeKey, rows, loading: false, error: null };
       });
+      setUpdatedAt(new Date().toISOString());
       setBookingPage({ scope: scopeKey, nextOffset: data.nextOffset, loading: false, error: null });
     } catch (err) {
       if (!mounted.current || request !== bookingRequest.current || scopeRef.current !== scopeKey) return;
@@ -326,7 +358,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       setBookingState({ scope: scopeKey, rows: [], loading: false,
         error: err instanceof Error ? err.message : "Không thể tải danh sách lịch hẹn" });
     }
-  }, [scopeKey, viewMode, selectedDate, weekDays, filterStaffId, filterStatus]);
+  }, [scopeKey, viewMode, selectedDate, weekDays, effectiveStaffId, filterStatus]);
 
   // A write belongs to its original identity, but invalidates the currently
   // displayed filters. Never replay the old filter callback after a commit.
@@ -581,19 +613,40 @@ export default function AdminBookingsPage(): React.ReactElement {
     if (!referencesReady) return;
     if (manualUncertain) { setModalOpen(true); return; }
     setModalError(null);
+    setShowCourse(false);
     setQuickNewCustomer(false);
-    setModalCustomerId(customers[0]?.id || "");
+    setModalCustomerId("");
     setNewCustomerName("");
     setNewCustomerPhone("");
     setNewCustomerNotes("");
     setSelectedLines([]);
-    setModalStaffId("");
+    setModalStaffId(user?.role === "STAFF" ? user.id : "");
     setIntervalDays(7);
     setSessionRows([createEmptySessionRow(selectedDate)]);
     setModalNote("");
     setModalOpen(true);
   };
 
+  const consumedCustomerLink = React.useRef("");
+  React.useEffect(() => {
+    if (!referencesReady) return;
+    const id = new URLSearchParams(window.location.search).get("customer_id");
+    const key = referenceScope + ":" + id;
+    if (!id || consumedCustomerLink.current === key) return;
+    consumedCustomerLink.current = key;
+    if (manualUncertain || creatingBooking) { setError("Hãy kiểm tra hoặc hoàn tất lịch đang lưu trước khi đặt cho khách khác."); return; }
+    let cancelled = false;
+    void customerDetail(id).then((customer) => {
+      if (cancelled || referenceScopeRef.current !== referenceScope) return;
+      openCreateModal();
+      setReferenceData((old) => ({ ...old, customers: [...old.customers.filter((item) => item.id !== customer.id), customer] }));
+      setModalCustomerId(customer.id);
+    }).catch(() => { if (!cancelled) setError("Chưa mở được khách đã chọn. Hãy tìm khách hoặc thử lại từ hồ sơ."); });
+    return () => { cancelled = true; };
+    // The link is consumed once; changes inside the modal must not reopen it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referencesReady, referenceScope]);
+  useRefreshOnReturn(() => void loadBookings(), !statusBusyId && !modalOpen && !detailTarget && !rescheduleTarget);
   const toggleServiceSelection = (
     serviceId: string,
     packageId: string | null = null
@@ -751,7 +804,7 @@ export default function AdminBookingsPage(): React.ReactElement {
         data-testid={`${full ? "booking-detail" : "booking-card"}-${booking.id}`}
         data-layout-card="booking"
         className={cn(
-          "min-w-0 max-w-full rounded-lg border border-border p-3.5 shadow-xs transition hover:shadow-md [overflow-wrap:anywhere]",
+          "min-w-0 max-w-full rounded-lg border border-border p-3.5 shadow-sm transition hover:shadow-md [overflow-wrap:anywhere]",
           meta.cardClass
         )}
       >
@@ -763,7 +816,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 {formatTimeVN(booking.start_time)} –{" "}
                 {formatTimeVN(booking.end_time)}
               </span>
-              {!compact && <span className="text-[11px] text-muted-foreground">
+              {!compact && <span className="text-xs text-muted-foreground">
                 ({booking.total_duration_minutes} phút)
               </span>}
               {!compact && hasPackageItem && (
@@ -788,7 +841,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           <div className={cn("flex max-w-full gap-1", compact ? "w-full flex-wrap items-center justify-between" : "flex-col items-end")}>
             <span
               className={cn(
-                "max-w-full rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                "max-w-full rounded-full border px-2.5 py-0.5 text-xs font-semibold",
                 meta.badgeClass
               )}
             >
@@ -800,6 +853,8 @@ export default function AdminBookingsPage(): React.ReactElement {
           </div>
         </div>
 
+        {full && booking.can_manage === false && <p className="mt-3 rounded-lg bg-muted p-3 text-sm">Bạn được giao thực hiện lịch này. Chủ spa hoặc người phụ trách khách sẽ xác nhận trạng thái và cập nhật buổi liệu trình.</p>}
+        {full && <BookingHandover key={booking.id} bookingId={booking.id} canManage={booking.can_manage !== false} onDirtyChange={setHandoverDirty} onBusyChange={setHandoverBusy} />}
         <DetailContainer>
         {compact && <summary className="mt-2 min-h-11 cursor-pointer rounded-md py-3 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Thông tin dịch vụ
@@ -813,7 +868,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             return (
               <span
                 key={item.id}
-                className="inline-block max-w-full whitespace-normal rounded bg-white/80 px-2 py-0.5 text-[11px] text-slate-700 border border-border [overflow-wrap:anywhere]"
+                className="inline-block max-w-full whitespace-normal rounded bg-white/80 px-2 py-0.5 text-xs text-slate-700 border border-border [overflow-wrap:anywhere]"
               >
                 {item.service_name || svc?.name || "Chưa có tên dịch vụ"} ({item.duration_minutes}p •{" "}
                 {item.customer_package_id
@@ -832,13 +887,13 @@ export default function AdminBookingsPage(): React.ReactElement {
         )}
         </DetailContainer>
 
-        {(!full || meta.next.length > 0) && (
+        {(!full || (booking.can_manage !== false && meta.next.length > 0)) && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-medium text-muted-foreground mr-1">
+              <span className="text-xs font-medium text-muted-foreground mr-1">
                 Trạng thái:
               </span>
-              {(full ? meta.next : meta.next.slice(0, 1)).map((nextSt) => {
+              {(booking.can_manage === false ? [] : full ? meta.next : meta.next.slice(0, 1)).map((nextSt) => {
                 const nextMeta = BOOKING_STATUS_META[nextSt];
                 return (
                   <Button
@@ -851,7 +906,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                       nextMeta.badgeClass
                     )}
                   >
-                    → {nextMeta.label}
+                    {({ CONFIRMED: "Xác nhận lịch", IN_PROGRESS: "Bắt đầu phục vụ", COMPLETED: "Hoàn thành buổi", CANCELLED: "Hủy lịch", NO_SHOW: "Khách không đến", PENDING: "Chờ xác nhận" })[nextSt]}
                   </Button>
                 );
               })}
@@ -860,7 +915,7 @@ export default function AdminBookingsPage(): React.ReactElement {
             {!full && <Button type="button" variant="outline" onClick={() => { setDetailTarget(booking); setStatusConfirmation(null); }}>
               Chi tiết lịch hẹn
             </Button>}
-            {full && (user?.role === "ADMIN" || user?.role === "STAFF") &&
+            {full && booking.can_manage !== false && (user?.role === "ADMIN" || user?.role === "STAFF") &&
               (booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                 <button
                   type="button"
@@ -886,7 +941,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">
-            Lịch hẹn & Điều phối Kỹ thuật viên
+            {user?.role === "STAFF" ? "Lịch làm việc của tôi" : "Lịch hẹn"}
           </h1>
           <p className="text-xs text-muted-foreground">
             Theo dõi lịch theo Ngày / Tuần, đổi trạng thái nhanh (tự động trừ
@@ -894,6 +949,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {user?.role === "ADMIN" && <Button variant="outline" disabled={!canReschedule} onClick={() => setShowAvailability((value) => !value)}>{showAvailability ? "Đóng giờ trống" : "Xem giờ trống"}</Button>}
           <Button
             variant="outline"
             size="sm"
@@ -904,11 +960,18 @@ export default function AdminBookingsPage(): React.ReactElement {
           </Button>
           <Button size="sm" onClick={openCreateModal} disabled={!referencesReady}>
             <Plus className="h-4 w-4" />
-            Tạo lịch hẹn thủ công
+            Tạo lịch hẹn
           </Button>
         </div>
       </div>
+      {updatedAt && <p className="text-xs text-muted-foreground">Lần tải thành công: {formatTimeVN(updatedAt)} · Làm mới khi cần kiểm tra thay đổi.</p>}
 
+      {showAvailability && user?.role === "ADMIN" && <AvailabilityFinder key={referenceScope} services={services} staff={staffList}
+        onChoose={(serviceId, day, staffId, start) => {
+          if (!referencesReady || manualUncertain || creatingBooking) { setError("Hãy hoàn tất hoặc kiểm tra lịch đang lưu trước khi tạo lịch mới."); return; }
+          openCreateModal(); setSelectedLines([{ service_id: serviceId, customer_package_id: null }]);
+          setModalStaffId(staffId); setSessionRows([{ ...createEmptySessionRow(day), selectedSlotStart: start }]);
+        }} />}
       {/* Filter Bar */}
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -920,7 +983,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 className={cn(
                   "min-h-11 rounded-md px-3 py-1 text-sm font-semibold transition sm:min-h-0 sm:text-xs",
                   viewMode === "day"
-                    ? "bg-card text-foreground shadow-xs"
+                    ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -932,7 +995,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 className={cn(
                   "min-h-11 rounded-md px-3 py-1 text-sm font-semibold transition sm:min-h-0 sm:text-xs",
                   viewMode === "week"
-                    ? "bg-card text-foreground shadow-xs"
+                    ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -954,6 +1017,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Input
+                aria-label="Ngày xem lịch"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => { if (e.target.value) setSelectedDate(e.target.value); }}
@@ -983,13 +1047,13 @@ export default function AdminBookingsPage(): React.ReactElement {
 
           <div className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-2 xl:w-auto">
             <select
-              aria-label="Lọc KTV"
-              value={filterStaffId}
-              onChange={(e) => setFilterStaffId(e.target.value)}
+              aria-label={user?.role === "STAFF" ? "Phạm vi lịch của tôi" : "Lọc KTV"}
+              value={user?.role === "STAFF" ? staffScope : filterStaffId}
+              onChange={(e) => { if (user?.role === "STAFF") setStaffScope(e.target.value as "performing" | "accessible"); else setFilterStaffId(e.target.value); }}
               className="h-11 w-full max-w-full min-w-0 rounded-md border border-input bg-background px-3 text-base font-medium sm:h-9 sm:w-auto sm:text-xs"
             >
-              <option value="">Tất cả Kỹ thuật viên</option>
-              {staffList.map((st) => (
+              {user?.role === "STAFF" ? <><option value="performing">Lịch tôi thực hiện</option><option value="accessible">Lịch khách tôi phụ trách và được giao</option></> : <option value="">Tất cả Kỹ thuật viên</option>}
+              {(user?.role === "STAFF" ? [] : staffList).map((st) => (
                 <option key={st.id} value={st.id}>
                   KTV: {st.full_name}
                 </option>
@@ -1008,7 +1072,7 @@ export default function AdminBookingsPage(): React.ReactElement {
               {(Object.keys(BOOKING_STATUS_META) as BookingStatus[]).map(
                 (st) => (
                   <option key={st} value={st}>
-                    {BOOKING_STATUS_META[st].label} ({st})
+                    {BOOKING_STATUS_META[st].label}
                   </option>
                 )
               )}
@@ -1043,7 +1107,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           <span
             key={st}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
               BOOKING_STATUS_META[st].badgeClass
             )}
           >
@@ -1070,8 +1134,9 @@ export default function AdminBookingsPage(): React.ReactElement {
                 <p className="text-sm font-medium text-foreground">
                   Không có lịch hẹn nào trong ngày {selectedDate}
                 </p>
+                {(filterStaffId || filterStatus) && <Button variant="outline" onClick={() => { setFilterStaffId(""); setFilterStatus(""); }}>Bỏ bộ lọc lịch</Button>}
                 <p className="text-xs text-muted-foreground">
-                  Nhấn &ldquo;Tạo lịch hẹn thủ công&rdquo; để đặt lịch cho khách
+                  Nhấn &ldquo;Tạo lịch hẹn&rdquo; để đặt lịch cho khách
                   gọi Hotline hoặc khách vãng lai.
                 </p>
               </CardContent>
@@ -1125,7 +1190,7 @@ export default function AdminBookingsPage(): React.ReactElement {
       )}
 
       {/* Manual Booking Modal */}
-      <Modal open={!!detailTarget} title="Chi tiết lịch hẹn" pending={!!statusBusyId}
+      <Modal open={!!detailTarget} title="Chi tiết lịch hẹn" dirty={handoverDirty} pending={!!statusBusyId || handoverBusy}
         onClose={() => { setDetailTarget(null); setStatusConfirmation(null); }} maxWidthClass="max-w-xl">
         {error && <p role="alert" className="mb-3 text-sm text-rose-700">{error}</p>}
         {detailTarget && <>
@@ -1147,22 +1212,22 @@ export default function AdminBookingsPage(): React.ReactElement {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         pending={creatingBooking || manualUncertain}
-        dirty={selectedLines.length > 0 || quickNewCustomer || !!modalNote || !!modalStaffId || sessionRows.length > 1}
+        dirty={selectedLines.length > 0 || quickNewCustomer || !!modalNote || modalStaffId !== (user?.role === "STAFF" ? user.id : "") || sessionRows.length > 1}
         historyGuard
-        title="Tạo lịch hẹn thủ công tại quầy"
+        title="Tạo lịch hẹn tại quầy"
         description="Hỗ trợ đặt lịch đơn lẻ hoặc lên lịch hẹn nhiều ngày liên tiếp cho gói lộ trình nhiều buổi."
         maxWidthClass="max-w-3xl"
         footer={manualUncertain ? <div className="space-y-2">
-          <p role="alert" className="text-sm">Chưa xác định kết quả. Hệ thống giữ mã chống lặp; không tạo khách, thẻ hay lịch mới khi kiểm tra.</p>
+          <p role="alert" className="text-sm">Chưa xác định kết quả. Hãy kiểm tra kết quả trước khi tạo lịch khác. Kiểm tra lại không tạo thêm lịch.</p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" disabled={creatingBooking} onClick={() => void manualBatch.check()}>Kiểm tra kết quả</Button>
-            {manualBatch.canRetry && <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => void manualBatch.retry()}>Thử lại cùng yêu cầu</Button>}
+            {manualBatch.canRetry && <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => void manualBatch.retry()}>Thử lại</Button>}
             <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => setModalOpen(false)}>Kiểm tra sau</Button>
           </div>
-        </div> : <Button type="submit" form="manual-booking-form" className="w-full sm:w-auto"
-          disabled={creatingBooking || !referencesReady || (!quickNewCustomer && (customerPage.loading || !modalCustomerId)) || selectedLines.length === 0 || sessionRows.some((row) => !sessionSlotVerified(row))}>
+        </div> : <div className="space-y-2"><p className="text-xs text-muted-foreground">{quickNewCustomer ? newCustomerName || "Khách mới" : customers.find((customer) => customer.id === modalCustomerId)?.full_name || "Chưa chọn khách"} · {sessionRows.length} buổi · {selectedLines.length} dịch vụ/thẻ{sessionRows[0]?.selectedSlotStart ? " · " + formatDateTimeVN(sessionRows[0].selectedSlotStart) : ""}</p><p className="text-xs">Giá trị dự kiến: {formatCurrency(selectedLines.reduce((total, line) => total + (line.customer_package_id ? 0 : Number(serviceMap.get(line.service_id)?.price || 0) * (serviceMap.get(line.service_id)?.is_package ? 1 : sessionRows.length)), 0))} · Chưa ghi nhận thu tiền</p><Button type="submit" form="manual-booking-form" className="w-full sm:w-auto"
+          disabled={creatingBooking || !referencesReady || (!quickNewCustomer && (customerPage.loading || customerQuery.trim() !== customerPage.query || !modalCustomerId)) || selectedLines.length === 0 || sessionRows.some((row) => !sessionSlotVerified(row))}>
           {creatingBooking ? "Đang lưu lịch..." : sessionRows.length > 1 ? `Xác nhận tạo ${sessionRows.length} buổi hẹn` : "Xác nhận tạo lịch"}
-        </Button>}
+        </Button></div>}
       >
         <form
           id="manual-booking-form"
@@ -1193,53 +1258,33 @@ export default function AdminBookingsPage(): React.ReactElement {
             </div>
 
             {quickNewCustomer ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Input
-                  placeholder="Họ và tên khách hàng *"
-                  value={newCustomerName}
-                  onChange={(e) => setNewCustomerName(e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder="Số điện thoại (9-15 số) *"
-                  value={newCustomerPhone}
-                  onChange={(e) => setNewCustomerPhone(e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder="Ghi chú da / dị ứng (tùy chọn)"
-                  value={newCustomerNotes}
-                  onChange={(e) => setNewCustomerNotes(e.target.value)}
-                  className="sm:col-span-2"
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><Label htmlFor="quickCustomerName">Họ và tên khách mới</Label>
+                  <Input id="quickCustomerName" placeholder="Họ và tên khách hàng *" value={newCustomerName} onChange={(event) => setNewCustomerName(event.target.value)} required />
+                </div>
+                <div className="space-y-1"><Label htmlFor="quickCustomerPhone">Số điện thoại khách mới</Label>
+                  <Input id="quickCustomerPhone" type="tel" inputMode="tel" placeholder="Số điện thoại (9-15 số) *" value={newCustomerPhone} onChange={(event) => setNewCustomerPhone(event.target.value)} required />
+                </div>
+                <div className="space-y-1 sm:col-span-2"><Label htmlFor="quickCustomerNotes">Ghi chú da hoặc dị ứng (không bắt buộc)</Label>
+                  <Input id="quickCustomerNotes" placeholder="Ghi chú da / dị ứng (tùy chọn)" value={newCustomerNotes} onChange={(event) => setNewCustomerNotes(event.target.value)} />
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="manualCustomerSearch">Tìm khách theo tên hoặc số điện thoại</Label>
                 <div className="flex min-w-0 gap-2">
-                  <Input id="manualCustomerSearch" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} />
+                  <Input id="manualCustomerSearch" aria-controls="manualCustomerResults" value={customerQuery} onChange={(event) => { customerLookupRequest.current += 1; setCustomerQuery(event.target.value); setModalCustomerId(""); setSelectedLines((previous) => previous.filter((line) => !line.customer_package_id)); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchCustomers(); } if (event.key === "ArrowDown") { event.preventDefault(); document.querySelector<HTMLButtonElement>("#manualCustomerResults button:not(:disabled)")?.focus(); } }} />
                   <Button type="button" variant="outline" disabled={customerPage.loading} onClick={() => void searchCustomers()}>Tìm khách</Button>
                 </div>
-              <select
-                aria-label="Khách đặt lịch"
-                disabled={customerPage.loading}
-                value={modalCustomerId}
-                onChange={(e) => {
-                  setModalCustomerId(e.target.value);
-                  setSelectedLines((prev) =>
-                    prev.filter((l) => l.customer_package_id === null)
-                  );
-                }}
-                className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
-                required
-              >
-                <option value="">-- Chọn khách hàng --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name} — {c.phone_number}
-                  </option>
-                ))}
-              </select>
+              <div id="manualCustomerResults" role="group" aria-label="Khách đặt lịch" onKeyDown={(event) => { if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return; const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")); const current = buttons.indexOf(document.activeElement as HTMLButtonElement); if (current >= 0) { event.preventDefault(); buttons[(current + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus(); } }} className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2">
+                  {customers.map((customer) => <button key={customer.id} type="button" disabled={customerPage.loading || customerQuery.trim() !== customerPage.query}
+                    aria-pressed={modalCustomerId === customer.id}
+                    className={cn("flex min-h-11 w-full flex-wrap items-center justify-between gap-2 rounded-lg border p-2 text-left text-sm", modalCustomerId === customer.id && "border-primary bg-primary/5")}
+                    onClick={() => { if (modalCustomerId === customer.id) return; setModalCustomerId(customer.id); setSelectedLines((previous) => previous.filter((line) => line.customer_package_id === null)); }}>
+                    <span>{customer.full_name}</span><span>{customer.phone_number}{modalCustomerId === customer.id ? " · Đã chọn" : ""}</span>
+                  </button>)}
+                  {!customerPage.loading && customers.length === 0 && <p className="p-2 text-sm">Chưa tìm thấy khách. Hãy kiểm tra số điện thoại hoặc chọn tạo khách mới.</p>}
+                </div>
                 <p className="text-xs text-muted-foreground">Đã tải {customers.length} khách{customerPage.nextOffset !== null ? "; còn kết quả — tìm theo tên/SĐT hoặc tải thêm" : ""}.</p>
                 {customerPage.nextOffset !== null && <Button type="button" variant="outline" disabled={customerPage.loading} onClick={() => void searchCustomers(true)}>Tải thêm khách</Button>}
                 {customerPage.error && <p role="alert">{customerPage.error} — Nhấn tìm khách để thử lại.</p>}
@@ -1251,8 +1296,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           {!quickNewCustomer && customerPackages.length > 0 && (
             <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
               <Label className="text-primary">
-                Thẻ liệu trình đang hoạt động của khách (Chọn để trừ buổi, giá =
-                0₫ — hỗ trợ đặt lịch trước nhiều ngày)
+                Thẻ liệu trình của khách — chọn để dùng buổi trong thẻ
               </Label>
               <div className="grid gap-2 sm:grid-cols-2">
                 {customerPackages.map((pkg) => {
@@ -1274,6 +1318,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
+                          disabled={(pkg.available_sessions ?? pkg.remaining_sessions) <= 0}
                           checked={checked}
                           onChange={() =>
                             toggleServiceSelection(pkg.service_id, pkg.id)
@@ -1282,9 +1327,9 @@ export default function AdminBookingsPage(): React.ReactElement {
                         />
                         <div>
                           <p>{pkg.package_name}</p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             Đã dùng {pkg.used_sessions}/{pkg.total_sessions} •
-                            Còn <strong>{pkg.remaining_sessions} buổi</strong>
+                            Có thể đặt <strong>{pkg.available_sessions ?? pkg.remaining_sessions} buổi</strong> · Đã đặt trước {pkg.reserved_sessions ?? 0}
                           </p>
                         </div>
                       </div>
@@ -1329,12 +1374,12 @@ export default function AdminBookingsPage(): React.ReactElement {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-foreground [overflow-wrap:anywhere]">{svc.name}</p>
                           {svc.is_package && (
-                            <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                            <Badge variant="default" className="text-xs px-1.5 py-0">
                               Lộ trình {svc.total_sessions} buổi
                             </Badge>
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {svc.duration_minutes} phút/buổi •{" "}
                           {formatCurrency(svc.price)}
                         </p>
@@ -1346,11 +1391,12 @@ export default function AdminBookingsPage(): React.ReactElement {
             </div>
           </div>
 
+          {hasMultiSessionSelection && <Button type="button" variant="outline" aria-expanded={showCourse} onClick={() => setShowCourse((value) => !value)}>Tùy chọn đặt nhiều buổi</Button>}
           {/* 4. Staff Preference & Multi-Session Course Toolbar */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="modalStaff">
-                3. Kỹ thuật viên phụ trách (Để trống = Spa tự sắp xếp)
+                3. Nhân viên thực hiện (không chọn = Spa sắp xếp)
               </Label>
               <select
                 id="modalStaff"
@@ -1369,7 +1415,7 @@ export default function AdminBookingsPage(): React.ReactElement {
               </select>
             </div>
 
-            {hasMultiSessionSelection && (
+            {hasMultiSessionSelection && showCourse && (
               <div className="space-y-1.5">
                 <Label htmlFor="intervalSelect">
                   Chu kỳ giãn cách giữa các buổi hẹn
@@ -1392,7 +1438,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           </div>
 
           {/* Multi-Session Quick Action Banner */}
-          {hasMultiSessionSelection && (
+          {hasMultiSessionSelection && showCourse && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5">
               <div className="flex items-center gap-2 text-xs">
                 <Sparkles className="h-4 w-4 text-primary shrink-0" />
@@ -1557,14 +1603,14 @@ export default function AdminBookingsPage(): React.ReactElement {
                               className={cn(
                                 "flex min-h-11 flex-col items-center justify-center rounded border px-2 py-1 text-xs font-medium transition",
                                 active
-                                  ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
                                   : "border-border bg-card text-foreground hover:bg-accent"
                               )}
                             >
                               <span>{formatTimeVN(slot.start_time)}</span>
                               <span
                                 className={cn(
-                                  "text-[10px]",
+                                  "text-xs",
                                   active
                                     ? "text-primary-foreground/80"
                                     : "text-muted-foreground"
@@ -1604,7 +1650,7 @@ export default function AdminBookingsPage(): React.ReactElement {
         onClose={() => setRescheduleTarget(null)}
         title="Chỉnh sửa & Dời lịch hẹn"
         dirty={Boolean(rescheduleTarget && (rescheduleNote !== (rescheduleTarget.note || "") || rescheduleDate !== formatDateISOInVN(new Date(rescheduleTarget.start_time)) || rescheduleStaffId !== (rescheduleTarget.staff_id || "") || (rescheduleSlotStart && new Date(rescheduleSlotStart).getTime() !== new Date(rescheduleTarget.start_time).getTime()) || transferCustomer))}
-        description="Thay đổi ngày hẹn, khung giờ trống hoặc Kỹ thuật viên phụ trách. Suất thẻ liệu trình (nếu có) được bảo lưu nguyên vẹn."
+        description="Thay đổi ngày hẹn, khung giờ trống hoặc nhân viên thực hiện. Buổi thẻ liệu trình (nếu có) được bảo lưu nguyên vẹn."
       >
         {rescheduleTarget && (
           <form
@@ -1648,12 +1694,12 @@ export default function AdminBookingsPage(): React.ReactElement {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="rescheduleStaffAdmin">2. Kỹ thuật viên phụ trách</Label>
+                <Label htmlFor="rescheduleStaffAdmin">2. Nhân viên thực hiện</Label>
                 <select
                   id="rescheduleStaffAdmin"
                   value={rescheduleStaffId}
                   onChange={(e) => { setRescheduleStaffId(e.target.value); setTransferCustomer(false); }}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
                   disabled={user?.role === "STAFF"}
                 >
                   <option value="">✨ Spa tự sắp xếp KTV rảnh</option>
@@ -1675,9 +1721,9 @@ export default function AdminBookingsPage(): React.ReactElement {
                 <label className="flex items-center gap-2">
                   <input id="transferCustomer" type="checkbox" checked={transferCustomer}
                     onChange={(e) => setTransferCustomer(e.target.checked)} />
-                  Chuyển quyền hồ sơ cho KTV của giờ hẹn mới
+                  Giao khách cho kỹ thuật viên mới phụ trách
                 </label>
-                <p>Nếu bỏ chọn, người phụ trách hồ sơ giữ nguyên; KTV làm thay chưa được quyền xem/sửa hồ sơ khách.</p>
+                <p>Nếu bỏ chọn, người phụ trách khách vẫn giữ nguyên. Kỹ thuật viên làm thay chỉ quản lý hồ sơ khi được giao phụ trách.</p>
               </div>
             )}
             <div className="space-y-2">
@@ -1709,14 +1755,14 @@ export default function AdminBookingsPage(): React.ReactElement {
                         className={cn(
                           "flex flex-col items-center rounded-md border px-2 py-1.5 text-xs font-medium transition",
                           active
-                            ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
                             : "border-border bg-card text-foreground hover:bg-accent"
                         )}
                       >
                         <span>{formatTimeVN(slot.start_time)}</span>
                         <span
                           className={cn(
-                            "text-[10px]",
+                            "text-xs",
                             active
                               ? "text-primary-foreground/80"
                               : "text-muted-foreground"

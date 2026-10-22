@@ -44,7 +44,10 @@ async def create_batch(db, tenant_id, actor, body):
             await customer_access(db, tenant_id, old.customer_id, actor, write=True)
             if old.payload_hash != digest:
                 raise HTTPException(409, "Mã tạo lịch đã dùng với nội dung khác")
-            return ManualBatchOut.model_validate(old)
+            output = ManualBatchOut.model_validate(old)
+            # Release retry/customer locks before post-response notification sessions.
+            await db.commit()
+            return output
         if body.new_customer:
             new = body.new_customer
             customer = User(tenant_id=tenant_id, role=UserRole.CUSTOMER,

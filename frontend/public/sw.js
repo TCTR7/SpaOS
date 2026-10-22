@@ -56,24 +56,11 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const data = event.notification.data || {};
-  const targetPath = data.url || "/admin/bookings";
-
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clientList) => {
-        for (const client of clientList) {
-          if ("focus" in client) {
-            if ("navigate" in client && data.url) {
-              client.navigate(targetPath).catch(() => {});
-            }
-            return client.focus();
-          }
-        }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(targetPath);
-        }
-        return undefined;
-      })
-  );
+  let targetPath = "/";
+  try {
+    const target = new URL(data.url || "/admin/bookings", self.location.origin);
+    if (target.origin === self.location.origin && /^\/(?:admin\/bookings|[^/]+\/appointments)(?:$|\?)/.test(target.pathname + target.search)) targetPath = target.pathname + target.search;
+  } catch { /* Fall back to the branch chooser. */ }
+  // Open another window so a notification never replaces an unfinished form.
+  event.waitUntil(self.clients.openWindow ? self.clients.openWindow(targetPath) : Promise.resolve());
 });

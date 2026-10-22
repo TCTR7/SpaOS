@@ -99,7 +99,7 @@ def test_unknown_manual_batch_stays_protected_when_dialog_closed(scenario):
     first, modal, _ = prepare(s)
     first.route("**/api/v1/bookings/manual-batches", lambda r: r.fulfill(status=503, json={"detail": "QA uncertain batch"}))
     modal.get_by_role("button", name="Xác nhận tạo 3 buổi hẹn", exact=True).click()
-    expect(modal.get_by_text("QA uncertain batch", exact=True)).to_be_visible()
+    expect(modal.get_by_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     modal.get_by_role("button", name="Kiểm tra sau", exact=True).click()
     expect(modal).to_have_count(0)
     blocked(first, target, "Còn thao tác đang xử lý")
@@ -126,7 +126,7 @@ def test_switch_in_flight_does_not_replay_other_tab_write(scenario):
     other.on("request", lambda r: writes.append(r.url) if r.method == "PATCH" else None)
     other.locator("#spaName").fill("Never save this into new branch")
     other.get_by_role("button", name="Lưu thay đổi", exact=True).click()
-    expect(other.get_by_role("alert").filter(has_text="Đang chuyển chi nhánh ở tab khác")).to_be_visible()
+    expect(other.get_by_role("alert").filter(has_text="Đang chuyển chi nhánh ở cửa sổ khác")).to_be_visible()
     assert not writes
     held[0][0].fulfill(response=held[0][1])
     expect(other.locator("#activeBranch")).to_have_value(target)
@@ -138,7 +138,7 @@ def test_no_web_locks_fails_closed_for_branch_change(scenario):
     target = branch(s)
     page = open_admin(s, "dashboard")
     page.evaluate("Object.defineProperty(navigator,'locks',{value:undefined})")
-    blocked(page, target, "Trình duyệt chưa hỗ trợ")
+    blocked(page, target, "Chưa thể chuyển chi nhánh trên trình duyệt này")
 
 
 def test_unknown_receipt_in_other_tab_must_be_reconciled_before_switch(scenario):
@@ -197,13 +197,13 @@ def test_pending_push_permission_blocks_branch_in_other_tab(scenario):
     other = second_tab(s, page)
     page.get_by_role("button", name="Thông báo", exact=True).click()
     modal = page.get_by_role("dialog", name="Bảng thông báo", exact=True)
-    modal.get_by_role("button", name="Bật Push", exact=True).click()
+    modal.get_by_role("button", name="Bật thông báo", exact=True).click()
     page.wait_for_function("typeof window.qaResolvePermission === 'function'")
     page.keyboard.press("Escape")
     expect(modal).to_be_visible()
     blocked(other, target, "Tab khác còn form")
     page.evaluate("window.qaResolvePermission('denied')")
-    expect(modal.get_by_text("Trình duyệt đã từ chối quyền thông báo.", exact=True)).to_be_visible()
+    expect(modal.get_by_text("Hãy cho phép nhận thông báo trong cài đặt trình duyệt rồi thử lại.", exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     expect(modal).to_have_count(0)
     other.locator("#activeBranch").select_option(target)

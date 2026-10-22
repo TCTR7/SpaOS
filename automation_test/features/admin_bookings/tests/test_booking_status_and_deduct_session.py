@@ -57,11 +57,11 @@ def test_complete_booking_on_calendar_deducts_package_session(
     cal_page.select_date(booking_day)
     cal_page.wait_for_text(cust_name)
 
-    cal_page.transition_booking_for_customer(cust_name, "→ Đã xác nhận")
+    cal_page.transition_booking_for_customer(cust_name, "Xác nhận lịch")
     card = admin_page.locator("div.rounded-lg.border", has_text=cust_name).first
     expect(card.get_by_role("button", name="Chi tiết lịch hẹn", exact=True)).to_be_visible()
 
-    cal_page.transition_booking_for_customer(cust_name, "→ Hoàn thành")
+    cal_page.transition_booking_for_customer(cust_name, "Hoàn thành buổi")
     expect(card.get_by_text("Hoàn thành")).to_be_visible()
 
     # 4. Verify via API that used_sessions incremented to 1

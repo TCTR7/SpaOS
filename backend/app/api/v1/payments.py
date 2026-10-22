@@ -254,13 +254,15 @@ def collection_statement(tenant_id, q=""):
 
 
 @router.get("/payments/collections", response_model=List[CollectionOut])
-async def collections(q: str = Query("", max_length=100), scope: Literal["outstanding", "all"] = "outstanding",
+async def collections(q: str = Query("", max_length=100), scope: Literal["outstanding", "all"] = "outstanding", customer_id: Optional[uuid.UUID] = None,
         limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
         actor: User = Depends(_admin), tenant_id: uuid.UUID = Depends(get_current_tenant_id),
         db: AsyncSession = Depends(get_tenant_db)):
     rows = collection_statement(tenant_id, q)
     status = rows.selected_columns.status
     sources = rows.get_final_froms()[0]
+    if customer_id is not None:
+        rows = rows.where(sources.c.customer_id == customer_id)
     if scope == "outstanding":
         rows = rows.where(status.in_(["UNPAID", "PARTIAL", "NEEDS_PRICE"]))
     rows = rows.order_by(case((status.in_(["UNPAID", "PARTIAL", "NEEDS_PRICE"]), 0), else_=1),

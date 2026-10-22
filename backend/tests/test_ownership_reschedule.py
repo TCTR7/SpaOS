@@ -21,12 +21,15 @@ async def test_fixed_owner_permissions_and_admin_transfer(client):
     pkg = (await client.post(f"{B}/customer-packages", headers=c["ah"],
           json={"customer_id": c["customer_id"], "service_id": c["pkg_svc"]["id"]})).json()
     booking = await _book(client, c["ch"], f"{_day()}T10:00:00+07:00", [c["pkg_svc"]], a["id"], package_id=pkg["id"])
-    async def denied(headers):
+    async def denied(headers, assigned=False):
         assert (await client.get(f"{B}/customers", headers=headers)).json() == []
-        assert (await client.get(f"{B}/bookings", headers=headers)).json() == []
+        visible = (await client.get(f"{B}/bookings", headers=headers)).json()
+        assert [row["id"] for row in visible] == ([booking["id"]] if assigned else [])
+        if assigned:
+            assert visible[0]["can_manage"] is False
         assert (await client.get(f"{B}/customer-packages", headers=headers)).json() == []
-        for path in (f"/bookings/{booking['id']}", f"/customers/{c['customer_id']}/packages"):
-            assert (await client.get(B+path, headers=headers)).status_code == 404
+        assert (await client.get(f"{B}/bookings/{booking['id']}", headers=headers)).status_code == (200 if assigned else 404)
+        assert (await client.get(f"{B}/customers/{c['customer_id']}/packages", headers=headers)).status_code == 404
         for path, payload in (
             (f"/customers/{c['customer_id']}", {"notes": "forbidden"}),
             (f"/bookings/{booking['id']}/status", {"status": "CONFIRMED"}),
@@ -35,7 +38,8 @@ async def test_fixed_owner_permissions_and_admin_transfer(client):
         assert (await client.post(f"{B}/bookings/{booking['id']}/cancel", headers=headers)).status_code == 404
         assert (await client.post(f"{B}/customer-packages", headers=headers,
                 json={"customer_id": c["customer_id"], "service_id": c["pkg_svc"]["id"]})).status_code == 404
-        assert (await client.get(f"{B}/notifications", headers=headers)).json()["items"] == []
+        notes = (await client.get(f"{B}/notifications", headers=headers)).json()["items"]
+        assert bool(notes) == assigned
     await denied(b["h"])
     r = await client.patch(f"{B}/customers/{c['customer_id']}", headers=a["h"], json={"notes": "owner notes"})
     assert r.status_code == 200
@@ -45,7 +49,7 @@ async def test_fixed_owner_permissions_and_admin_transfer(client):
     r = await client.patch(f"{B}/customers/{c['customer_id']}/assignment", headers=c["ah"],
                            json={"assigned_staff_id": b["id"]})
     assert r.status_code == 200
-    await denied(a["h"])
+    await denied(a["h"], assigned=True)
     assert (await client.get(f"{B}/bookings/{booking['id']}", headers=b["h"])).status_code == 200
     # A later appointment with A must not silently transfer the permanent owner back.
     await _book(client, c["ch"], f"{_day()}T16:00:00+07:00", [c["s30"]], a["id"])
@@ -165,6 +169,10 @@ async def test_stale_notification_draft_does_not_push_to_previous_owner(client, 
     assert response.status_code == 201
     assert (await client.patch(f"{B}/customers/{c['customer_id']}/assignment", headers=c["ah"],
             json={"assigned_staff_id": b["id"]})).status_code == 200
+    # Previous owner also loses the appointment assignment: no remaining read access.
+    moved = await client.patch(f"{B}/bookings/{bk['id']}", headers=c["ah"],
+        json={"start_time": f"{_day()}T11:00:00+07:00", "staff_id": b["id"]})
+    assert moved.status_code == 200
     sent = []
     async def capture(sub, payload):
         sent.append(payload)

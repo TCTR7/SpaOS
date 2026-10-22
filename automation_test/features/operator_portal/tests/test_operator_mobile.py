@@ -28,9 +28,9 @@ def test_operator_routes_long_names_error_retry_and_brand_preview(operator_ui, w
     pattern = "**/api/v1/operator/owners?*"
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "LongOwnerListFailure" * 30}))
     page.reload()
-    expect(page.get_by_role("alert").filter(has_text="LongOwnerListFailure")).to_be_visible()
+    expect(page.get_by_role("alert").filter(has_text="Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại danh sách", exact=True).click()
     expect(page.locator("#ownerName")).to_be_visible()
-    expect(page.get_by_role("alert").filter(has_text="LongOwnerListFailure")).to_have_count(0)
+    expect(page.get_by_role("alert").filter(has_text="Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")).to_have_count(0)

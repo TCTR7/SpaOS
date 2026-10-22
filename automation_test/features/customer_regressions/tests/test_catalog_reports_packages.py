@@ -72,7 +72,7 @@ def test_old_report_response_cannot_replace_new_period(scenario, old_status):
     page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
     expect(page.get_by_text("Stale report staff", exact=True)).to_have_count(0)
     expect(page.get_by_role("main").get_by_role("alert")).to_have_count(0)
-    expect(page.get_by_text("Khoảng thời gian: " + new_day, exact=False)).to_be_visible()
+    expect(page.get_by_text("Khoảng thời gian: " + datetime.fromisoformat(new_day).strftime("%d/%m/%Y"), exact=False)).to_be_visible()
 
 
 def test_report_error_retries_and_invalid_dates_do_not_show_old_totals(scenario):
@@ -81,7 +81,7 @@ def test_report_error_retries_and_invalid_dates_do_not_show_old_totals(scenario)
     pattern = "**/api/v1/reports/staff-performance?*"
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "QA report unavailable"}))
     page.goto(config.frontend_url + "/admin/reports")
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA report unavailable")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     expect(page.get_by_text("Không có dữ liệu Kỹ thuật viên trong khoảng thời gian này.", exact=True)).to_have_count(0)
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại báo cáo", exact=True).click()
@@ -125,7 +125,7 @@ def test_package_read_error_has_retry(scenario):
     pattern = "**/api/v1/customer-packages/me"
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "QA packages unavailable"}))
     page.goto(s["url"] + "/profile")
-    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("QA packages unavailable")
+    expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại thẻ", exact=True).click()
     expect(page.get_by_text("QA One Session", exact=True)).to_be_visible()

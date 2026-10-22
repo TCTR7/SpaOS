@@ -53,7 +53,7 @@ def test_selected_slot_secondary_text_uses_brand_foreground(scenario, color, bac
     page.route("**/api/v1/branding", lambda route: route.fulfill(
         json={"theme_color": color, "configured": True}))
     page.goto(s["url"] + "/book?service_id=" + s["service"]["id"])
-    page.get_by_role("button", name="Tiếp tục", exact=True).click()
+    expect(page.locator("#wizDate")).to_be_visible()
     day = (datetime.now(timezone(timedelta(hours=7))) + timedelta(days=5)).date().isoformat()
     with page.expect_response(lambda r: "/bookings/available-slots?" in r.url and "date=" + day in r.url):
         page.locator("#wizDate").fill(day)
