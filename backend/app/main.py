@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.release import BUILD_INFO
 
 @asynccontextmanager
 async def lifespan(app):
@@ -14,7 +15,8 @@ async def lifespan(app):
         task.cancel()
         with suppress(asyncio.CancelledError): await task
 
-app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+app = FastAPI(title=settings.PROJECT_NAME, version=BUILD_INFO["version"],
+    description="Release: " + BUILD_INFO["release_id"] + " · Build: " + BUILD_INFO["build_id"], lifespan=lifespan)
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 

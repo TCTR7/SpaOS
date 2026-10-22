@@ -15,10 +15,10 @@ export default async function manifest(): Promise<MetadataRoute.Manifest & {
   const branding = await getServerBranding();
   return {
     id: "/",
-    name: "SpaOS - Đặt lịch & Quản lý Spa",
-    short_name: "SpaOS",
+    name: "Đặt lịch spa",
+    short_name: "Đặt lịch spa",
     description:
-      "Nền tảng Đặt lịch & Quản lý Spa chuẩn SaaS, theo dõi thẻ liệu trình và nhận nhắc lịch tự động.",
+      "Đặt lịch, theo dõi thẻ liệu trình và nhận cập nhật lịch hẹn tại spa.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

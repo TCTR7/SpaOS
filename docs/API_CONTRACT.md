@@ -225,6 +225,17 @@ Migration 0005_branch_accounts chỉ tạo danh tính cho SĐT quản trị duy 
 
 ## Quản trị triển khai và cấp chủ spa — 0006_operator_portal
 
+### Bổ sung 0010 — quản lý chủ spa, bàn giao và phiên bản (22/10/2026)
+
+- `GET /operator/system`: JWT operator; `{version,release_id,build_id,built_at}`, Cache-Control no-store. Swagger hiển thị version/release/build backend. `GET /api/system/version` là route Next.js (không nằm dưới /api/v1), công khai metadata build frontend đã đóng gói; không trả secrets. Bản trình duyệt nhúng metadata độc lập để phát hiện tab cũ.
+- `GET /operator/owners/{provision_id}`: thông tin hiện tại `{id,full_name,phone_number,branches:[{id,name,slug,logo_url,address,active}]}`. Xác minh provision thuộc operator, membership chủ tại chi nhánh gốc và account active; không lấy tên/SĐT từ snapshot lịch sử để cập nhật. Không tự nhận quyền các tài khoản legacy chưa có provision.
+- `PATCH /operator/owners/{provision_id}`: `{full_name,phone_number,current_password,identity_verified:true}`, extra forbid. Xác minh mật khẩu operator; cập nhật nguyên tử account và users tại từng membership tenant context, tăng auth_version, ghi audit. Trùng SĐT trả 409/rollback; không gộp danh tính. Trả DTO hiện tại như GET.
+- `POST /operator/owners/{provision_id}/recovery-link`: `{current_password,identity_verified:true}` → `{token,expires_at}`. Xác minh chủ spa ngoài ứng dụng trước khi cấp, TTL 30 phút, token ngẫu nhiên chỉ trả một lần, DB chỉ lưu SHA256. Cấp mới vô hiệu link cũ.
+- `POST /operator/recovery`: public `{token,password}` → `{updated:true}`. Không nhận account_id/tenant_id/operator_id; tra grant bằng hash hẹp, rồi xác minh account/membership. Row lock account + grant, kiểm tra hạn/consumed/auth_version; cập nhật mật khẩu mọi membership và thu hồi JWT cũ trong một transaction. Đồng thời hai claim chỉ một thành công. Đổi tài khoản/mật khẩu bình thường cũng vô hiệu grant cũ. Không tự đăng nhập.
+- `GET /operator/owners/{provision_id}/events?limit=30&offset=0`: audit hỗ trợ tài khoản (limit 1–100), không chứa mật khẩu/token. Lịch sử cấp tài khoản hiện có vẫn append-only và không sửa snapshot.
+- Bảng `owner_recovery_grants` có tenant_id/FK, ENABLE/FORCE RLS. Operator chỉ đọc/cấp cho provision đã xác minh; hash bootstrap chỉ đọc đúng grant, ghi consume phải đồng thời đúng tenant/hash. Không thêm quyền bypass hoặc role nghiệp vụ mới.
+- UI `/admin/recover#token` bỏ fragment ngay khi đọc, token chỉ giữ trong memory; không persist hoặc đưa vào QR/tài liệu. Các bộ bàn giao tạo tại trình duyệt từ dữ liệu hiện tại và origin đang truy cập, không lưu file trên server, không chứa secrets.
+
 Danh tính deployment_operators tách biệt UserRole và login_accounts nghiệp vụ. Mỗi deployment tối đa một operator (singleton database constraint); không có tenant_id vì là danh tính hạ tầng, có ENABLE/FORCE RLS theo operator_id hoặc phone bootstrap. owner_provisions có tenant_id, FK tenant/owner, operator_id, chống trùng request_id theo operator và append-only. Không nới RLS nghiệp vụ.
 
 - POST /operator/login: {phone_number,password}, extra forbid. 200 {access_token,token_type:"bearer",expires_in:1800,operator:{id,full_name,phone_number}}. JWT aud=spaos-operator, scope=operator, version; sai thông tin 401, khóa sau 5 lần sai và trong 5 phút trả 429. Không có tài khoản mặc định.
