@@ -15,13 +15,14 @@ def test_owner_creates_switches_and_sees_combined_dashboard(scenario):
     page.locator("#activeBranch").select_option(branch["id"])
     expect(page).to_have_url(config.frontend_url + "/admin/dashboard")
     expect(page.locator("#activeBranch")).to_have_value(branch["id"])
-    expect(page.get_by_role("heading", name="Tổng quan QA Chi nhánh mới")).to_be_visible()
+    expect(page.get_by_role("heading", name="Tổng quan", exact=True)).to_be_visible()
     page.goto(config.frontend_url + "/admin/customers")
     expect(page.get_by_text("QA Customer", exact=True)).to_have_count(0)
     page.locator("#activeBranch").select_option("all")
-    expect(page.get_by_role("heading", name="Tổng quan tất cả chi nhánh", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Tổng quan", exact=True)).to_be_visible()
     expect(page.get_by_test_id("branch-dashboard")).to_contain_text("100.000")
     expect(page.get_by_test_id("branch-dashboard")).to_contain_text("150.000")
+    page.get_by_test_id("dashboard-branches").locator("summary").first.click()
     expect(page.get_by_test_id("dashboard-" + branch["id"])).to_be_visible()
     assert not s["errors"]
 

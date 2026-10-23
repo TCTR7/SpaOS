@@ -9,12 +9,14 @@ import { brandStyle } from "@/lib/brand-theme";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Building2,
   BarChart3,
   Wallet,
   CalendarDays,
   LogOut,
   MoreHorizontal,
   Settings,
+  CircleHelp,
   Sparkles,
   UserCheck,
   Users,
@@ -76,6 +78,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: Settings,
     roles: ["ADMIN"],
   },
+  { href: "/admin/help", label: "Trợ giúp & Cài ứng dụng", icon: CircleHelp, roles: ["ADMIN", "STAFF"] },
 ];
 
 export function AdminShell({
@@ -178,8 +181,8 @@ function AdminShellContent({
       {/* Sidebar Desktop */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
         <div className="flex min-h-24 items-center gap-3 border-b border-border px-4 py-4">
-          <SpaLogo key={tenant.id} name={tenant.name} src={tenant.logo_url} />
-          <div className="min-w-0 flex-1"><p className="text-base font-bold leading-snug [overflow-wrap:anywhere]">{tenant.name}</p><p className="mt-1 text-xs text-muted-foreground">Chi nhánh đang làm việc</p></div>
+          <Building2 className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
+          <div className="min-w-0 flex-1"><p className="text-base font-bold leading-snug">SpaOS</p><p className="mt-1 text-xs text-muted-foreground">Quản lý spa</p></div>
         </div>
 
         <nav className="flex-1 space-y-1 p-3">
@@ -234,7 +237,7 @@ function AdminShellContent({
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/90 px-4 backdrop-blur md:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <SpaLogo key={tenant.id} name={tenant.name} src={tenant.logo_url} className="h-10 w-10 rounded-xl md:hidden" />
+            <SpaLogo key={allScope ? "all" : tenant.id} name={allScope ? "SpaOS" : tenant.name} src={allScope ? "/icons/icon-192x192.png?v=20261023" : tenant.logo_url} className="h-10 w-10 rounded-xl" />
             <div className="min-w-0">
               <label className="sr-only" htmlFor="activeBranch">Chi nhánh đang làm việc</label>
               <select id="activeBranch" className="h-11 w-full max-w-[210px] min-w-0 rounded-md border bg-background px-2 text-sm" disabled={branchBusy}
@@ -288,7 +291,7 @@ function AdminShellContent({
           </div>
         </Modal>
 
-        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><div className="mb-5"><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN":"STAFF"} identity={user.id}/></div>{children}</div></main>
+        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id} identities={branches.map((branch) => branch.user.id)} autoOpen={pathname !== "/admin/help"} />{children}</div></main>
       </div>
       <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
         {primaryItems.map((item) => {

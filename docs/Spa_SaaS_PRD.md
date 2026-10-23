@@ -307,3 +307,7 @@ Phạm vi bổ sung: địa chỉ/liên hệ chi nhánh; ảnh logo kiểm tra �
 
 ### Hotfix vận hành 0.2.1 — 22/10/2026
 Màu chung chỉ được chỉnh tại một nơi theo giai đoạn: trong form cấp chủ đầu tiên hoặc mục Cài đặt giao diện sau khi đã có chủ. Render/Docker dùng start_service để nâng schema trước mở API; schema guard phát hiện revision cũ/mất cột và ngăn worker chạy với DB chưa sẵn sàng. Không tự thay settings Render từ code; xem RENDER_DEPLOYMENT.md.
+
+
+### UX gọn theo PO — 23/10/2026
+Phê duyệt và hành vi tại [UX_COMPACT_DASHBOARD.md](UX_COMPACT_DASHBOARD.md): logo cạnh dropdown, icon ứng dụng có hình, popup lần đầu và menu trợ giúp, Tổng quan thu gọn/lazy-load với phạm vi ngày rõ ràng. Công thức tiền, quyền và dữ liệu chi nhánh giữ theo API_CONTRACT. Kết quả kiểm chứng theo PROGRESS.

@@ -33,10 +33,16 @@ def scenario(api_helper, browser_instance):
     bookings = []
     errors = []
 
-    def page_for(token_value=token, admin_slot=False):
+    def page_for(token_value=token, admin_slot=False, show_guide=False):
         context = browser_instance.new_context(viewport={"width": 390, "height": 844})
         key = "spaos_admin_token" if admin_slot else "spaos_customer_token_" + slug
         context.add_init_script("if (!sessionStorage.getItem('qa_seeded')) { localStorage.setItem(" + json.dumps(key) + "," + json.dumps(token_value) + "); sessionStorage.setItem('qa_seeded', '1'); }")
+        if not show_guide:
+            # Ordinary workflow tests start after onboarding; guide tests opt in.
+            preferences = ["spaos_guide_v2_MANAGEMENT_" + auth["user"]["id"],
+                           "spaos_guide_v2_MANAGEMENT_" + staff["id"],
+                           "spaos_guide_v2_CUSTOMER_" + slug]
+            context.add_init_script("for (const key of " + json.dumps(preferences) + ") localStorage.setItem(key, 'seen');")
         contexts.append(context)
         page = context.new_page()
         page.on("pageerror", lambda error: errors.append(str(error)))

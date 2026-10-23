@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Modal } from "@/components/ui/modal";
 import { ProductGuide } from "@/components/product-guide";
 import { SpaLogo } from "@/components/spa-logo";
 import { ContactLinks } from "@/components/contact-links";
@@ -10,6 +11,8 @@ import { brandStyle } from "@/lib/brand-theme";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  MoreHorizontal,
+  CircleHelp,
   AlertTriangle,
   CalendarCheck2,
   Clock,
@@ -28,6 +31,8 @@ export function CustomerShell({
   children: React.ReactNode;
 }): React.ReactElement {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const moreButton = React.useRef<HTMLButtonElement>(null);
   const focused = /\/(book|login|register)\/?$/.test(pathname || "");
   const widthClass = focused ? "max-w-md md:max-w-2xl" : "max-w-md md:max-w-4xl lg:max-w-5xl";
   const { slug, tenant, tenantLoading, tenantNotFound, tenantError, refreshTenant, user, authLoading, authError, refreshCustomer, logoutCustomer } =
@@ -171,9 +176,15 @@ export function CustomerShell({
               : <p>Đang kiểm tra đăng nhập...</p>}
           </div>}
           {/* Keep an inline-login draft mounted, but inaccessible until verified. */}
-          <div hidden={authLoading || Boolean(authError)}><div className="mb-4 flex flex-wrap items-start justify-between gap-3"><ProductGuide key={user?.id||"guest"} role="CUSTOMER" slug={slug} identity={user?.id}/><Link className="inline-flex min-h-11 items-center text-xs underline" href="/admin/login">Đăng nhập quản lý</Link></div>{children}</div>
+          <div hidden={authLoading || Boolean(authError)}><ProductGuide key={user?.id || "guest"} role="CUSTOMER" slug={slug} identity={user?.id} autoOpen={!authLoading && !authError && pathname === baseHref} />{children}</div>
         </main>
 
+        <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Thêm" returnFocusRef={moreButton}>
+          <nav aria-label="Điều hướng bổ sung" className="space-y-2">
+            <Link className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent" href={baseHref + "/help"} onClick={() => setMoreOpen(false)}><CircleHelp className="h-5 w-5 shrink-0" />Trợ giúp &amp; Cài ứng dụng</Link>
+            <Link className="flex min-h-12 items-center rounded-lg px-3 text-sm hover:bg-accent" href="/admin/login" onClick={() => setMoreOpen(false)}>Đăng nhập quản lý</Link>
+          </nav>
+        </Modal>
         {/* Bottom Navigation Bar */}
         <nav aria-label="Điều hướng khách hàng" className={cn("fixed bottom-0 z-30 flex w-full items-center justify-around border-t border-border bg-card/95 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur", widthClass)}>
           {navItems.map((item) => {
@@ -198,6 +209,7 @@ export function CustomerShell({
               </Link>
             );
           })}
+          <button type="button" ref={moreButton} onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-expanded={moreOpen} className="flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs text-muted-foreground"><MoreHorizontal className="h-5 w-5" /><span>Thêm</span></button>
         </nav>
       </div>
     </div>

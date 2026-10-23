@@ -28,6 +28,7 @@ interface AdminAuthContextValue {
   branches: BranchAccess[];
   changeBranch: (id: string, discard?: boolean) => Promise<void>;
   refreshMe: () => Promise<void>;
+  reloadTenant: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -39,6 +40,7 @@ const AdminAuthContext = React.createContext<AdminAuthContextValue>({
   branches: [],
   changeBranch: async () => {},
   refreshMe: async () => {},
+  reloadTenant: async () => {},
   logout: async () => {},
 });
 
@@ -117,6 +119,16 @@ export function AdminAuthProvider({
     }
   }, [isPublicAuthRoute, router]);
 
+  // Refresh saved branding without unmounting the settings form or losing feedback.
+  const reloadTenant = React.useCallback(async (): Promise<void> => {
+    const request = ++operation.current;
+    const session = getAdminSessionIdentity();
+    const [me, verifiedBranches] = await Promise.all([fetchMe(), fetchBranches()]);
+    if (operation.current !== request || session !== getAdminSessionIdentity()) return;
+    if (me.user.id !== user?.id || me.tenant.id !== tenant?.id) return;
+    setUser(me.user); setTenant(me.tenant); setBranches(verifiedBranches);
+  }, [user?.id, tenant?.id]);
+
   React.useEffect(() => {
     void refreshMe();
     return () => { operation.current += 1; };
@@ -194,7 +206,7 @@ export function AdminAuthProvider({
 
   return (
     <AdminAuthContext.Provider
-      value={{ user, tenant, loading, authError, branches, changeBranch, refreshMe, logout }}
+      value={{ user, tenant, loading, authError, branches, changeBranch, refreshMe, reloadTenant, logout }}
     >
       {children}
     </AdminAuthContext.Provider>

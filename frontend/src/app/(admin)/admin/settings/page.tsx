@@ -19,13 +19,14 @@ import { Input, Label } from "@/components/ui/input";
 
 export default function AdminSettingsPage(): React.ReactElement {
   const {branding} = useBranding();
-  const { refreshMe } = useAdminAuth();
+  const { reloadTenant } = useAdminAuth();
 
   const [slug, setSlug] = React.useState<string>("");
   const [name, setName] = React.useState<string>("");
   const [address, setAddress] = React.useState("");
   const [contactPhone, setContactPhone] = React.useState("");
   const [logoData, setLogoData] = React.useState("");
+  const [failedLogo, setFailedLogo] = React.useState("");
   const fileChoice = React.useRef(0);
   const [readingLogo, setReadingLogo] = React.useState(false);
   const [logoUrl, setLogoUrl] = React.useState<string>("");
@@ -41,6 +42,7 @@ export default function AdminSettingsPage(): React.ReactElement {
 
   const [attempt, setAttempt] = React.useState(0);
   const [baseline, setBaseline] = React.useState("");
+  const previewSrc = logoData ? "data:image/png;base64," + logoData : logoUrl;
   const draft = JSON.stringify([name, logoUrl, themeColor, openTime, closeTime, bufferMinutes, address, contactPhone]);
   useBranchGuard(!loading && !!baseline && (draft !== baseline || !!logoData), saving || readingLogo);
   React.useEffect(() => {
@@ -88,7 +90,7 @@ export default function AdminSettingsPage(): React.ReactElement {
       });
       setLogoUrl(updated.logo_url || ""); setLogoData("");
       setBaseline(JSON.stringify([name, updated.logo_url || "", themeColor, openTime, closeTime, bufferMinutes, address, contactPhone]));
-      await refreshMe();
+      await reloadTenant();
       setSuccessMsg("Đã lưu cấu hình Spa thành công!");
     } catch (err) {
       setError(
@@ -169,10 +171,11 @@ export default function AdminSettingsPage(): React.ReactElement {
                 }} />
                 <p className="text-xs text-muted-foreground">Ảnh PNG tối đa 256 KB và 2048 × 2048. Ảnh chỉ được lưu khi bạn nhấn Lưu.</p>
                 <div className="flex items-center gap-4 rounded-2xl border bg-muted/30 p-4">
-                  <SpaLogo name={name || "Tên spa của bạn"} src={logoData ? "data:image/png;base64," + logoData : logoUrl} alt="Xem trước logo chi nhánh" className="h-20 w-20" />
-                  <div className="min-w-0"><p className="text-xs text-muted-foreground">Khách hàng sẽ nhìn thấy</p><p className="mt-1 text-xl font-bold [overflow-wrap:anywhere]">{name || "Tên spa của bạn"}</p><p className="mt-1 text-xs text-muted-foreground">Logo và tên trên trang dịch vụ, đặt lịch và hồ sơ khách.</p></div>
+                  <SpaLogo name={name || "Tên spa của bạn"} src={previewSrc} onImageError={() => setFailedLogo(previewSrc)} alt="Xem trước logo chi nhánh" className="h-20 w-20" />
+                  <div className="min-w-0"><p className="text-xs text-muted-foreground">Khách hàng sẽ nhìn thấy</p><p className="mt-1 text-xl font-bold [overflow-wrap:anywhere]">{name || "Tên spa của bạn"}</p><p className="mt-1 text-xs text-muted-foreground">Logo hiển thị cạnh bộ chọn chi nhánh và trên trang đặt lịch của khách.</p></div>
                 </div>
               </div>
+              {previewSrc && failedLogo === previewSrc && <p role="alert" className="text-sm text-rose-700">Không tải được logo. Hãy kiểm tra đường dẫn ảnh hoặc tải lại ảnh PNG từ thiết bị.</p>}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="logoUrl">Đường dẫn ảnh logo (không bắt buộc)</Label>

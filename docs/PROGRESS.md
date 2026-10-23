@@ -694,3 +694,17 @@ PO thống nhất triển khai version FE/BE và đối chiếu release, cổng 
 - Restored scripts.check_database and startup/test integration after user revert. Existing migration/schema guard remained intact.
 - Diagnostics check both URLs via SELECT 1, report environment versus dotenv/default source without secrets. SQLSTATE 28P01 indicates rejected effective connection, not proof that the previously stored password was incorrect.
 - Isolated QA: 11/11 passed; temporary DB removed. Three existing Alembic path_separator deprecation warnings remain. Production credentials/deployment not accessed or verified; frontend not started.
+
+
+### 23/10/2026 — Phê duyệt sửa nhận diện, hướng dẫn và Tổng quan
+PO cho phép triển khai lần lượt toàn bộ kế hoạch: sửa logo/icon PWA; popup lần đầu và menu trợ giúp theo vai trò; Tổng quan gồm các mục mặc định đóng, tách số liệu theo ngày và hiện tại. Giữ phạm vi chi nhánh, quyền và công thức nghiệp vụ. Đang triển khai, chưa ghi nhận kiểm thử hay deploy test từ phiên này.
+
+- [x] Code: PNG/SVG icon có chữ S, Apple Touch 180 px, URL icon có version trong manifest hiện hành/cũ; logo header mọi breakpoint và nhận diện chung ở tổng hợp. Cập nhật thông tin chi nhánh tại chỗ sau lưu, giữ thông báo thành công và báo lỗi ảnh.
+- [x] Code: popup lần đầu theo vai trò, ghi nhớ qua các membership đã xác minh, menu/trang trợ giúp riêng. Tổng quan có các panel mặc định đóng, tải chi tiết khi mở và tách phạm vi ngày/hiện tại. Chi tiết tại UX_COMPACT_DASHBOARD.md.
+- Build frontend đầu PASS; production QA run 522c1127-bb14-4e9f-9bb8-9d27d4bfe0a8: build/TypeScript PASS, 49/56 PASS (228.05s). Bảy FAIL là assertion test (đếm nhầm prefetch trang thành API, tên heading sai, locator Thu tiền trùng menu), đã sửa; không coi lượt này là đạt toàn bộ. Đang chạy lại production QA và bổ sung bàn phím/Escape/phản hồi ngày cũ cùng fixture đăng nhập chung. Không thay backend/API/DB/credentials người dùng.
+
+- [x] Production QA cuối `a899884a-2fdd-4d77-a8fe-1003b108bcbc`: build/strict TypeScript PASS; **61/61 ca PASS (207.03s)**. Bao gồm 13 ca logo/icon/Tổng quan (lưu, thay, reload, chuyển chi nhánh, fallback, any/maskable/iOS, 320/390/768/1366, lazy-load, ngày cũ về chậm, bàn phím); 8 ca hướng dẫn (ADMIN/STAFF/CUSTOMER, install chỉ sau bấm, Để sau/Đóng/Escape và ghi nhớ sau đổi chi nhánh); consistency, chi nhánh, mobile routes, UX vai trò, danh mục và luồng đặt lịch khách. Không gọi đây là toàn bộ backend/E2E repository.
+- Không thay backend/API nên không chạy lại suite backend; không có migration mới. Frontend local 3000 giữ tắt; runner dọn container/database QA sau khi hoàn tất. Đang chốt kiểm tra trực quan riêng; chưa deploy lên môi trường test của người dùng hoặc nghiệm thu cài PWA trên thiết bị thật.
+
+- [x] Da xem truc quan icon va bon anh giao dien that tren QA dev rieng: popup lan dau, Tong quan desktop 1366 px, mobile 390 px va panel mo. Anh local tai automation_test/artifacts/qa/compact-ux-20261023 (Git ignore), chi chua du lieu demo QA. Helper chup gap loi encoding console Windows nhung trang/anh hoan tat PASS; da chuan hoa UTF-8 cho helper. Khong xem luot chup dev la production E2E bo sung.
+- Chot: git diff --check PASS; khong thay backend, package/lockfile hay tsconfig. Khong con container spaos-e2e-qa; runner da dung frontend QA va don database QA. Ban sua san sang build/deploy test tu source moi; deployment test cua nguoi dung va native install/push Android/iOS that chua duoc nghiem thu trong phien nay.

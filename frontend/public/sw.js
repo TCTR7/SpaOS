@@ -11,7 +11,7 @@ self.addEventListener("push", (event) => {
   let payload = {
     title: "SpaOS - Thông báo lịch hẹn",
     body: "Bạn có cập nhật mới về lịch hẹn tại Spa.",
-    icon: "/icons/icon-192x192.png",
+    icon: "/icons/icon-192x192.png?v=20261023",
     url: "",
     booking_id: "",
     type: "BOOKING_CREATED",
@@ -40,8 +40,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body,
-    icon: payload.icon || "/icons/icon-192x192.png",
-    badge: "/icons/icon-192x192.png",
+    icon: payload.icon || "/icons/icon-192x192.png?v=20261023",
+    badge: "/icons/icon-192x192.png?v=20261023",
     tag: payload.booking_id ? `booking-${payload.booking_id}` : "spaos-push",
     data: {
       url: targetUrl,

@@ -10,11 +10,15 @@ def create_admin_authenticated_context(
 ) -> tuple[BrowserContext, Page]:
     """Create a Desktop (1440x900) BrowserContext pre-authenticated as Spa Admin."""
     token = api_helper.get_admin_token(config.tenant_slug)
+    me = api_helper.client.get("/auth/me", headers={"Authorization": "Bearer " + token})
+    me.raise_for_status()
+    identity = me.json()["user"]["id"]
     context = browser.new_context(viewport={"width": 1440, "height": 900})
     context.add_init_script(
         f"""
         window.localStorage.setItem('spaos_admin_token', '{token}');
         window.localStorage.setItem('spaos_admin_slug', '{config.tenant_slug}');
+        window.localStorage.setItem('spaos_guide_v2_MANAGEMENT_{identity}', 'seen');
         """
     )
     page = context.new_page()
@@ -35,6 +39,7 @@ def create_customer_pwa_authenticated_context(
     context.add_init_script(
         f"""
         window.localStorage.setItem('spaos_customer_token_{slug}', '{token}');
+        window.localStorage.setItem('spaos_guide_v2_CUSTOMER_{slug}', 'seen');
         """
     )
     page = context.new_page()

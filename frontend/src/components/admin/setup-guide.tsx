@@ -17,10 +17,11 @@ export function SetupGuide(): React.ReactElement {
     { href: "/admin/staff", title: "3. Nhân viên và giờ làm", description: data.staff_with_hours + "/" + data.staff + " nhân viên có ca tuần", ready: data.staff_with_hours > 0, icon: Users },
   ] : [];
   const readyCount = steps.filter((step) => step.ready).length;
-  return <details data-testid="branch-setup-guide" className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm" open={data && readyCount < 3 ? true : undefined}>
+  if (data && readyCount === 3) return <></>;
+  return <details data-testid="branch-setup-guide" className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
     <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-5 [&::-webkit-details-marker]:hidden">
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ClipboardList className="h-5 w-5" /></span>
-      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold sm:text-base">Thiết lập chi nhánh và chia sẻ đặt lịch</span><span className="mt-1 block text-xs text-muted-foreground">{data ? readyCount + "/3 mục thiết lập đã có thông tin" : "Chuẩn bị thông tin để đón khách"}</span></span>
+      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold sm:text-base">Thiết lập spa</span><span className="mt-1 block text-xs text-muted-foreground">{data ? readyCount + "/3 mục thiết lập đã có thông tin" : "Chuẩn bị thông tin để đón khách"}</span></span>
       <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
     </summary>
     <div className="border-t border-border p-4 sm:p-5">
