@@ -81,7 +81,7 @@ async def create_batch(db, tenant_id, actor, body):
         # Prelock the full resource set in the established order. Later rows
         # reuse this fixed technician set, never acquiring a new lower ID.
         await bookings._lock_packages(db, tenant_id, sorted({i.customer_package_id for i in items if i.customer_package_id}))
-        candidates = [body.staff_id] if body.staff_id else await bookings.list_active_staff_ids(db, tenant_id)
+        candidates = [body.staff_id] if body.staff_id else await bookings.list_active_staff_ids(db, tenant_id, [i.service_id for i in items])
         for sid in sorted(candidates):
             await bookings._lock_staff_row(db, tenant_id, sid)
         created = []

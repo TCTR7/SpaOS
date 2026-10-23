@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from datetime import date, time
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -51,7 +52,7 @@ class HandoverIn(Strict):
     note: str = Field(max_length=1000)
 
 class LogoIn(Strict):
-    data: str = Field(max_length=360000)
+    data: str = Field(max_length=3000000)
 
 class DateOverrideIn(Strict):
     day: date

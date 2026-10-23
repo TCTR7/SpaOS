@@ -5,7 +5,9 @@ import { DateOverrides } from "@/components/admin/date-overrides";
 import { CredentialForm } from "@/components/credential-form";
 import { useBranchGuard } from "@/lib/branch-guard";
 import { useListDetail } from "@/lib/use-list-detail";
-import { CalendarClock, Edit2, Plus, Save, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { StaffAvatar } from "@/components/admin/staff-avatar";
+import { CalendarClock, Contact, Edit2, Plus, Save, UserCheck } from "lucide-react";
 import {
   createStaff,
   fetchStaffList,
@@ -305,6 +307,7 @@ export default function AdminStaffPage(): React.ReactElement {
                         : "border-border hover:bg-muted/50"
                     )}
                   >
+                    <StaffAvatar name={st.full_name} src={st.photo_url} />
                     <button type="button" aria-pressed={active} disabled={savingSched || accountBusy || dateBusy}
                       onClick={(event) => {
                         if ((schedDirty || accountDirty || dateDirty) && selectedStaff?.id !== st.id) setPendingStaff(st);
@@ -321,6 +324,7 @@ export default function AdminStaffPage(): React.ReactElement {
                       <p className="text-xs text-muted-foreground">
                         SĐT: {st.phone_number}
                       </p>
+                      {st.job_title && <p className="text-xs font-medium text-primary">{st.job_title}{st.experience_years ? ` · ${st.experience_years} năm KN` : ""}</p>}
                       {st.notes && (
                         <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
                           {st.notes}
@@ -338,6 +342,10 @@ export default function AdminStaffPage(): React.ReactElement {
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
+                    <Link href={`/admin/staff/${st.id}`} aria-label={`Hồ sơ ${st.full_name}`} title="Hồ sơ, ảnh & kỹ năng"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-primary hover:bg-accent sm:h-9 sm:w-9">
+                      <Contact className="h-4 w-4" />
+                    </Link>
                   </div>
                 );
               })

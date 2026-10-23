@@ -84,6 +84,10 @@ export default function AdminServicesPage(): React.ReactElement {
   ): Promise<void> => {
     e.preventDefault();
     if (saveFlight.current) return;
+    // Ô số được phép xóa trống khi đang nhập; chặn lưu nếu còn trống/không hợp lệ.
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 5) { setError("Nhập thời lượng 1 buổi (tối thiểu 5 phút)."); return; }
+    if (!Number.isFinite(price) || price < 0) { setError("Nhập giá niêm yết hợp lệ."); return; }
+    if (isPackage && (!Number.isFinite(totalSessions) || totalSessions < 2)) { setError("Nhập tổng số buổi trong gói (tối thiểu 2)."); return; }
     saveFlight.current = true;
     setSaving(true);
     setError(null);
@@ -301,10 +305,9 @@ export default function AdminServicesPage(): React.ReactElement {
                 type="number"
                 min={5}
                 max={480}
-                value={durationMinutes}
-                onChange={(e) =>
-                  setDurationMinutes(parseInt(e.target.value || "30", 10))
-                }
+                inputMode="numeric"
+                value={Number.isNaN(durationMinutes) ? "" : durationMinutes}
+                onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10))}
                 required
               />
             </div>
@@ -316,10 +319,9 @@ export default function AdminServicesPage(): React.ReactElement {
                 type="number"
                 min={0}
                 step={1000}
-                value={price}
-                onChange={(e) =>
-                  setPrice(parseFloat(e.target.value || "0"))
-                }
+                inputMode="decimal"
+                value={Number.isNaN(price) ? "" : price}
+                onChange={(e) => setPrice(parseFloat(e.target.value))}
                 required
               />
             </div>
@@ -348,10 +350,9 @@ export default function AdminServicesPage(): React.ReactElement {
                   type="number"
                   min={2}
                   max={200}
-                  value={totalSessions}
-                  onChange={(e) =>
-                    setTotalSessions(parseInt(e.target.value || "2", 10))
-                  }
+                  inputMode="numeric"
+                  value={Number.isNaN(totalSessions) ? "" : totalSessions}
+                  onChange={(e) => setTotalSessions(parseInt(e.target.value, 10))}
                   required
                 />
               </div>

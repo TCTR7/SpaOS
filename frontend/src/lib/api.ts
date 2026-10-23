@@ -270,12 +270,28 @@ export async function updateStaff(
     password: string;
     notes: string | null;
     is_active: boolean;
+    job_title: string | null;
+    bio: string | null;
+    experience_years: number | null;
+    experience_detail: string | null;
   }>
 ): Promise<UserDetail> {
   return apiRequest<UserDetail>(`/staff/${id}`, {
     method: "PATCH",
     body: payload,
   });
+}
+
+export async function replaceStaffSkills(id: string, serviceIds: string[]): Promise<UserDetail> {
+  return apiRequest<UserDetail>(`/staff/${id}/skills`, { method: "PUT", body: { service_ids: serviceIds } });
+}
+
+export async function uploadStaffPhoto(id: string, base64Data: string): Promise<UserDetail> {
+  return apiRequest<UserDetail>(`/staff/${id}/photo`, { method: "POST", body: { data: base64Data } });
+}
+
+export async function deleteStaffPhoto(id: string): Promise<UserDetail> {
+  return apiRequest<UserDetail>(`/staff/${id}/photo`, { method: "DELETE" });
 }
 
 export async function fetchStaffSchedules(

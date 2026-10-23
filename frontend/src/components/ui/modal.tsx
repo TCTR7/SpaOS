@@ -63,6 +63,23 @@ export function Modal({
     document.body.style.overflow = "hidden"; document.documentElement.style.overflow = "hidden";
     setConfirmClose(false); setBlocked(false);
     element.showModal(); closeButton.current?.focus();
+    // Bàn phím ảo: thu hộp thoại vừa khít vùng nhìn thấy để vùng cuộn luôn chạm tới ô đang nhập,
+    // và đưa ô được chọn ra giữa màn hình thay vì để bàn phím che.
+    const viewport = window.visualViewport;
+    const fitViewport = (): void => {
+      if (!viewport) return;
+      const covered = window.innerHeight - viewport.height;
+      element.style.height = covered > 80 ? `${viewport.height}px` : "";
+      element.style.top = covered > 80 ? `${viewport.offsetTop}px` : "";
+    };
+    const revealField = (event: FocusEvent): void => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.matches("input:not([type=checkbox]):not([type=radio]),textarea,select")) return;
+      window.setTimeout(() => { if (target.isConnected) target.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300);
+    };
+    viewport?.addEventListener("resize", fitViewport); viewport?.addEventListener("scroll", fitViewport);
+    element.addEventListener("focusin", revealField);
+    fitViewport();
     let popped = false;
     const pushGuard = (): void => window.history.pushState({ ...window.history.state, spaosDialog: id }, "");
     if (historyGuard && window.history.state?.spaosDialog !== id) pushGuard();
@@ -74,6 +91,8 @@ export function Modal({
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop); element.close();
+      viewport?.removeEventListener("resize", fitViewport); viewport?.removeEventListener("scroll", fitViewport);
+      element.removeEventListener("focusin", revealField); element.style.height = ""; element.style.top = "";
       document.body.style.overflow = oldBody; document.documentElement.style.overflow = oldRoot;
       queueMicrotask(() => {
         if (!element.open && historyGuard && !popped && window.history.state?.spaosDialog === id) window.history.back();

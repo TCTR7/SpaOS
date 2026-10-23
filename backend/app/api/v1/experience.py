@@ -247,30 +247,80 @@ async def setup_summary(actor: User = Depends(admin), tenant_id: uuid.UUID = Dep
         "contact_ready": bool(tenant.address and tenant.contact_phone), "slug": tenant.slug}
 
 
-def validate_png(data):
-    if len(data) > 262144 or data[:8] != b"\x89PNG\r\n\x1a\n": raise HTTPException(422, "Chọn ảnh PNG tối đa 256 KB")
+def validate_jpeg(data: bytes) -> tuple[int, int]:
+    if len(data) > 2097152 or len(data) < 4 or data[:2] != b"\xff\xd8":
+        raise HTTPException(422, "Chọn ảnh JPG/PNG tối đa 2 MB")
+    cursor, width, height = 2, None, None
+    while cursor < len(data):
+        if data[cursor] != 0xff:
+            cursor += 1
+            continue
+        while cursor < len(data) and data[cursor] == 0xff:
+            cursor += 1
+        if cursor >= len(data):
+            break
+        marker = data[cursor]
+        cursor += 1
+        if marker in (0xd8, 0xd9):
+            continue
+        if 0xd0 <= marker <= 0xd7:
+            continue
+        if cursor + 2 > len(data):
+            break
+        length = struct.unpack(">H", data[cursor:cursor+2])[0]
+        if length < 2 or cursor + length > len(data):
+            break
+        if marker in (0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf):
+            if length >= 7:
+                h, w = struct.unpack(">HH", data[cursor+3:cursor+7])
+                width, height = w, h
+                break
+        cursor += length
+    if not width or not height or not (0 < width <= 2048 and 0 < height <= 2048):
+        raise HTTPException(422, "Ảnh tối đa 2048 × 2048")
+    return width, height
+
+
+def validate_png(data: bytes) -> tuple[int, int]:
+    if len(data) > 2097152 or data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise HTTPException(422, "Chọn ảnh PNG/JPG tối đa 2 MB")
     cursor, first, ended = 8, True, False
+    width, height = None, None
     while cursor + 12 <= len(data):
         length = struct.unpack(">I", data[cursor:cursor+4])[0]
         kind, payload = data[cursor+4:cursor+8], data[cursor+8:cursor+8+length]
-        if length > 262144 or cursor+12+length > len(data): raise HTTPException(422, "Ảnh không hợp lệ")
+        if length > 2097152 or cursor+12+length > len(data): raise HTTPException(422, "Ảnh không hợp lệ")
         checksum = struct.unpack(">I", data[cursor+8+length:cursor+12+length])[0]
         if zlib.crc32(kind + payload) & 0xffffffff != checksum: raise HTTPException(422, "Ảnh không hợp lệ")
         if first:
             if kind != b"IHDR" or length != 13: raise HTTPException(422, "Ảnh không hợp lệ")
-            width, height = struct.unpack(">II", payload[:8])
-            if not (0 < width <= 2048 and 0 < height <= 2048): raise HTTPException(422, "Ảnh tối đa 2048 × 2048")
+            w, h = struct.unpack(">II", payload[:8])
+            if not (0 < w <= 2048 and 0 < h <= 2048): raise HTTPException(422, "Ảnh tối đa 2048 × 2048")
+            width, height = w, h
             first = False
         cursor += length + 12
         if kind == b"IEND": ended = length == 0 and cursor == len(data); break
-    if not ended: raise HTTPException(422, "Ảnh không hợp lệ")
+    if not ended or not width or not height: raise HTTPException(422, "Ảnh không hợp lệ")
+    return width, height
+
+
+def validate_image_payload(data: bytes) -> str:
+    if len(data) > 2097152:
+        raise HTTPException(422, "Ảnh vượt quá dung lượng tối đa 2 MB")
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        validate_png(data)
+        return "image/png"
+    elif data[:2] == b"\xff\xd8":
+        validate_jpeg(data)
+        return "image/jpeg"
+    raise HTTPException(422, "Vui lòng chọn ảnh PNG hoặc JPG hợp lệ.")
 
 
 @router.post("/tenants/me/logo")
 async def upload_logo(body: LogoIn, actor: User = Depends(admin), tenant_id: uuid.UUID = Depends(get_current_tenant_id), db: AsyncSession = Depends(get_tenant_db)):
     try: data = base64.b64decode(body.data, validate=True)
     except (ValueError, binascii.Error): raise HTTPException(422, "Ảnh không hợp lệ")
-    validate_png(data)
+    validate_image_payload(data)
     await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"), {"key": f"logo:{tenant_id}"})
     old = (await db.execute(select(TenantLogo).where(TenantLogo.tenant_id == tenant_id))).scalar_one_or_none()
     if old: old.data = data
@@ -288,7 +338,8 @@ async def public_logo(slug: str, db: AsyncSession = Depends(get_db)):
     await set_tenant_context(db, tenant.id)
     row = (await db.execute(select(TenantLogo).where(TenantLogo.tenant_id == tenant.id))).scalar_one_or_none()
     if not row: raise HTTPException(404, "Không tìm thấy ảnh")
-    return Response(row.data, media_type="image/png", headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=60"})
+    media_type = "image/jpeg" if row.data[:2] == b"\xff\xd8" else "image/png"
+    return Response(row.data, media_type=media_type, headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=60"})
 
 
 @router.post("/booking-requests", status_code=201)

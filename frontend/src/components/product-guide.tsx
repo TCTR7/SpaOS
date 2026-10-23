@@ -5,6 +5,7 @@ import { BookOpen, Download, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { installAvailable, subscribeInstall, promptInstall } from "@/lib/pwa-install";
+import { APP_ICON_192 } from "@/lib/app-icons";
 
 type Role = "ADMIN" | "STAFF" | "CUSTOMER";
 type View = "welcome" | "guide" | "install";
@@ -77,7 +78,7 @@ export function ProductGuide({ role, slug, identity, identities = [], mode = "au
     {view === "welcome" ? <>
       <div className="space-y-3 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon-192x192.png?v=20261023" alt="SpaOS" className="mx-auto h-16 w-16 rounded-2xl" />
+        <img src={APP_ICON_192} alt="SpaOS" className="mx-auto h-16 w-16 rounded-2xl" />
         <p className="text-sm leading-6 text-muted-foreground">{role === "ADMIN" ? "Quản lý spa thuận tiện hơn, bắt đầu từ vài thao tác đơn giản." : role === "STAFF" ? "Xem lịch được giao và theo dõi công việc của bạn." : "Đặt lịch và theo dõi các buổi chăm sóc của bạn dễ dàng hơn."}</p>
       </div>
       <div className="space-y-3">

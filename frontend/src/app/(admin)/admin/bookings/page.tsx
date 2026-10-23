@@ -4,6 +4,7 @@ import * as React from "react";
 import { BookingHandover } from "@/components/admin/booking-handover";
 import { customerDetail } from "@/lib/experience-api";
 import { useRefreshOnReturn } from "@/lib/use-refresh-on-return";
+import { eligibleStaff } from "@/lib/staff-skills";
 import { AvailabilityFinder } from "@/components/admin/availability-finder";
 import { useManualBatch } from "@/lib/use-manual-batch";
 import { useAvailableSlots } from "@/lib/use-available-slots";
@@ -430,6 +431,14 @@ export default function AdminBookingsPage(): React.ReactElement {
     () => selectedLines.map((l) => l.service_id).join(","),
     [selectedLines]
   );
+  const staffChoices = eligibleStaff(staffList, selectedLines.map((l) => l.service_id));
+  // Bỏ KTV đã chọn nếu sau khi đổi dịch vụ họ không còn phù hợp.
+  React.useEffect(() => {
+    if (!modalStaffId || selectedLines.length === 0) return;
+    const allowed = [...staffChoices.matching, ...staffChoices.undeclared];
+    if (staffList.length > 0 && !allowed.some((member) => member.id === modalStaffId)) setModalStaffId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServiceIdsKey, staffList]);
 
   const sessionDatesKey = React.useMemo(
     () => sessionRows.map((r) => `${r.rowId}:${r.date}`).join("|"),
@@ -1101,8 +1110,10 @@ export default function AdminBookingsPage(): React.ReactElement {
         </div>
       )}
 
-      {/* Status Legend */}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      {/* Status Legend: chú thích màu của thẻ lịch, không phải bộ lọc */}
+      <details className="text-xs">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center text-muted-foreground">Chú thích màu trạng thái</summary>
+      <div className="flex flex-wrap items-center gap-2 pb-1 text-xs">
         {(Object.keys(BOOKING_STATUS_META) as BookingStatus[]).map((st) => (
           <span
             key={st}
@@ -1115,6 +1126,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           </span>
         ))}
       </div>
+      </details>
 
       {/* Calendar Body */}
       {loading ? (
@@ -1405,14 +1417,28 @@ export default function AdminBookingsPage(): React.ReactElement {
                 className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
               >
                 <option value="">✨ Spa tự sắp xếp KTV rảnh</option>
-                {staffList
-                  .filter((s) => s.is_active)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name} ({s.phone_number})
-                    </option>
-                  ))}
+                {staffChoices.matching.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name} ({s.phone_number})
+                  </option>
+                ))}
+                {staffChoices.undeclared.length > 0 && (
+                  <optgroup label="Chưa khai báo kỹ năng">
+                    {staffChoices.undeclared.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.full_name} ({s.phone_number})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+              {selectedLines.length > 0 && user?.role === "ADMIN" && (
+                <p className="text-xs text-muted-foreground">
+                  {staffChoices.matching.length === 0
+                    ? "Chưa có KTV nào có kỹ năng cho dịch vụ đã chọn. Vào Nhân sự → Hồ sơ để gán kỹ năng."
+                    : "Chỉ hiển thị KTV có kỹ năng phù hợp với dịch vụ đã chọn."}
+                </p>
+              )}
             </div>
 
             {hasMultiSessionSelection && showCourse && (

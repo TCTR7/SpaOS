@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Building2, CalendarDays, Wallet, CircleDollarSign, Ticket } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { SetupGuide } from "@/components/admin/setup-guide";
+import { QuickActions } from "@/components/admin/quick-actions";
 import { DashboardPanel } from "@/components/admin/dashboard-panel";
 import { DashboardAppointments, DashboardCollections } from "@/components/admin/dashboard-work";
 import { useAdminAuth } from "@/components/admin/auth-context";
@@ -43,6 +44,7 @@ export default function DashboardPage(): React.ReactElement {
     <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-xl font-bold">Tổng quan</h1><p className="mt-1 text-sm text-muted-foreground">{all ? "Tất cả chi nhánh được cấp quyền" : tenant?.name}</p></div><div className="flex flex-wrap items-end gap-2"><div className="space-y-1"><Label htmlFor="dashboardDay">Ngày xem</Label><Input id="dashboardDay" type="date" required value={day} onChange={(e) => { if (e.target.value) setDay(e.target.value); }} /></div><Button variant="outline" onClick={() => setDay(formatDateISOInVN())}>Hôm nay</Button></div></div>
     {all && <p className="text-sm text-muted-foreground">Chọn một chi nhánh trên thanh đầu trang để xử lý lịch hẹn hoặc thu tiền.</p>}
     {current?.error && <div role="alert" className="space-y-3 rounded-xl border p-4"><p className="text-sm text-rose-700">{current.error}</p><Button variant="outline" onClick={() => setAttempt((v) => v + 1)}>Thử tải lại tổng quan</Button></div>}
+    {!all && <QuickActions />}
     <div key={queryKey} data-testid="branch-dashboard" className="space-y-3" aria-busy={!current}>
       <DashboardPanel testId="dashboard-appointments" title="Lịch hẹn" description={period} summary={totals ? totals.appointments + " lịch" : unavailable} icon={CalendarDays}>
         {totals && <Values rows={[["Đang phục vụ", String(totals.in_progress)], ["Đã hoàn thành", String(totals.completed)]]} />}

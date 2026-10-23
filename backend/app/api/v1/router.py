@@ -8,6 +8,7 @@ api_router.include_router(tenants.public_router)
 api_router.include_router(tenants.tenants_router)
 api_router.include_router(services.router)
 api_router.include_router(staff.router)
+api_router.include_router(staff.public_router)
 api_router.include_router(customers.customers_router)
 api_router.include_router(customers.packages_router)
 

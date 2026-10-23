@@ -71,6 +71,13 @@ export interface UserDetail {
   notes: string | null;
   is_active: boolean;
   created_at: string;
+  job_title?: string | null;
+  bio?: string | null;
+  experience_years?: number | null;
+  experience_detail?: string | null;
+  photo_url?: string | null;
+  /** Dịch vụ mà nhân viên được phép thực hiện (chỉ có khi lấy từ /staff). */
+  skill_service_ids?: string[];
 }
 
 export interface StaffScheduleItem {

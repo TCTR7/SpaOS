@@ -708,3 +708,16 @@ PO cho phép triển khai lần lượt toàn bộ kế hoạch: sửa logo/icon
 
 - [x] Da xem truc quan icon va bon anh giao dien that tren QA dev rieng: popup lan dau, Tong quan desktop 1366 px, mobile 390 px va panel mo. Anh local tai automation_test/artifacts/qa/compact-ux-20261023 (Git ignore), chi chua du lieu demo QA. Helper chup gap loi encoding console Windows nhung trang/anh hoan tat PASS; da chuan hoa UTF-8 cho helper. Khong xem luot chup dev la production E2E bo sung.
 - Chot: git diff --check PASS; khong thay backend, package/lockfile hay tsconfig. Khong con container spaos-e2e-qa; runner da dung frontend QA va don database QA. Ban sua san sang build/deploy test tu source moi; deployment test cua nguoi dung va native install/push Android/iOS that chua duoc nghiem thu trong phien nay.
+
+
+## Hồ sơ nhân viên, icon cấu hình, UX di động — 23/10/2026
+- [x] Migration 0011_staff_profile: cột `users.job_title/bio/experience_years/experience_detail/photo_url`; bảng `staff_services` (kỹ năng) và `staff_photos` (ảnh) có `tenant_id`, ENABLE/FORCE RLS. API ở `backend/app/api/v1/staff.py`, hợp đồng trong API_CONTRACT. Lọc KTV theo kỹ năng ở `list_active_staff_ids` (KTV chưa khai báo vẫn được xét).
+- [x] Trang `/admin/staff/[id]`: ảnh (tự cắt vuông + nén JPEG ở trình duyệt), chức danh, giới thiệu, kinh nghiệm, kỹ năng. Danh sách nhân sự có avatar và nút Hồ sơ.
+- [x] Tạo lịch hẹn Admin chỉ liệt kê KTV có kỹ năng khớp dịch vụ đã chọn; KTV chưa khai báo nằm nhóm riêng; tự bỏ chọn KTV khi đổi dịch vụ.
+- [x] Biểu tượng cài app cấu hình bằng `NEXT_PUBLIC_BRAND_ICON_DIR` / `NEXT_PUBLIC_BRAND_ICON_VERSION` (`frontend/src/lib/app-icons.ts`); tạo 3 kích thước từ 1 ảnh bằng `python frontend/scripts/make-app-icons.py`. Mặc định giữ icon cũ.
+- [x] Modal co theo vùng nhìn thấy khi bàn phím ảo mở + cuộn ô đang nhập ra giữa, viewport `interactiveWidget: resizes-content`. Form dịch vụ cho xóa trống ô số (tổng số buổi, thời lượng, giá) và kiểm tra trước khi lưu.
+- [x] Tổng quan thêm lối tắt Lịch hẹn, Khách hàng, Thu tiền, Danh mục dịch vụ, Nhân sự & Ca làm việc. Chú thích màu trạng thái ở Lịch hẹn thu gọn.
+- Kiểm thử: backend `tests/test_staff_profile.py` 3/3 PASS (DB QA tạm). Chưa nghiệm thu thiết bị di động thật cho bàn phím ảo và cài icon mới.
+
+- [x] Nâng cấp tải ảnh Logo & Ảnh nhân viên: tích hợp bộ công cụ cắt/kéo thả trực tiếp trên giao diện (`ImageCropper` tại `frontend/src/components/image-cropper.tsx`). Người dùng có thể kéo thả di chuyển, phóng to/thu nhỏ bằng thanh trượt hoặc con lăn chuột; chọn định dạng vuông (logo) hoặc tròn (nhân viên).
+- [x] Bỏ giới hạn ngặt nghèo phía client: cho phép chọn mọi loại ảnh phổ biến (PNG, JPG, WebP...) dung lượng bất kỳ; client tự nén chuẩn và xuất base64. Nâng trần kiểm tra backend từ 256 KB lên 2 MB (2.097.152 bytes) để thoải mái lưu trữ mà vẫn an toàn cho database.

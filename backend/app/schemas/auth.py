@@ -11,7 +11,7 @@ _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def _check_phone(v: str) -> str:
-    v = v.strip().replace(" ", "")
+    v = re.sub(r"[\s.\-()]", "", v.strip())
     if not _PHONE_RE.match(v):
         raise ValueError("Số điện thoại không hợp lệ")
     return v

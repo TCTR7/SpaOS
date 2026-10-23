@@ -6,6 +6,7 @@ import { ProductGuide } from "@/components/product-guide";
 import { NetworkStatus } from "@/components/network-status";
 import { useBrandColor } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
+import { APP_ICON_192 } from "@/lib/app-icons";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -237,7 +238,7 @@ function AdminShellContent({
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/90 px-4 backdrop-blur md:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <SpaLogo key={allScope ? "all" : tenant.id} name={allScope ? "SpaOS" : tenant.name} src={allScope ? "/icons/icon-192x192.png?v=20261023" : tenant.logo_url} className="h-10 w-10 rounded-xl" />
+            <SpaLogo key={allScope ? "all" : tenant.id} name={allScope ? "SpaOS" : tenant.name} src={allScope ? APP_ICON_192 : tenant.logo_url} className="h-10 w-10 rounded-xl" />
             <div className="min-w-0">
               <label className="sr-only" htmlFor="activeBranch">Chi nhánh đang làm việc</label>
               <select id="activeBranch" className="h-11 w-full max-w-[210px] min-w-0 rounded-md border bg-background px-2 text-sm" disabled={branchBusy}

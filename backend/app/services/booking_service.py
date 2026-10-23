@@ -21,6 +21,7 @@ from app.models.models import (
     Service,
     StaffSchedule,
     StaffDateOverride,
+    StaffService,
     Tenant,
     User,
     UserRole,
@@ -121,12 +122,23 @@ async def get_active_staff(db: AsyncSession, tenant_id: uuid.UUID, staff_id: uui
     return staff
 
 
-async def list_active_staff_ids(db: AsyncSession, tenant_id: uuid.UUID) -> List[uuid.UUID]:
-    rows = await db.execute(
-        select(User.id)
-        .where(User.tenant_id == tenant_id, User.role == UserRole.STAFF, User.is_active.is_(True))
-        .order_by(User.id)
-    )
+async def list_active_staff_ids(
+    db: AsyncSession, tenant_id: uuid.UUID, service_ids: Optional[List[uuid.UUID]] = None
+) -> List[uuid.UUID]:
+    """KTV đang hoạt động. Khi có service_ids chỉ lấy KTV có kỹ năng cho TẤT CẢ dịch vụ đó;
+    KTV chưa khai báo kỹ năng nào vẫn được giữ lại để dữ liệu cũ không bị gián đoạn."""
+    stmt = select(User.id).where(User.tenant_id == tenant_id, User.role == UserRole.STAFF, User.is_active.is_(True))
+    required = set(service_ids or [])
+    if required:
+        configured = select(StaffService.staff_id).where(StaffService.tenant_id == tenant_id)
+        qualified = (
+            select(StaffService.staff_id)
+            .where(StaffService.tenant_id == tenant_id, StaffService.service_id.in_(required))
+            .group_by(StaffService.staff_id)
+            .having(func.count(func.distinct(StaffService.service_id)) == len(required))
+        )
+        stmt = stmt.where(or_(User.id.in_(qualified), User.id.not_in(configured)))
+    rows = await db.execute(stmt.order_by(User.id))
     return list(rows.scalars().all())
 
 
@@ -380,7 +392,7 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
         staff_id = body.staff_id
     else:
         local_day = start.astimezone(TZ).date()
-        all_ids = staff_candidates if staff_candidates is not None else await list_active_staff_ids(db, tenant_id)
+        all_ids = staff_candidates if staff_candidates is not None else await list_active_staff_ids(db, tenant_id, service_ids)
         windows = await get_schedule_windows(db, tenant, all_ids, local_day)
         # Chỉ lock các KTV có ca làm phù hợp; lock tuần tự theo id tăng dần (tránh deadlock)
         for sid in (s for s in all_ids if _fits(windows[s], start, end)):
@@ -632,7 +644,8 @@ async def reschedule_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User
             raise HTTPException(422, "Thẻ liệu trình không còn hiệu lực tại giờ hẹn mới")
     # Lock old + potential new technicians in one deterministic order before bookings.
     target_staff = body.staff_id if "staff_id" in body.model_fields_set else booking.staff_id
-    candidates = [target_staff] if target_staff else await list_active_staff_ids(db, tenant_id)
+    candidates = [target_staff] if target_staff else await list_active_staff_ids(
+        db, tenant_id, [item.service_id for item in booking.items])
     valid = set()
     for sid in sorted(set(candidates + ([booking.staff_id] if booking.staff_id else []))):
         if await _lock_staff_row(db, tenant_id, sid):

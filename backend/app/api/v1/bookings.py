@@ -46,7 +46,7 @@ async def available_slots(
         await svc.get_active_staff(db, tenant_id, staff_id)
         staff_ids = [staff_id]
     else:
-        staff_ids = await svc.list_active_staff_ids(db, tenant_id)
+        staff_ids = await svc.list_active_staff_ids(db, tenant_id, service_ids)
 
     slots = await svc.compute_available_slots(db, tenant, day, duration, staff_ids)
     return AvailableSlotsOut(
@@ -156,7 +156,8 @@ async def reschedule_slots(
     if user.role == UserRole.CUSTOMER and booking.start_time - datetime.now(timezone.utc) < timedelta(hours=settings.CANCELLATION_MIN_HOURS):
         raise HTTPException(409, "Chỉ được đổi lịch trước giờ hẹn tối thiểu 2 giờ")
     tenant = await svc.load_tenant(db, tenant_id)
-    staff_ids = [staff_id] if staff_id else await svc.list_active_staff_ids(db, tenant_id)
+    staff_ids = [staff_id] if staff_id else await svc.list_active_staff_ids(
+        db, tenant_id, [item.service_id for item in booking.items])
     if staff_id:
         await svc.get_active_staff(db, tenant_id, staff_id)
     slots = await svc.compute_available_slots(db, tenant, day, booking.total_duration_minutes,

@@ -99,6 +99,11 @@ class User(TimestampMixin, TenantOwnedMixin, Base):
     auth_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    job_title: Mapped[Optional[str]] = mapped_column(String(100))
+    bio: Mapped[Optional[str]] = mapped_column(Text)
+    experience_years: Mapped[Optional[int]] = mapped_column(Integer)
+    experience_detail: Mapped[Optional[str]] = mapped_column(Text)
+    photo_url: Mapped[Optional[str]] = mapped_column(String(500))
     assigned_staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -409,3 +414,19 @@ class OwnerRecoveryGrant(TimestampMixin, TenantOwnedMixin, Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class StaffService(TimestampMixin, TenantOwnedMixin, Base):
+    """Kỹ năng của nhân viên: dịch vụ/danh mục mà nhân viên được phép thực hiện."""
+    __tablename__ = "staff_services"
+    __table_args__ = (UniqueConstraint("tenant_id", "staff_id", "service_id", name="uq_staff_service"),)
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    service_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("services.id", ondelete="CASCADE"), nullable=False, index=True)
+
+
+class StaffPhoto(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "staff_photos"
+    __table_args__ = (UniqueConstraint("tenant_id", "staff_id", name="uq_staff_photo"),)
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(20), nullable=False, default="image/png", server_default="image/png")
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

@@ -66,12 +66,14 @@ async def update_my_tenant(
     logo_data = data.pop("logo_data", None)
     if logo_data is not None:
         import base64, binascii, uuid
-        from app.api.v1.experience import validate_png
+        from app.api.v1.experience import validate_image_payload
         from app.models.models import TenantLogo
         from sqlalchemy import text
-        try: image = base64.b64decode(logo_data, validate=True)
-        except (ValueError, binascii.Error): raise HTTPException(422, "Ảnh không hợp lệ")
-        validate_png(image)
+        try:
+            image = base64.b64decode(logo_data, validate=True)
+        except (ValueError, binascii.Error):
+            raise HTTPException(422, "Dữ liệu ảnh không hợp lệ")
+        validate_image_payload(image)
         await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"), {"key": f"logo:{tenant.id}"})
         logo = (await db.execute(select(TenantLogo).where(TenantLogo.tenant_id == tenant.id))).scalar_one_or_none()
         if logo: logo.data = image
@@ -81,7 +83,7 @@ async def update_my_tenant(
     if tenant.close_time <= tenant.open_time:
         raise HTTPException(
             status_code=getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", 422),
-            detail="close_time phải lớn hơn open_time",
+            detail="Giờ đóng cửa phải sau giờ mở cửa",
         )
     await commit_and_refresh(db, tenant.id, tenant)
     return tenant

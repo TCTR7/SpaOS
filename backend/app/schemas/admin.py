@@ -28,7 +28,7 @@ class TenantDetailOut(BaseModel):
 
 
 class TenantUpdate(BaseModel):
-    logo_data: Optional[str] = Field(default=None, max_length=360000)
+    logo_data: Optional[str] = Field(default=None, max_length=3000000)
     @field_validator("contact_phone")
     @classmethod
     def contact(cls, value):
@@ -128,6 +128,11 @@ class UserDetailOut(BaseModel):
     is_active: bool
     created_at: datetime
     assigned_staff_id: Optional[uuid.UUID] = None
+    job_title: Optional[str] = None
+    bio: Optional[str] = None
+    experience_years: Optional[int] = None
+    experience_detail: Optional[str] = None
+    photo_url: Optional[str] = None
 
 
 class StaffCreate(BaseModel):
@@ -145,6 +150,10 @@ class StaffUpdate(BaseModel):
     password: Optional[str] = Field(default=None, min_length=6, max_length=128)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+    job_title: Optional[str] = Field(default=None, max_length=100)
+    bio: Optional[str] = Field(default=None, max_length=2000)
+    experience_years: Optional[int] = Field(default=None, ge=0, le=60)
+    experience_detail: Optional[str] = Field(default=None, max_length=4000)
 
     @field_validator("phone_number")
     @classmethod
@@ -250,3 +259,15 @@ class CustomerPackageOut(BaseModel):
 class MyCustomerPackageOut(CustomerPackageOut):
     reserved_sessions: int
     available_sessions: int
+
+
+class StaffDetailOut(UserDetailOut):
+    skill_service_ids: List[uuid.UUID] = Field(default_factory=list)
+
+
+class StaffSkillsReplace(BaseModel):
+    service_ids: List[uuid.UUID] = Field(default_factory=list, max_length=200)
+
+
+class StaffPhotoIn(BaseModel):
+    data: str = Field(max_length=3000000)

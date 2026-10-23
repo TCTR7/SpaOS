@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { SpaLogo } from "@/components/spa-logo";
+import { ImageCropper } from "@/components/image-cropper";
 import { useBranchGuard } from "@/lib/branch-guard";
 import { useBranding } from "@/components/brand-provider";
 import { Save, Settings as SettingsIcon } from "lucide-react";
@@ -29,6 +30,7 @@ export default function AdminSettingsPage(): React.ReactElement {
   const [failedLogo, setFailedLogo] = React.useState("");
   const fileChoice = React.useRef(0);
   const [readingLogo, setReadingLogo] = React.useState(false);
+  const [cropFile, setCropFile] = React.useState<File | null>(null);
   const [logoUrl, setLogoUrl] = React.useState<string>("");
   const [themeColor, setThemeColor] = React.useState<string>("#be185d");
   const [openTime, setOpenTime] = React.useState<string>("09:00");
@@ -159,17 +161,17 @@ export default function AdminSettingsPage(): React.ReactElement {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="logoFile">Tải ảnh logo từ thiết bị</Label>
-                <Input id="logoFile" type="file" accept="image/png" onChange={async (event) => {
-                  const file = event.target.files?.[0]; if (!file) return;
-                  const choice = ++fileChoice.current;
-                  if (file.type !== "image/png" || file.size > 262144) { setError("Chọn ảnh PNG tối đa 256 KB, kích thước tối đa 2048 × 2048."); return; }
-                  setReadingLogo(true);
-                  const reader = new FileReader();
-                  reader.onload = () => { if (choice === fileChoice.current && typeof reader.result === "string") { setLogoData(reader.result.split(",")[1]); setError(null); } };
-                  reader.onloadend = () => { if (choice === fileChoice.current) setReadingLogo(false); };
-                  reader.onerror = () => setError("Chưa đọc được ảnh. Hãy chọn lại."); reader.readAsDataURL(file);
+                <Input id="logoFile" type="file" accept="image/*" onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  if (!file.type.startsWith("image/")) { setError("Vui lòng chọn một tệp ảnh (JPG, PNG, WebP...)."); return; }
+                  setError(null); setCropFile(file);
                 }} />
-                <p className="text-xs text-muted-foreground">Ảnh PNG tối đa 256 KB và 2048 × 2048. Ảnh chỉ được lưu khi bạn nhấn Lưu.</p>
+                <ImageCropper file={cropFile} title="Chỉnh logo" format="png" outputSize={512}
+                  onCancel={() => setCropFile(null)}
+                  onConfirm={(data) => { setLogoData(data); setCropFile(null); setError(null); }} />
+                <p className="text-xs text-muted-foreground">Chọn ảnh bất kỳ, không giới hạn dung lượng; bạn kéo và phóng to để căn vào khung vuông. Ảnh chỉ được lưu khi bạn nhấn Lưu.</p>
                 <div className="flex items-center gap-4 rounded-2xl border bg-muted/30 p-4">
                   <SpaLogo name={name || "Tên spa của bạn"} src={previewSrc} onImageError={() => setFailedLogo(previewSrc)} alt="Xem trước logo chi nhánh" className="h-20 w-20" />
                   <div className="min-w-0"><p className="text-xs text-muted-foreground">Khách hàng sẽ nhìn thấy</p><p className="mt-1 text-xl font-bold [overflow-wrap:anywhere]">{name || "Tên spa của bạn"}</p><p className="mt-1 text-xs text-muted-foreground">Logo hiển thị cạnh bộ chọn chi nhánh và trên trang đặt lịch của khách.</p></div>

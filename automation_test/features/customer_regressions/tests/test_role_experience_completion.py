@@ -243,6 +243,9 @@ def test_logo_preview_is_saved_with_branch_settings(scenario):
     page.goto(config.frontend_url + "/admin/settings")
     png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
     page.locator("#logoFile").set_input_files({"name": "logo.png", "mimeType": "image/png", "buffer": png})
+    btn = page.get_by_role("button", name="Dùng ảnh này", exact=True)
+    btn.wait_for(state="visible", timeout=5000)
+    btn.click()
     expect(page.get_by_alt_text("Xem trước logo chi nhánh", exact=True)).to_have_attribute("src", re.compile("data:image/png;base64,"))
     assert s["call"]("GET", "/tenants/me")["logo_url"] is None
     with page.expect_response(lambda r: r.url.endswith("/tenants/me") and r.request.method == "PATCH") as response:

@@ -302,3 +302,13 @@ Runner backend và server QA E2E xóa VAPID khỏi môi trường test; kiểm t
 
 ### Startup readiness — 0.2.1
 API không nhận thêm endpoint trong hotfix này. Lifespan kiểm tra revision DB runtime khớp migration head và các cột address/contact_phone trước khi mở API/notification worker. Schema cũ hoặc stamp sai thiếu cột làm startup thất bại, do đó /health không trả 200 cho bản chưa sẵn sàng. Entry native Render/Docker: python -m scripts.start_service, chạy migration bằng MIGRATION_DATABASE_URL trước API; advisory lock serialize migration theo database. Hướng dẫn ở RENDER_DEPLOYMENT.md.
+
+
+## Hồ sơ nhân viên, ảnh và kỹ năng — 23/10/2026
+- `GET /staff` (ADMIN) và `POST/PATCH /staff` trả `StaffDetail` = UserDetail + `job_title`, `bio`, `experience_years` (0-60), `experience_detail`, `photo_url`, `skill_service_ids: [UUID]`. `PATCH /staff/{id}` nhận thêm `job_title` (<=100), `bio` (<=2000), `experience_years`, `experience_detail` (<=4000); các trường này được đặt `null`.
+- `PUT /staff/{id}/skills` (ADMIN) `{service_ids:[UUID]}` thay toàn bộ kỹ năng; trả `StaffDetail`. `422` nếu có dịch vụ không thuộc chi nhánh; `404` nếu KTV thuộc chi nhánh khác. Bảng `staff_services` có `tenant_id` và FORCE RLS.
+- `POST /staff/{id}/photo` (ADMIN) `{data: base64}` PNG hoặc JPEG, tối đa 256 KB và 2048x2048, kiểm tra cấu trúc file (`422` nếu sai). `DELETE /staff/{id}/photo` xóa ảnh. Cả hai trả `StaffDetail`.
+- `GET /public/tenants/{slug}/staff/{staff_id}/photo` (công khai, chỉ trả ảnh của chi nhánh ACTIVE theo slug, RLS theo tenant); `photo_url` đã kèm `?v=` để làm mới cache. Ảnh nằm ở `staff_photos` (FORCE RLS).
+- Lọc theo kỹ năng: `GET /bookings/available-slots`, `GET /bookings/{id}/available-slots`, tự xếp KTV trong `POST /bookings`, `POST /bookings/manual-batches` và dời lịch chỉ xét KTV có kỹ năng cho TẤT CẢ dịch vụ của lịch. KTV chưa khai báo kỹ năng nào vẫn được xét (tương thích dữ liệu cũ). Chỉ định trực tiếp `staff_id` không bị chặn ở backend; giao diện Admin chỉ gợi ý KTV phù hợp.
+
+- Giới hạn ảnh logo (`POST /tenants/me/logo`, `PATCH /tenants/me` `logo_data`) và ảnh nhân viên (`POST /staff/{id}/photo`): nâng trần kích thước lên tối đa 2 MB (2.097.152 bytes) và 3.000.000 ký tự base64. Client tích hợp công cụ cắt chỉnh canvas kéo thả (`ImageCropper`) để tự căn chỉnh và tối ưu dung lượng trước khi gửi.
