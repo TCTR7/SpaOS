@@ -16,7 +16,7 @@ export function BookingHandover({ bookingId, canManage, onDirtyChange, onBusyCha
       .catch(() => { if (!cancelled) setError("Chưa tải được ghi chú bàn giao."); });
     return () => { cancelled = true; };
   }, [bookingId, attempt]);
-  return <section aria-label="Bàn giao buổi hẹn" className="mt-3 space-y-3 rounded-xl border bg-card p-4">
+  return <section aria-label="Bàn giao buổi hẹn" className="mt-3 space-y-3 rounded-xl border neu-surface bg-card p-4">
     <h3 className="font-semibold">Bàn giao buổi hẹn</h3>
     <p className="text-xs text-muted-foreground">Chỉ viết thông tin cần thiết cho buổi này sau khi đã xác nhận với khách. Không sao chép toàn bộ hồ sơ sức khỏe. Ghi chú không gửi qua thông báo thiết bị.</p>
     {error && <div role="alert"><p>{error}</p><Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>Tải lại bàn giao</Button></div>}

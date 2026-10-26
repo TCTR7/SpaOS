@@ -59,7 +59,7 @@ export function CustomerShell({
   if (tenantNotFound || !tenant) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-md space-y-3">
+        <div className="w-full max-w-sm rounded-2xl border border-border neu-surface bg-card p-6 text-center shadow-md space-y-3">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
             <AlertTriangle className="h-6 w-6" />
           </div>
@@ -113,13 +113,13 @@ export function CustomerShell({
 
   return (
     <div
-      className="min-h-screen bg-slate-100/80 flex justify-center"
+      className="min-h-screen bg-background flex justify-center"
       style={brandStyle(brandColor)}
     >
       {/* Mobile-first container */}
       <div className={cn("relative flex min-h-screen w-full min-w-0 flex-col bg-background shadow-xl border-x border-border/60", widthClass)}>
         {/* Sticky Brand Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border neu-surface bg-card/95 px-4 py-3 backdrop-blur">
           <Link
             href={baseHref}
             className="flex min-w-0 items-center gap-2.5"
@@ -180,13 +180,13 @@ export function CustomerShell({
         </main>
 
         <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Thêm" returnFocusRef={moreButton}>
-          <nav aria-label="Điều hướng bổ sung" className="space-y-2">
+          <nav aria-label="Điều hướng bổ sung" className="neu-nav space-y-2">
             <Link className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent" href={baseHref + "/help"} onClick={() => setMoreOpen(false)}><CircleHelp className="h-5 w-5 shrink-0" />Trợ giúp &amp; Cài ứng dụng</Link>
             <Link className="flex min-h-12 items-center rounded-lg px-3 text-sm hover:bg-accent" href="/admin/login" onClick={() => setMoreOpen(false)}>Đăng nhập quản lý</Link>
           </nav>
         </Modal>
         {/* Bottom Navigation Bar */}
-        <nav aria-label="Điều hướng khách hàng" className={cn("fixed bottom-0 z-30 flex w-full items-center justify-around border-t border-border bg-card/95 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur", widthClass)}>
+        <nav aria-label="Điều hướng khách hàng" className={cn("neu-nav fixed bottom-0 z-30 flex w-full items-center justify-around border-t border-border neu-surface bg-card/95 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur", widthClass)}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = item.exact

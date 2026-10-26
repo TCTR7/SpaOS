@@ -78,7 +78,7 @@ export default function CustomerProfilePage(): React.ReactElement | null {
             </Link>
             <Link
               href={customerAuthHref(slug, "register", `/${slug}/profile`)}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-card px-5 text-xs font-semibold text-foreground"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border neu-surface bg-card px-5 text-xs font-semibold text-foreground"
             >
               Đăng ký
             </Link>

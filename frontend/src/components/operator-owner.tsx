@@ -37,7 +37,7 @@ export function OperatorOwner({id}: {id:string}): React.ReactElement {
     }catch(e){setError(e instanceof Error?e.message:"Chưa thực hiện được");}
     finally{flight.current=false;setBusy(false);}
   }
-  return <section className="space-y-5 rounded-2xl border bg-card p-5" aria-label="Chi tiết chủ spa">
+  return <section className="space-y-5 rounded-2xl border neu-surface bg-card p-5" aria-label="Chi tiết chủ spa">
     <div className="flex flex-wrap justify-between gap-3"><h2 className="text-lg font-bold">Quản lý chủ spa & Bàn giao</h2><Button variant="outline" disabled={busy} onClick={()=>{setError("");setAttempt(v=>v+1);}}>Tải lại thông tin chủ spa</Button></div>
     {error&&<p role="alert" className="feedback-error">{error}</p>}{message&&<p role="status" className="feedback-success">{message}</p>}
     {detail&&<><form className="space-y-4" onSubmit={e=>{e.preventDefault();void mutate(false);}}><fieldset disabled={busy} className="space-y-4">

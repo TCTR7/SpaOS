@@ -70,11 +70,11 @@ export default function OperatorPage(): React.ReactElement {
     {operator && <OperatorSystem />}
     {error && <div role="alert" className="space-y-2 text-sm text-rose-700"><p>{error}</p><Button variant="outline" disabled={locked} onClick={() => { setError(null); setLoadAttempt((v) => v+1); }}>Thử tải lại danh sách</Button></div>}
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
-    {success && <div className="rounded-xl border bg-card p-4 text-sm" data-testid="owner-created">
+    {success && <div className="rounded-xl border neu-surface bg-card p-4 text-sm" data-testid="owner-created">
       <p><strong>{success.owner_name}</strong> • {success.phone_number}</p><p>Chi nhánh: {success.branch_name}</p>
       <p>Bàn giao SĐT và mật khẩu đã đặt qua kênh riêng. Chủ spa đăng nhập tại <a className="underline" href="/admin/login">trang đăng nhập</a>.</p>
     </div>}
-    {operator && <form onSubmit={(e) => void create(e)} className="grid gap-3 rounded-xl border bg-card p-5 sm:grid-cols-2">
+    {operator && <form onSubmit={(e) => void create(e)} className="grid gap-3 rounded-xl border neu-surface bg-card p-5 sm:grid-cols-2">
       <h2 className="font-bold sm:col-span-2">Tạo chủ spa</h2>
       <div><Label htmlFor="ownerName">Họ tên chủ spa</Label><Input id="ownerName" required maxLength={255} value={name} disabled={locked} onChange={(e) => setName(e.target.value)} /></div>
       <div><Label htmlFor="ownerPhone">Số điện thoại chủ spa</Label><Input id="ownerPhone" type="tel" required value={phone} disabled={locked} onChange={(e) => setPhone(e.target.value)} /></div>

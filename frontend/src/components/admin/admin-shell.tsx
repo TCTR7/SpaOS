@@ -180,13 +180,13 @@ function AdminShellContent({
   return (
     <div className="flex min-h-screen bg-background text-foreground" style={brandStyle(brandColor)}>
       {/* Sidebar Desktop */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-border neu-surface bg-card md:flex">
         <div className="flex min-h-24 items-center gap-3 border-b border-border px-4 py-4">
           <Building2 className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
           <div className="min-w-0 flex-1"><p className="text-base font-bold leading-snug">SpaOS</p><p className="mt-1 text-xs text-muted-foreground">Quản lý spa</p></div>
         </div>
 
-        <nav className="flex-1 space-y-1 p-3">
+        <nav className="neu-nav flex-1 space-y-2 p-3">
           {allowedNavItems.map((item) => {
             const Icon = item.icon;
             const active =
@@ -199,7 +199,7 @@ function AdminShellContent({
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-background text-primary shadow-inner"
                     : "text-slate-700 hover:bg-accent hover:text-accent-foreground"
                 )}
               >
@@ -236,7 +236,7 @@ function AdminShellContent({
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/90 px-4 backdrop-blur md:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border neu-surface bg-card/90 px-4 backdrop-blur md:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <SpaLogo key={allScope ? "all" : tenant.id} name={allScope ? "SpaOS" : tenant.name} src={allScope ? APP_ICON_192 : tenant.logo_url} className="h-10 w-10 rounded-xl" />
             <div className="min-w-0">
@@ -273,14 +273,14 @@ function AdminShellContent({
         </Modal>
         <Modal open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}
           title="Thêm" historyGuard returnFocusRef={moreButton}>
-          <nav aria-label="Điều hướng bổ sung" className="space-y-1">
+          <nav aria-label="Điều hướng bổ sung" className="neu-nav space-y-1">
             {moreItems.map((item) => {
               const Icon = item.icon;
               return <Link key={item.href} href={item.href}
                 onClick={(event) => navigateFromMore(event, item.href)}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn("flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-sm [overflow-wrap:anywhere]",
-                  isActive(item.href) ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
+                  isActive(item.href) ? "bg-background text-primary shadow-inner" : "hover:bg-accent")}>
                 <Icon className="h-5 w-5 shrink-0" /><span>{item.label}</span>
               </Link>;
             })}
@@ -294,7 +294,7 @@ function AdminShellContent({
 
         <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id} identities={branches.map((branch) => branch.user.id)} autoOpen={pathname !== "/admin/help"} />{children}</div></main>
       </div>
-      <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+      <nav aria-label="Điều hướng chính" className="neu-nav fixed inset-x-0 bottom-0 z-30 flex border-t border-border neu-surface bg-card/95 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
         {primaryItems.map((item) => {
           const Icon = item.icon;
           const label = item.href === "/admin/customers" ? "Khách" : item.label;

@@ -110,7 +110,7 @@ export function NotificationBell(): React.ReactElement {
           setOpen(nextOpen);
           if (nextOpen) void loadNotifications();
         }}
-        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-slate-700 transition hover:bg-accent"
+        className="neu-control relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-slate-700 transition hover:bg-accent"
         ref={triggerRef} aria-haspopup="dialog" aria-expanded={open}
         aria-label="Thông báo"
       >

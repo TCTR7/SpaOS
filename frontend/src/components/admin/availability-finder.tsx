@@ -21,7 +21,7 @@ export function AvailabilityFinder({ services, staff, onChoose }: {
     enabled: Boolean(service) && day >= formatDateISOInVN(), autoSelect: false });
   const nearest = useNearestAvailableDay({ date: day, serviceIds: ids, staffId: validStaff,
     enabled: Boolean(service) && !availability.loading, onFound: setDay });
-  return <section aria-label="Tìm giờ trống" className="space-y-4 rounded-xl border bg-card p-4">
+  return <section aria-label="Tìm giờ trống" className="space-y-4 rounded-xl border neu-surface bg-card p-4">
     <h2 className="font-bold">Tìm giờ trống cho khách</h2>
     <div className="grid gap-3 sm:grid-cols-3 [&>div]:min-w-0">
       <div><Label htmlFor="availableService">Dịch vụ</Label><select id="availableService" className="h-11 w-full min-w-0 rounded-md border bg-background px-2 text-base" value={serviceId} onChange={(event) => setServiceId(event.target.value)}>

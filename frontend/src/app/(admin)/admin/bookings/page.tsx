@@ -992,7 +992,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 className={cn(
                   "min-h-11 rounded-md px-3 py-1 text-sm font-semibold transition sm:min-h-0 sm:text-xs",
                   viewMode === "day"
-                    ? "bg-card text-foreground shadow-sm"
+                    ? "neu-surface bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -1004,7 +1004,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 className={cn(
                   "min-h-11 rounded-md px-3 py-1 text-sm font-semibold transition sm:min-h-0 sm:text-xs",
                   viewMode === "week"
-                    ? "bg-card text-foreground shadow-sm"
+                    ? "neu-surface bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -1175,7 +1175,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 key={dayISO}
                 data-day={dayISO}
                 className={cn(
-                  "flex min-w-0 flex-col rounded-xl border border-border bg-card p-2.5",
+                  "flex min-w-0 flex-col rounded-xl border border-border neu-surface bg-card p-2.5",
                   isToday && "ring-2 ring-primary/40"
                 )}
               >
@@ -1324,7 +1324,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                         "flex cursor-pointer items-center justify-between rounded-md border p-2 text-xs transition",
                         checked
                           ? "border-primary bg-primary/10 font-semibold"
-                          : "border-border bg-card hover:bg-muted/50"
+                          : "border-border neu-surface bg-card hover:bg-muted/50"
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -1372,7 +1372,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                       "flex cursor-pointer items-center justify-between rounded-md border p-2 text-xs transition",
                       checked
                         ? "border-primary bg-primary/10 font-semibold"
-                        : "border-border bg-card hover:bg-muted/50"
+                        : "border-border neu-surface bg-card hover:bg-muted/50"
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -1543,7 +1543,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                 {sessionRows.map((row, index) => (
                   <div
                     key={row.rowId}
-                    className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-2xs"
+                    className="rounded-lg border border-border neu-surface bg-card p-3 space-y-2.5 shadow-2xs"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -1630,7 +1630,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                                 "flex min-h-11 flex-col items-center justify-center rounded border px-2 py-1 text-xs font-medium transition",
                                 active
                                   ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                                  : "border-border bg-card text-foreground hover:bg-accent"
+                                  : "border-border neu-surface bg-card text-foreground hover:bg-accent"
                               )}
                             >
                               <span>{formatTimeVN(slot.start_time)}</span>
@@ -1782,7 +1782,7 @@ export default function AdminBookingsPage(): React.ReactElement {
                           "flex flex-col items-center rounded-md border px-2 py-1.5 text-xs font-medium transition",
                           active
                             ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                            : "border-border bg-card text-foreground hover:bg-accent"
+                            : "border-border neu-surface bg-card text-foreground hover:bg-accent"
                         )}
                       >
                         <span>{formatTimeVN(slot.start_time)}</span>

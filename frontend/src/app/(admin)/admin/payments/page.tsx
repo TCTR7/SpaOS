@@ -129,7 +129,7 @@ export default function PaymentsPage(): React.ReactElement {
       <h1 className="text-xl font-bold">Thu tiền</h1>
       {customerId && <p className="text-sm">Đang xem khoản thu của khách đã chọn. <Button variant="outline" onClick={() => setCustomerId(undefined)}>Xem mọi khách</Button></p>}
       <p className="text-sm text-muted-foreground">Khách và dịch vụ có sẵn từ lịch hẹn, thẻ liệu trình. Xác nhận khi bạn đã thực nhận tiền.</p>
-      {summary && <section data-testid="payment-summary" className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3">
+      {summary && <section data-testid="payment-summary" className="grid gap-3 rounded-xl border neu-surface bg-card p-4 sm:grid-cols-3">
         <div><p className="text-sm">Hôm nay đã thu</p><strong>{formatCurrency(summary.net_received)}</strong></div>
         <div><p className="text-sm">Tiền mặt</p><strong>{formatCurrency(summary.cash)}</strong></div>
         <div><p className="text-sm">Chuyển khoản</p><strong>{formatCurrency(summary.bank_transfer)}</strong></div>
@@ -170,7 +170,7 @@ export default function PaymentsPage(): React.ReactElement {
             <p>{collectionError}</p><Button variant="outline" disabled={locked || busy} onClick={() => setCollectionAttempt((value) => value + 1)}>Thử tải lại danh sách thu tiền</Button>
           </div> : <>
             {rows.length === 0 && <p className="rounded-xl border p-5">Không có khoản thu phù hợp.</p>}
-            {rows.map((row) => <article key={row.source_type + row.source_id} data-testid={"collection-" + row.source_id} className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border bg-card p-4 [overflow-wrap:anywhere] sm:flex-row sm:items-center sm:justify-between">
+            {rows.map((row) => <article key={row.source_type + row.source_id} data-testid={"collection-" + row.source_id} className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border neu-surface bg-card p-4 [overflow-wrap:anywhere] sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1"><h2 className="font-bold">{row.customer_name}</h2>
                 <p className="text-xs text-muted-foreground">{row.phone_number} • {formatDateTimeVN(row.occurred_at)}</p>
                 <p className="mt-1 text-sm">{row.source_type === "package" ? "Thẻ liệu trình: " : ""}{row.description}</p>
@@ -189,7 +189,7 @@ export default function PaymentsPage(): React.ReactElement {
             <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError || rows.length < 50} onClick={() => setOffset(offset+50)}>Trang sau</Button>
           </div>
         </section>
-      </> : <section className="space-y-3 rounded-xl border bg-card p-4">
+      </> : <section className="space-y-3 rounded-xl border neu-surface bg-card p-4">
         <h2 className="font-bold">Lịch sử thao tác</h2>
         {logs.length === 0 && <p className="text-sm">Chưa có thao tác.</p>}
         {logs.map((event) => <div key={event.id} data-testid="audit-event" className="rounded-lg border p-3 text-xs">

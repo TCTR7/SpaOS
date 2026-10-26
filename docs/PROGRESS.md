@@ -721,3 +721,10 @@ PO cho phép triển khai lần lượt toàn bộ kế hoạch: sửa logo/icon
 
 - [x] Nâng cấp tải ảnh Logo & Ảnh nhân viên: tích hợp bộ công cụ cắt/kéo thả trực tiếp trên giao diện (`ImageCropper` tại `frontend/src/components/image-cropper.tsx`). Người dùng có thể kéo thả di chuyển, phóng to/thu nhỏ bằng thanh trượt hoặc con lăn chuột; chọn định dạng vuông (logo) hoặc tròn (nhân viên).
 - [x] Bỏ giới hạn ngặt nghèo phía client: cho phép chọn mọi loại ảnh phổ biến (PNG, JPG, WebP...) dung lượng bất kỳ; client tự nén chuẩn và xuất base64. Nâng trần kiểm tra backend từ 256 KB lên 2 MB (2.097.152 bytes) để thoải mái lưu trữ mà vẫn an toàn cho database.
+
+
+## Neumorphism UI — 26/10/2026
+- [x] Áp dụng Neumorphism toàn frontend: nền xám mềm, bóng nổi/lõm, bo góc; Card/Button/Input/Textarea/Modal, khối riêng, navigation quản trị/khách, trang chọn chi nhánh và operator. Giữ màu thương hiệu, focus bàn phím, trạng thái lỗi và vùng chạm mobile; hỗ trợ reduced-motion/forced-colors.
+- [x] Production build và strict TypeScript PASS; QA run `6395e9ba-30a4-4c0f-ba45-e8c306fafd61`: **35/35 E2E PASS (90.52s)** gồm consistency, mobile controls, brand contrast, branch directory, final mobile routes và operator mobile. Database/container QA tạm riêng đã dọn. Lượt đầu build đạt nhưng E2E chưa chạy vì Python hệ thống thiếu Playwright; lượt cuối dùng virtualenv dự án.
+- [x] Đã xem ảnh thật đăng nhập, dashboard desktop và dịch vụ khách mobile trong `automation_test/artifacts/qa/neumorphism-20261026/` (dữ liệu demo QA).
+- Không sửa backend/API, credentials hay dữ liệu nghiệp vụ. Chưa deploy; chưa nghiệm thu thiết bị di động thật.

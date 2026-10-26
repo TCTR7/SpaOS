@@ -76,7 +76,7 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
             onClick={() => setFilterType("all")}
             className={`min-h-11 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm transition ${
               filterType === "all"
-                ? "bg-card text-foreground shadow-sm"
+                ? "neu-surface bg-card text-foreground shadow-sm"
                 : "text-muted-foreground"
             }`}
           >
@@ -87,7 +87,7 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
             onClick={() => setFilterType("single")}
             className={`min-h-11 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm transition ${
               filterType === "single"
-                ? "bg-card text-foreground shadow-sm"
+                ? "neu-surface bg-card text-foreground shadow-sm"
                 : "text-muted-foreground"
             }`}
           >
@@ -98,7 +98,7 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
             onClick={() => setFilterType("package")}
             className={`min-h-11 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm transition ${
               filterType === "package"
-                ? "bg-card text-foreground shadow-sm"
+                ? "neu-surface bg-card text-foreground shadow-sm"
                 : "text-muted-foreground"
             }`}
           >

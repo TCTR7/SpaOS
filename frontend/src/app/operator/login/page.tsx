@@ -15,7 +15,7 @@ export default function OperatorLoginPage(): React.ReactElement {
     <h1 className="text-2xl font-bold">Quản trị triển khai SpaOS</h1>
     <p className="text-sm text-muted-foreground">Dành cho đơn vị triển khai và cấp tài khoản chủ spa.</p>
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-    <form className="space-y-4 rounded-xl border bg-card p-5" onSubmit={async (e) => {
+    <form className="space-y-4 rounded-xl border neu-surface bg-card p-5" onSubmit={async (e) => {
       e.preventDefault(); if (busy) return; setBusy(true); setError(null);
       try { await operatorLogin(phone.trim(), password); setPassword(""); window.location.assign("/operator"); }
       catch (e) { setError(e instanceof Error ? e.message : "Đăng nhập không thành công"); setBusy(false); }

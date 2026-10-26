@@ -250,7 +250,7 @@ function BookingWizardInner(): React.ReactElement | null {
       </section>}
       <fieldset disabled={bookingRequest.uncertain || bookingRequest.busy || submitting} className="m-0 min-w-0 space-y-4 border-0 p-0">
       {/* Stepper Header */}
-      <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+      <div className="rounded-2xl border border-border neu-surface bg-card p-3.5 shadow-sm">
         <nav aria-label="Các bước đặt lịch" className="grid grid-cols-3 gap-1 text-xs font-semibold">
           {[
             { num: 1, label: "1. Dịch vụ" },
@@ -318,8 +318,8 @@ function BookingWizardInner(): React.ReactElement | null {
                         className={cn(
                           "flex w-full min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border p-3 text-left text-sm transition [overflow-wrap:anywhere]",
                           checked
-                            ? "border-primary bg-card shadow-sm"
-                            : "border-border bg-card/70"
+                            ? "border-primary neu-surface bg-card shadow-sm"
+                            : "border-border neu-surface bg-card/70"
                         )}
                       >
                         <div>
@@ -359,7 +359,7 @@ function BookingWizardInner(): React.ReactElement | null {
                   key={svc.id}
                   onClick={() => toggleLine(svc.id, null)}
                   className={cn(
-                    "flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border bg-card p-3.5 text-left transition [overflow-wrap:anywhere]",
+                    "flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border neu-surface bg-card p-3.5 text-left transition [overflow-wrap:anywhere]",
                     checked
                       ? "ring-2 ring-primary border-primary shadow-sm"
                       : "border-border hover:bg-muted/40"
@@ -503,7 +503,7 @@ function BookingWizardInner(): React.ReactElement | null {
                         "flex min-h-11 flex-col items-center rounded-xl border py-2.5 px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                         isSelected
                           ? "border-transparent text-white shadow"
-                          : "border-border bg-card text-foreground hover:bg-muted/60"
+                          : "border-border neu-surface bg-card text-foreground hover:bg-muted/60"
                       )}
                       style={
                         isSelected
@@ -549,7 +549,7 @@ function BookingWizardInner(): React.ReactElement | null {
             aria-pressed={selectedStaffId === null}
             onClick={() => setSelectedStaffId(null)}
             className={cn(
-              "flex w-full min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border bg-card p-4 text-left transition [overflow-wrap:anywhere]",
+              "flex w-full min-w-0 flex-wrap cursor-pointer items-center justify-between gap-2 rounded-xl border neu-surface bg-card p-4 text-left transition [overflow-wrap:anywhere]",
               selectedStaffId === null
                 ? "ring-2 ring-primary border-primary"
                 : "border-border"
@@ -590,7 +590,7 @@ function BookingWizardInner(): React.ReactElement | null {
                     key={sid}
                     onClick={() => setSelectedStaffId(sid)}
                     className={cn(
-                      "flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border bg-card p-3.5 text-left transition",
+                      "flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border neu-surface bg-card p-3.5 text-left transition",
                       active
                         ? "ring-2 ring-primary border-primary"
                         : "border-border"
@@ -795,7 +795,7 @@ function BookingWizardInner(): React.ReactElement | null {
       )}
 
       {/* Bottom Sticky Summary & Wizard Navigation */}
-      <div className="rounded-2xl border border-border bg-card p-3.5 shadow-md space-y-2.5">
+      <div className="rounded-2xl border border-border neu-surface bg-card p-3.5 shadow-md space-y-2.5">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs">
           <span className="inline-flex items-center gap-1 text-muted-foreground">
             <Clock className="h-3.5 w-3.5" />

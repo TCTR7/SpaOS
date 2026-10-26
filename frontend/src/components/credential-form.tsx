@@ -19,7 +19,7 @@ export function CredentialForm({ slug, staffId, phone, onSaved, onBusyChange, on
   React.useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
   React.useEffect(() => { onDirtyChange?.(Boolean(current || password || number !== (phone || ""))); return () => onDirtyChange?.(false); }, [current, password, number, phone, onDirtyChange]);
   useBranchGuard(!slug && Boolean(current || password || number !== (phone || "")), !slug && busy);
-  return <form className="space-y-4 rounded-2xl border bg-card p-5" onSubmit={async (event) => {
+  return <form className="space-y-4 rounded-2xl border neu-surface bg-card p-5" onSubmit={async (event) => {
     event.preventDefault(); if (flight.current) return; flight.current = true; setBusy(true); setError(""); setMessage("");
     const identity = slug ? getCustomerSessionIdentity(slug) : getAdminSessionIdentity();
     const currentSession = () => alive.current && identity === (slug ? getCustomerSessionIdentity(slug) : getAdminSessionIdentity());

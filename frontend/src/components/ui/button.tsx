@@ -12,14 +12,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> =
       {
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:opacity-90",
+          "bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:shadow-inner",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "neu-control bg-secondary text-secondary-foreground hover:bg-secondary/80",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "neu-control border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:opacity-90",
+          "bg-destructive text-destructive-foreground shadow-sm hover:opacity-90 active:shadow-inner",
       };
 
     const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {

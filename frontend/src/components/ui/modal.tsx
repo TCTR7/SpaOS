@@ -133,7 +133,7 @@ export function Modal({
       <div
         data-layout-card="modal"
         className={cn(
-          "flex h-[100dvh] w-full min-w-0 flex-col overflow-hidden border border-border bg-card shadow-xl sm:h-auto sm:max-h-[90dvh] sm:rounded-xl",
+          "flex h-[100dvh] w-full min-w-0 flex-col overflow-hidden border border-border neu-surface bg-card shadow-xl sm:h-auto sm:max-h-[90dvh] sm:rounded-xl",
           maxWidthClass
         )}
       >

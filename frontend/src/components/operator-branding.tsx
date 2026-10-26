@@ -23,7 +23,7 @@ export function OperatorBranding({disabled=false}: {disabled?:boolean}): React.R
       .catch((e:unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Không tải được màu thương hiệu"); });
     return () => {cancelled=true;};
   },[attempt]);
-  return <form className="space-y-4 rounded-xl border bg-card p-5" onSubmit={async (e) => {
+  return <form className="space-y-4 rounded-xl border neu-surface bg-card p-5" onSubmit={async (e) => {
     e.preventDefault(); if (busy || disabled) return; setBusy(true); setError(null); setMessage("");
     try {
       const value = await operatorRequest<Branding>("/branding",{theme_color:color});

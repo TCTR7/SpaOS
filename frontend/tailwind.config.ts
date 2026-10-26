@@ -9,6 +9,14 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      boxShadow: {
+        sm: "var(--neu-small)",
+        DEFAULT: "var(--neu-raised)",
+        md: "var(--neu-raised)",
+        lg: "10px 10px 24px var(--neu-shade), -10px -10px 24px var(--neu-light)",
+        xl: "14px 14px 32px var(--neu-shade), -14px -14px 32px var(--neu-light)",
+        inner: "var(--neu-inset)",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

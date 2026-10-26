@@ -82,7 +82,7 @@ export function PaymentLedger({ invoice, actorName, onChanged, onLocked, onDirty
 
   const reversed = new Set(entries.filter((e) => e.reversal_of).map((e) => e.reversal_of));
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-4">
+    <section className="space-y-4 rounded-xl border neu-surface bg-card p-4">
       <h3 className="text-base font-bold">Xác nhận tiền đã nhận</h3>
       <dl className="grid gap-3 text-sm sm:grid-cols-3">
         <div><dt>Giá đã chốt</dt><dd>{formatCurrency(invoice.amount_due)}</dd></div>

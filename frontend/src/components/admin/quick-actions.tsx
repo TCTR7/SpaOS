@@ -16,7 +16,7 @@ export function QuickActions(): React.ReactElement {
     <nav aria-label="Truy cập nhanh" data-testid="dashboard-quick-actions" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {ACTIONS.map(({ href, label, hint, icon: Icon }) => (
         <Link key={href} href={href}
-          className="flex min-h-24 min-w-0 flex-col items-start gap-1 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent">
+          className="flex min-h-24 min-w-0 flex-col items-start gap-1 rounded-xl border border-border neu-surface bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent">
           <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
           <span className="text-sm font-semibold leading-snug [overflow-wrap:anywhere]">{label}</span>
           <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{hint}</span>

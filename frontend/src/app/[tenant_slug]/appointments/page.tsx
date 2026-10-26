@@ -303,7 +303,7 @@ function AppointmentsInner(): React.ReactElement | null {
           className={cn(
             "min-h-11 rounded-lg py-2 text-sm transition",
             scope === "upcoming"
-              ? "bg-card text-foreground shadow-sm"
+              ? "neu-surface bg-card text-foreground shadow-sm"
               : "text-muted-foreground"
           )}
         >
@@ -315,7 +315,7 @@ function AppointmentsInner(): React.ReactElement | null {
           className={cn(
             "min-h-11 rounded-lg py-2 text-sm transition",
             scope === "history"
-              ? "bg-card text-foreground shadow-sm"
+              ? "neu-surface bg-card text-foreground shadow-sm"
               : "text-muted-foreground"
           )}
         >
@@ -324,7 +324,7 @@ function AppointmentsInner(): React.ReactElement | null {
       </div>
 
       {linkedError && <p role="alert" className="rounded-lg border p-3 text-sm">{linkedError}</p>}
-      {linkedBooking && <section aria-label="Lịch hẹn được mở" className="space-y-2 rounded-xl border-2 border-primary bg-card p-4">
+      {linkedBooking && <section aria-label="Lịch hẹn được mở" className="space-y-2 rounded-xl border-2 border-primary neu-surface bg-card p-4">
         <h2 className="font-bold">Lịch hẹn của bạn</h2>
         <p>{formatDateTimeVN(linkedBooking.start_time)} • {BOOKING_STATUS_META[(bookings.find((item) => item.id === linkedBooking.id) || linkedBooking).status].label}</p>
         <p className="text-sm">{linkedBooking.items.map((item) => item.service_name || serviceById.get(item.service_id) || "Dịch vụ").join(", ")}</p>
@@ -583,7 +583,7 @@ function AppointmentsInner(): React.ReactElement | null {
                           "flex min-h-11 flex-col items-center rounded-lg border py-2 px-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           active
                             ? "border-transparent text-white shadow-sm"
-                            : "border-border bg-card text-foreground hover:bg-muted/60"
+                            : "border-border neu-surface bg-card text-foreground hover:bg-muted/60"
                         )}
                         style={
                           active ? { backgroundColor: themeColor, color: "var(--brand-foreground)" } : undefined

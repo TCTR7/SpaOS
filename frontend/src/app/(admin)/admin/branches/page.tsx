@@ -31,17 +31,17 @@ export default function BranchesPage(): React.ReactElement {
   if (!owner) return <p role="alert" className="feedback-error">Bạn chưa thể quản lý chi nhánh. Vui lòng liên hệ chủ spa.</p>;
   return <div className="mx-auto max-w-4xl min-w-0 space-y-5 [overflow-wrap:anywhere]"><h1 className="text-xl font-bold">Quản lý chi nhánh</h1>
     {error && <p role="alert" className="text-rose-700">{error}</p>}{message && <p role="status" className="feedback-success">{message}</p>}
-    <section className="space-y-3 rounded-xl border bg-card p-4"><h2 className="font-bold">Các chi nhánh của bạn</h2>
+    <section className="space-y-3 rounded-xl border neu-surface bg-card p-4"><h2 className="font-bold">Các chi nhánh của bạn</h2>
       {branches.map((b) => <div key={b.tenant.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-muted/20 p-4"><div className="flex min-w-0 flex-1 items-center gap-3"><SpaLogo name={b.tenant.name} src={b.tenant.logo_url} /><div className="min-w-0"><p className="font-semibold [overflow-wrap:anywhere]">{b.tenant.name}</p>{b.tenant.id === tenant?.id && <Badge variant="secondary" className="mt-1">Đang làm việc</Badge>}</div></div><a className="action-link" href={"/" + b.tenant.slug} target="_blank" rel="noreferrer">Trang đặt lịch</a></div>)}
     </section>
-    <form className="space-y-3 rounded-xl border bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
+    <form className="space-y-3 rounded-xl border neu-surface bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
       const created = await createBranch(name); setCreatedBranch(created.tenant.id); sessionStorage.setItem("spaos_setup_branch_" + tenant?.id + "_" + user?.id, created.tenant.id); setName(""); await refreshMe(); setMessage("Đã tạo chi nhánh. Chọn chi nhánh trên thanh phía trên để thiết lập dịch vụ và nhân sự.");
     } catch (e) { setError(e instanceof Error ? e.message : "Không tạo được chi nhánh"); } finally { setBusy(false); } }}>
       <h2 className="font-bold">Thêm chi nhánh</h2><Label htmlFor="branchName">Tên chi nhánh</Label><Input id="branchName" required maxLength={255} value={name} disabled={busy} onChange={(e) => setName(e.target.value)} />
       <Button disabled={busy || !name.trim()} type="submit">Tạo chi nhánh</Button>
     </form>
-    {createdBranch && <section className="space-y-2 rounded-xl border bg-card p-4"><h2 className="font-bold">Bước tiếp theo: thiết lập chi nhánh mới</h2><p className="text-sm">Bổ sung địa chỉ, dịch vụ và ca làm rồi kiểm tra giờ trống trước khi chia sẻ cho khách.</p><Button disabled={busy || !!name || !!staffId || !!target} onClick={() => { void changeBranch(createdBranch).catch((e: unknown) => { setError(e instanceof Error ? e.message : "Chưa chuyển được chi nhánh"); setBusy(false); }); }}>Chuyển sang thiết lập chi nhánh mới</Button></section>}
-    <form className="space-y-3 rounded-xl border bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
+    {createdBranch && <section className="space-y-2 rounded-xl border neu-surface bg-card p-4"><h2 className="font-bold">Bước tiếp theo: thiết lập chi nhánh mới</h2><p className="text-sm">Bổ sung địa chỉ, dịch vụ và ca làm rồi kiểm tra giờ trống trước khi chia sẻ cho khách.</p><Button disabled={busy || !!name || !!staffId || !!target} onClick={() => { void changeBranch(createdBranch).catch((e: unknown) => { setError(e instanceof Error ? e.message : "Chưa chuyển được chi nhánh"); setBusy(false); }); }}>Chuyển sang thiết lập chi nhánh mới</Button></section>}
+    <form className="space-y-3 rounded-xl border neu-surface bg-card p-4" onSubmit={async (e) => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); setMessage(""); try {
       await grantBranchStaff(target, staffId); setStaffId(""); setTarget(""); setMessage("Đã thêm nhân viên vào chi nhánh. Nhân viên tiếp tục dùng số điện thoại và mật khẩu hiện tại.");
     } catch (e) { setError(e instanceof Error ? e.message : "Không thêm được nhân viên vào chi nhánh"); } finally { setBusy(false); } }}>
       <h2 className="font-bold">Cho nhân viên làm thêm chi nhánh</h2>

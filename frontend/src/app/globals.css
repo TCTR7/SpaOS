@@ -4,9 +4,9 @@
 
 @layer base {
   :root {
-    --background: 30 25% 98%;
+    --background: 220 18% 93%;
     --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
+    --card: 220 18% 93%;
     --card-foreground: 222.2 84% 4.9%;
     --primary: 335 78% 42%;
     --primary-foreground: 210 40% 98%;
@@ -21,7 +21,12 @@
     --border: 214.3 25% 89%;
     --input: 214.3 25% 88%;
     --ring: 335 78% 42%;
-    --radius: 0.625rem;
+    --radius: 0.875rem;
+    --neu-light: #ffffff;
+    --neu-shade: #c8ced8;
+    --neu-raised: 7px 7px 16px var(--neu-shade), -7px -7px 16px var(--neu-light);
+    --neu-small: 3px 3px 7px var(--neu-shade), -3px -3px 7px var(--neu-light);
+    --neu-inset: inset 3px 3px 6px var(--neu-shade), inset -3px -3px 6px var(--neu-light);
   }
 }
 
@@ -32,6 +37,23 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  :where(a, button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+  :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]), select, textarea) {
+    background-color: hsl(var(--background));
+    box-shadow: var(--neu-inset);
+  }
+  :where(input[type=checkbox], input[type=radio], input[type=range]) {
+    accent-color: hsl(var(--primary));
+  }
+  :where(button[class*="rounded"], a[class*="rounded"]) {
+    transition: box-shadow 160ms ease, background-color 160ms ease, color 160ms ease;
+  }
+  :where(button[class*="rounded"], a[class*="rounded"]):active:not(:disabled) {
+    box-shadow: var(--neu-inset);
+  }
 }
 
 :root { --brand-color: #be185d; --brand-foreground: #ffffff; --brand-text: #9d174d; --primary-text: 335 60% 30%; }
@@ -40,10 +62,54 @@
 }
 
 @layer components {
+  /* Explicit surface classes also cover page-local cards outside the UI kit. */
+  .neu-surface {
+    box-shadow: var(--neu-raised);
+  }
+  .neu-control {
+    box-shadow: var(--neu-small);
+  }
+  .neu-control:active:not(:disabled), .neu-nav [aria-current="page"] {
+    box-shadow: var(--neu-inset);
+  }
+  .neu-nav [aria-current="page"] {
+    border-radius: var(--radius);
+    background-color: hsl(var(--background));
+    color: hsl(var(--primary-text));
+  }
+  .neu-nav {
+    gap: 0.375rem;
+  }
+  .neu-nav > [aria-current="page"] {
+    outline: 1px solid hsl(var(--border));
+    outline-offset: -1px;
+  }
   .action-link { @apply inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-lg border border-input bg-card px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring; }
-  .disclosure { @apply overflow-hidden rounded-xl border border-border bg-card p-4; }
+  .disclosure { @apply overflow-hidden rounded-xl border border-border bg-card p-4; box-shadow: var(--neu-raised); }
   .disclosure > summary { @apply min-h-11 cursor-pointer py-2 text-sm font-semibold text-foreground marker:text-primary; }
   .feedback-error { @apply rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800; }
   .feedback-success { @apply rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800; }
   .empty-state { @apply rounded-xl border border-dashed border-border bg-muted/30 p-5 text-center text-sm leading-relaxed text-muted-foreground; }
+}
+
+@layer components {
+  .action-link { box-shadow: var(--neu-small); }
+  .action-link:active { box-shadow: var(--neu-inset); }
+  .empty-state { box-shadow: var(--neu-inset); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .neu-surface, .neu-control, .action-link, .disclosure, .neu-nav [aria-current="page"] {
+    border: 1px solid ButtonText;
+  }
+  .neu-nav [aria-current="page"] { outline: 2px solid Highlight; }
 }

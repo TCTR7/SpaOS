@@ -412,7 +412,7 @@ export default function AdminStaffPage(): React.ReactElement {
                           "flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3",
                           s.is_day_off
                             ? "border-border bg-muted/40 opacity-75"
-                            : "border-border bg-card"
+                            : "border-border neu-surface bg-card"
                         )}
                       >
                         <div className="w-28 font-semibold text-sm text-foreground">

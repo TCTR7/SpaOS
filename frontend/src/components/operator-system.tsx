@@ -21,7 +21,7 @@ export function OperatorSystem(): React.ReactElement {
   const configured = [BUILD_INFO,state?.server,state?.backend].every(x=>x?.release_id && x.release_id !== "development" && x.built_at);
   const stale = state && state.server.build_id !== BUILD_INFO.build_id;
   const mismatch = state && (state.server.release_id !== state.backend.release_id || state.server.version !== state.backend.version);
-  return <section className="space-y-4 rounded-2xl border bg-card p-5" aria-labelledby="system-title">
+  return <section className="space-y-4 rounded-2xl border neu-surface bg-card p-5" aria-labelledby="system-title">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="system-title" className="font-bold">Hệ thống & Phiên bản</h2><Button variant="outline" disabled={busy} onClick={()=>void check()}>{busy?"Đang kiểm tra...":"Kiểm tra lại phiên bản"}</Button></div>
     {error && <p role="alert" className="feedback-error">{error}</p>}
     {state && <p role="status" className={stale||mismatch||!configured?"feedback-error":"feedback-success"}>{stale?"Trình duyệt đang mở bản cũ. Lưu công việc rồi tải lại trang.":mismatch?"Frontend và backend khác đợt phát hành. Cần kiểm tra deploy.":!configured?"Bản phát triển: chưa gắn mã phát hành để xác nhận deploy.":"Frontend và backend cùng đợt phát hành."}</p>}
