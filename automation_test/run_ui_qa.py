@@ -10,6 +10,22 @@ from .common_setup.qa_backend import qa_backend
 from .common_setup.qa_frontend import ROOT, qa_frontend, stop_owned_process, verify_api_isolation
 
 
+TEST_ROOT = ROOT / "automation_test"
+
+
+def pytest_command(arguments):
+    # pytest resolves configured testpaths relative to its working directory.
+    # Keep E2E discovery inside automation_test; preserve root-relative examples.
+    selected=[]
+    for argument in arguments:
+        path,separator,node=argument.partition("::")
+        if path.replace("\\","/").startswith("automation_test/"):
+            argument=str(ROOT / path)+(separator+node if separator else "")
+        selected.append(argument)
+    return [sys.executable,"-B","-m","pytest","-c",str(TEST_ROOT / "pytest.ini"),
+            "-p","no:cacheprovider",*selected]
+
+
 def run(pytest_args, *, mode="production", port=3001):
     code = 1
     try:
@@ -19,8 +35,8 @@ def run(pytest_args, *, mode="production", port=3001):
                 print("QA: rewrite + SSR isolation verified; console only; run " + qa["run_id"], flush=True)
                 flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
                 process = subprocess.Popen(
-                    [sys.executable, "-B", "-m", "pytest", "-p", "no:cacheprovider"] + list(pytest_args),
-                    cwd=ROOT, env=qa["env"], creationflags=flags,
+                    pytest_command(pytest_args),
+                    cwd=TEST_ROOT, env=qa["env"], creationflags=flags,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace",
                 )
@@ -53,7 +69,7 @@ def main():
     tests = args.pytest_args
     if tests[:1] == ["--"]:
         tests = tests[1:]
-    return run(tests or ["automation_test/features", "-q", "--tb=short"],
+    return run(tests or ["-q", "--tb=short"],
                mode=args.mode, port=args.port)
 
 

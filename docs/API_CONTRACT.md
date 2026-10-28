@@ -375,3 +375,8 @@ Quy tắc một nơi/ngày cũng giữ sau khi một booking đã COMPLETED ho�
 Deep link quản lý có dạng `/s/{spa}/admin/bookings?booking_id={uuid}&target_branch={uuid}`. Nếu phiên đang ở nhánh khác, shell không mount nội dung booking trước khi xác minh target thuộc danh sách quyền; người dùng chọn “Mở lịch tại …” để chuyển bằng API hiện hành. Không còn quyền thì thông báo rõ và không tải chi tiết bằng phiên nhánh khác. Chuyển nhánh giữ booking_id/target_branch đã kiểm tra UUID, tiếp tục dùng guard form/pending nhiều tab; không phát lại mutation.
 
 Khi chưa đăng nhập hoặc hết phiên, chỉ hai UUID của đích hợp lệ được lưu trong sessionStorage theo spa, tối đa 30 phút, dùng một lần sau đăng nhập đúng spa. Không lưu token/khách vào intent này, không nhận URL tùy ý làm return target. Backend vẫn kiểm tra quyền/tenant/booking ở lần tải thật. In-app notification hiện thuộc nhánh đang xem; push có target_branch để xử lý sau khi người dùng đã đổi nhánh.
+
+
+### 28/10/2026 — Auto-migration khi khởi động Uvicorn
+
+Không thêm endpoint. Lifespan gọi `prepare_database_schema`: đọc Alembic revision qua runtime DATABASE_URL, so với code head; chỉ chạy upgrade khi khác. Alembic chạy bằng subprocess cùng interpreter và MIGRATION_DATABASE_URL từ environment, không truyền secrets qua argv, giữ advisory lock chống nhiều worker chạy DDL đồng thời. Sau đó kiểm tra lại cấu trúc và ownership. Lỗi migration/schema/mapping dừng startup trước HTTP/notification worker; không tự sửa stamp sai, map tenant, reset hoặc seed credentials. Không chạy Uvicorn với lifespan disabled nếu dùng cơ chế này.

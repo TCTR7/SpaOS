@@ -1,10 +1,17 @@
-"""Fail before serving requests if code and runtime database disagree."""
+"""Upgrade pending migrations, then verify schema before serving requests."""
+import asyncio
+import logging
+import os
+import sys
 from pathlib import Path
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import inspect
 from app.core.database import engine
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def migration_config():
@@ -12,6 +19,56 @@ def migration_config():
     config = Config(str(root / "alembic.ini"))
     config.set_main_option("script_location", str(root / "alembic"))
     return config
+
+
+async def database_revisions():
+    async with engine.connect() as connection:
+        return set(await connection.run_sync(
+            lambda sync: MigrationContext.configure(sync).get_current_heads()))
+
+
+async def upgrade_database_schema():
+    # Separate process: Alembic owns its event loop and privileged connection.
+    # env.py serializes migrations with a PostgreSQL advisory lock, including
+    # when several Uvicorn workers discover the same old revision at startup.
+    environment = dict(os.environ, DATABASE_URL=settings.DATABASE_URL,
+                       MIGRATION_DATABASE_URL=settings.MIGRATION_DATABASE_URL,
+                       ENVIRONMENT=settings.ENVIRONMENT)
+    process = await asyncio.create_subprocess_exec(
+        sys.executable, "-m", "alembic", "upgrade", "head",
+        cwd=Path(__file__).resolve().parents[2], env=environment,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    try:
+        await process.communicate()
+    except asyncio.CancelledError:
+        if process.returncode is None:
+            try:
+                process.terminate()
+            except ProcessLookupError:
+                pass
+            await process.communicate()
+        raise
+    if process.returncode:
+        # SQL/driver exceptions can contain connection details or bound values.
+        raise RuntimeError(
+            f"Automatic database migration failed (exit code {process.returncode}). "
+            "API startup stopped. Check MIGRATION_DATABASE_URL and run "
+            "'python -m scripts.check_database' / 'python -m alembic upgrade head' "
+            "from backend/ in a private deployment console.")
+
+
+async def prepare_database_schema():
+    expected = set(ScriptDirectory.from_config(migration_config()).get_heads())
+    current = await database_revisions()
+    if current != expected:
+        logger.info("Pending database migrations: %s -> %s",
+                    ", ".join(sorted(current)) or "empty", ", ".join(sorted(expected)))
+        await upgrade_database_schema()
+    else:
+        logger.info("Database revision is current; skipping migrations")
+    # Keep structural and ownership guards. A stamped head or unmapped legacy
+    # branches must not silently become ready just because Alembic exited zero.
+    await verify_database_schema()
 
 
 async def verify_database_schema():
@@ -37,10 +94,9 @@ async def verify_database_schema():
             f"Expected revision(s): {', '.join(sorted(expected))}; "
             f"found: {', '.join(sorted(current)) or 'none'}. "
             "From backend/, run 'alembic upgrade head' using MIGRATION_DATABASE_URL, "
-            "then restart. On Render use Start Command: python -m scripts.start_service. "
+            "then restart. Uvicorn startup applies pending migrations automatically. "
             "Do not use alembic stamp as a substitute for migrations."
         )
-    from app.core.config import settings
     if settings.ENVIRONMENT == "production":
         from sqlalchemy import text
         async with engine.connect() as connection:

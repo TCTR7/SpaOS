@@ -9,6 +9,12 @@ Mã nguồn đã có migration mở rộng `0012_shared_spas` và công cụ map
 3. Dừng mọi nguồn ghi khi chốt mapping, gồm web/API/job/worker có ghi. Bản sao staging và bản thật phải được kiểm tra độc lập; không lấy kết quả mẫu làm xác nhận dữ liệu khách thật.
 4. Chạy schema mở rộng trên **bản sao** trước. Cột spa_id cũ để null có chủ ý: API từ chối business access đến khi mapping; không tự nhận mọi tenant là cùng chủ.
 
+## Auto-migration schema khi deploy
+
+Từ cập nhật startup 28/10/2026, `uvicorn app.main:app --host 0.0.0.0 --port $PORT` tự kiểm tra Alembic version; thiếu migration thì nâng schema bằng MIGRATION_DATABASE_URL, schema hiện hành thì bỏ qua upgrade. Kiểm tra cấu trúc và mapping vẫn bắt buộc trước phục vụ API. Entry start_service vẫn tương thích. Không tắt lifespan.
+
+Do đó, backup/bảo trì phải thực hiện **trước khi khởi động release mới**. Đối với chuyển đổi shared SaaS lần đầu, schema tự nâng không thay bước mapping được đối chiếu bên dưới; production có tenant chưa map sẽ chưa sẵn sàng. Không tự deploy/start release mới lên DB thật trong đợt QA.
+
 ## Inventory và mapping
 
 Chạy trong backend đúng môi trường. DATABASE_URL dùng runtime role; MIGRATION_DATABASE_URL chỉ dành công cụ vận hành. Không in các biến này.

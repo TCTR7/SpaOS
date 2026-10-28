@@ -2,6 +2,18 @@
 
 *Quy tắc cho AI: Sau khi hoàn thành mỗi Sprint hoặc Task lớn, hãy tự động cập nhật trạng thái `[x]` vào file này và ghi chú ngắn gọn các file quan trọng vừa tạo.*
 
+## Bộ automation mặc định và đối chiếu yêu cầu — 28/10/2026
+
+- [x] E2E mặc định dùng duy nhất `automation_test/pytest.ini`: features + reviews/test_shared_saas.py. Runner chạy từ automation_test, giữ path/node từ root và option-only `-k`; explicit path vẫn chạy riêng. Không collect backend hoặc review probes lịch sử trong bộ mặc định.
+- [x] Collection thật: **271 E2E (11 shared SaaS, không trùng)** và **156 backend**, gồm auto-migration. Harness **30/30 PASS (2.653s)**. Đây là kiểm tra lựa chọn test/runner, không gọi là full nghiệp vụ PASS.
+- [x] Viết [TEST_COVERAGE.md](TEST_COVERAGE.md), đối chiếu **31 nhóm yêu cầu / 61 tham chiếu test** đã kiểm tra tồn tại; ghi rõ 10 khoảng trống/giới hạn. Thêm automation_test/README.md và cập nhật release runbook. Chưa đo line/branch coverage.
+- [x] Smoke production chọn shared SaaS bằng `-- -k canonical_login_routes_brand_manifest_and_worker` qua bộ mặc định: **1/1 PASS (4.53s), 270 deselected**. Build/TypeScript và SSR/rewrite isolation PASS; QA riêng đã dọn, không chạm dữ liệu ứng dụng. Không gọi đây là lượt full 271 E2E hoặc 156 backend đều PASS.
+
+## Cập nhật startup — 28/10/2026
+
+- [x] PO yêu cầu giữ Start Command Uvicorn và tự detect version/migrate khi cần. FastAPI lifespan gọi prepare_database_schema: đọc revision runtime, chỉ chạy Alembic subprocess khi chưa ở head, giữ advisory lock nhiều worker và verify schema/ownership sau nâng. Migration lỗi thì dừng trước API/worker; không tự mapping/seed/reset. start_service cũ vẫn tương thích.
+- [x] Kiểm thử riêng `tests/test_startup.py`: **13/13 PASS (13.02s)** trên DB QA tạm, gồm DB trống/0011, hai lifespan đồng thời, lần boot tiếp không nâng lại, lỗi migration không mở API/không lộ output con và production unmapped vẫn bị chặn. Không chạy migration vào DB ứng dụng, không đổi .env hoặc settings dịch vụ đang deploy.
+
 ## Đọc trước khi bắt đầu task: định hướng đa chi nhánh
 
 - **28/10/2026 — PO duyệt triển khai toàn bộ P0–P6 theo thứ tự.** Đã chốt phần mã nguồn shared SaaS và QA local trên FastAPI + Next.js + PostgreSQL; vẫn giữ tenant_id là chi nhánh, không tự gộp dữ liệu/tài khoản cũ. QA dùng DB/container tạm, chưa áp migration/mapping vào DB ứng dụng, chưa deploy/mua hosting.

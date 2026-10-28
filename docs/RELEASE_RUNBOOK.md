@@ -4,7 +4,7 @@
 
 Đợt triển khai mới dùng một deployment nhiều chủ, từng spa có scope/nhận diện/PWA. Trước thao tác release/migration, ưu tiên [runbook shared SaaS](SHARED_SAAS_MIGRATION_RUNBOOK.md) và [báo cáo QA](SHARED_SAAS_IMPLEMENTATION_REPORT.md). Các mục deployment riêng/0005 và đường dẫn cũ bên dưới là lịch sử, không phải lệnh cutover 0012.
 
-QA hiện hành: backend dùng `docker compose exec -T backend python -m scripts.test_isolated`; E2E dùng `python -B -m automation_test.run_ui_qa`; tải ba spa + backup/restore chỉ trên QA tạm dùng `python -B -m automation_test.run_shared_pilot` (Python có dependencies tại `automation_test/.venv/Scripts/python.exe`). Không chạy seed_demo/test/load hoặc rehearsal dump trên DB ứng dụng như một phần kiểm thử mặc định.
+QA hiện hành: backend dùng `docker compose exec -T backend python -m scripts.test_isolated`; E2E dùng `python -B -m automation_test.run_ui_qa` (mặc định features + shared SaaS theo pytest.ini); tải ba spa + backup/restore chỉ trên QA tạm dùng `python -B -m automation_test.run_shared_pilot` (Python có dependencies tại `automation_test/.venv/Scripts/python.exe`). Không chạy seed_demo/test/load hoặc rehearsal dump trên DB ứng dụng như một phần kiểm thử mặc định.
 
 PWA/push mới phải mở `/s/{spa_slug}/admin/bookings` hoặc `/s/{spa_slug}/b/{branch_slug}/appointments`, xác minh còn quyền trước xem dữ liệu. Kiểm tra hai spa trên cùng thiết bị với scope/worker riêng. Cần nghiệm thu Android/iOS thật trên HTTPS; browser QA không thay bằng chứng này.
 
@@ -263,4 +263,9 @@ Trước nghiệm thu ngoài local: HTTPS và Android/iPhone thật (quyền th�
 Phụ thuộc mới qrcode và jspdf dùng tại trình duyệt cho xuất tài liệu. npm audit hiện còn cảnh báo của Next 14.2.15/PostCSS sẵn có; không tự nâng major Next trong đợt này. Cần xử lý riêng trước chốt production security readiness.
 
 ## Hotfix deploy Render 0.2.1
-Xem [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md). Với Root Directory=backend và Build=pip install -r requirements.txt, Start Command phải là `python -m scripts.start_service`. Uvicorn trực tiếp không chạy migration. Lifespan từ chối schema cũ trước khi mở API/worker; advisory lock serialize DDL. Migration phải dùng MIGRATION_DATABASE_URL có quyền owner/DDL trỏ đúng database runtime; backup trước nâng cấp. /health 200 chỉ xuất hiện sau khi startup schema guard đạt; vẫn cần kiểm tra nghiệp vụ và release FE/BE. Không tự reset DB hoặc stamp head khi gặp tenants.address does not exist.
+Xem [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md). Với Root Directory=backend và Build=pip install -r requirements.txt, Start Command có thể cố định `uvicorn app.main:app --host 0.0.0.0 --port $PORT`: lifespan tự phát hiện revision và chạy Alembic khi thiếu migration. `python -m scripts.start_service` vẫn hỗ trợ kiểm tra kết nối/bootstrap operator. Lifespan từ chối schema cũ trước khi mở API/worker; advisory lock serialize DDL. Migration phải dùng MIGRATION_DATABASE_URL có quyền owner/DDL trỏ đúng database runtime; backup trước nâng cấp. /health 200 chỉ xuất hiện sau khi startup schema guard đạt; vẫn cần kiểm tra nghiệp vụ và release FE/BE. Không tự reset DB hoặc stamp head khi gặp tenants.address does not exist.
+
+
+## Đối chiếu automation hiện hành — 28/10/2026
+
+Xem [TEST_COVERAGE](TEST_COVERAGE.md): 31 nhóm yêu cầu/61 test references, phạm vi mặc định và các gate còn thiếu. Bộ E2E mặc định đã gồm shared SaaS; không cần thêm path reviews/test_shared_saas.py khi chạy toàn bộ. Explicit path chỉ chạy phần được chọn. Collection kiểm tra được 156 backend/271 E2E, không phải kết quả tất cả ca đã chạy đạt. Native PWA/push, clock và cutover dữ liệu thật vẫn cần nghiệm thu tương ứng.

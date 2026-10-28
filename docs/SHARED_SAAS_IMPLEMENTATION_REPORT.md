@@ -65,3 +65,10 @@ Backup QA **197,226 bytes**; restore PostgreSQL 16 tạm, **31 bảng khớp row
 4. **Dữ liệu thật:** inventory/mapping từng chủ được đối chiếu trên bản sao; cutover/mua dịch vụ/deploy thực hiện theo chỉ thị riêng. Không tự áp schema/mapping vào database đang dùng.
 
 Thao tác vận hành xem [runbook](SHARED_SAAS_MIGRATION_RUNBOOK.md), chi tiết kiến trúc xem [technical design](SHARED_SAAS_TECHNICAL_DESIGN.md), endpoint xem [API_CONTRACT](API_CONTRACT.md).
+
+
+## Gộp automation mặc định — 28/10/2026
+
+`automation_test/pytest.ini` hiện chọn features và shared SaaS; runner dùng config này, chạy từ automation_test, vẫn giữ các path/node được chỉ định từ root. Collection thực tế **271 E2E (11 shared, không trùng)** / **156 backend**. Harness **30/30 PASS**, production smoke chọn test shared từ bộ mặc định **1/1 PASS (4.53s), 270 deselected**, build/TypeScript và isolation PASS. Đây là chứng minh selection/runner và một smoke, không thay full regression sạch của mã cuối.
+
+Xem [TEST_COVERAGE](TEST_COVERAGE.md): 31 nhóm yêu cầu/61 tham chiếu test đã xác minh tồn tại; các khoảng trống về qua ngày mới, legacy quota/STAFF reactivation, native PWA/push, cutover, vận hành, tải dài hạn, clock/full run và line/branch coverage được đánh dấu rõ.
