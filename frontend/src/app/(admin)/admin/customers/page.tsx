@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { CustomerVisits } from "@/components/admin/customer-visits";
 import { PackageHistory } from "@/components/package-history";
 import { RecoveryLink } from "@/components/admin/recovery-link";

@@ -180,8 +180,19 @@ async def test_push_retry_survives_failure_without_duplicate_in_app(client, monk
         await set_tenant_context(db, tenant_id)
         job = (await db.execute(select(NotificationDispatch).where(NotificationDispatch.tenant_id == tenant_id))).scalar_one()
         assert job.delivered_at is None
+        attempts = job.attempts
         job.next_attempt_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         await db.commit()
+    if attempts == 0:
+        # The initial background drain may precede the DB default due timestamp.
+        # Drive the first attempt explicitly instead of relying on clock timing.
+        await drain_push(tenant_id)
+        async with AsyncSessionLocal() as db:
+            await set_tenant_context(db, tenant_id)
+            job = (await db.execute(select(NotificationDispatch).where(NotificationDispatch.tenant_id == tenant_id))).scalar_one()
+            assert job.attempts == 1 and job.delivered_at is None
+            job.next_attempt_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+            await db.commit()
     await drain_push(tenant_id)
     assert len(sent) == 2
     assert len((await client.get(B + "/notifications", headers=c["ah"])).json()["items"]) == 1

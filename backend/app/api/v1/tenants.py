@@ -13,7 +13,7 @@ tenants_router = APIRouter(prefix="/tenants", tags=["tenants"])
 
 
 @public_router.get("/tenants/{slug}", response_model=PublicTenantOut)
-async def get_public_tenant_info(slug: str, db: AsyncSession = Depends(get_db)) -> PublicTenantOut:
+async def get_public_tenant_info(slug: str, day: str | None = None, db: AsyncSession = Depends(get_db)) -> PublicTenantOut:
     result = await db.execute(select(Tenant).where(Tenant.slug == slug.strip().lower()))
     tenant = result.scalar_one_or_none()
     if tenant is None or tenant.status != "ACTIVE":
@@ -28,18 +28,28 @@ async def get_public_tenant_info(slug: str, db: AsyncSession = Depends(get_db)) 
             .order_by(Service.is_package, Service.name)
         )
     ).scalars().all()
-    from app.services.branding_service import get_branding
-    branding = await get_branding(db)
+    from app.services.spa_service import tenant_spa
+    spa = await tenant_spa(db, tenant.id)
     staff = (await db.execute(select(User.id, User.full_name).where(
         User.tenant_id == tenant.id, User.role == UserRole.STAFF, User.is_active.is_(True)
     ).order_by(User.full_name, User.id))).all()
+    if day:
+        from datetime import date
+        from app.services.assignment_service import effective_windows
+        try:
+            selected_day = date.fromisoformat(day)
+        except ValueError:
+            raise HTTPException(422, "Ngày không hợp lệ")
+        windows = await effective_windows(db, tenant, [row.id for row in staff], selected_day)
+        staff = [row for row in staff if windows[row.id]]
     return PublicTenantOut(
+        spa_slug=spa.slug,
         id=tenant.id,
         slug=tenant.slug,
         name=tenant.name,
         address=tenant.address, contact_phone=tenant.contact_phone,
-        logo_url=tenant.logo_url,
-        theme_color=branding.theme_color if branding.configured else tenant.theme_color,
+        logo_url=tenant.logo_url or spa.logo_url,
+        theme_color=spa.theme_color,
         open_time=tenant.open_time,
         close_time=tenant.close_time,
         buffer_minutes=tenant.buffer_minutes,

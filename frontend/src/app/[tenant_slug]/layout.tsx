@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { CustomerTenantProvider } from "@/components/customer/customer-context";
 import { CustomerShell } from "@/components/customer/customer-shell";
 import type { PublicTenantResponse } from "@/lib/types";
@@ -29,6 +30,8 @@ export async function generateMetadata({
   params: { tenant_slug: string };
 }): Promise<Metadata> {
   const tenant = await getTenantBranding(params.tenant_slug);
+  const spa = headers().get("x-spa-slug");
+  if(spa)return {manifest:`/s/${spa}/manifest.webmanifest`};
   const title = tenant
     ? `${tenant.name} — Đặt lịch Online | SpaOS`
     : "SpaOS - Đặt lịch & Quản lý Spa";

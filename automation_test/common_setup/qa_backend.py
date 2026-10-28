@@ -11,7 +11,7 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 
 @contextmanager
-def qa_backend():
+def qa_backend(*, metadata=None):
     suffix = uuid.uuid4().hex
     name, database = "spaos-e2e-qa-" + suffix, "spaos_e2e_" + suffix
     def command(args, check=True, input=None):
@@ -33,11 +33,14 @@ def qa_backend():
             for line in attached.stdout:
                 if "authentication" in line.lower():
                     print(line.rstrip(), flush=True)
+                elif "QueuePool limit" in line:
+                    print("QA database connection pool exhausted", flush=True)
         reader = threading.Thread(target=forward_diagnostics, daemon=True)
         reader.start()
         port = command(["docker", "port", name, "8000"]).stdout.strip().rsplit(":", 1)[1]
         url = "http://127.0.0.1:" + str(int(port))
-        for _ in range(120):
+        deadline=time.monotonic()+120
+        while time.monotonic()<deadline:
             try:
                 if httpx.get(url+"/health", timeout=1).status_code == 200:
                     break
@@ -46,6 +49,8 @@ def qa_backend():
             time.sleep(.25)
         else:
             raise RuntimeError("Operator QA backend did not become ready")
+        if metadata is not None:
+            metadata.update(container=name, database=database)
         yield url
     finally:
         if started:

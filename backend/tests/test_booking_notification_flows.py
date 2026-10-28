@@ -87,7 +87,7 @@ async def test_counter_single_booking_notifies_customer(client, monkeypatch, as_
     customer_notes = await notes(client, c["ch"])
     assert len(customer_notes) == 1 and customer_notes[0]["type"] == "BOOKING_CREATED"
     assert customer_notes[0]["title"] == "Bạn có lịch hẹn mới"
-    assert len(sent) == 1 and sent[0]["url"] == f"/{c['slug']}/appointments?booking_id={bk['id']}"
+    assert len(sent) == 1 and sent[0]["url"] == f"/s/{c['slug']}/b/{c['slug']}/appointments?booking_id={bk['id']}&target_branch={bk['tenant_id']}"
     assert sent[0]["booking_id"] == bk["id"]
     assert await notes(client, owner["h"]) == []
     assert await notes(client, c["ah"]) == []

@@ -1,5 +1,12 @@
 export type UserRole = "ADMIN" | "STAFF" | "CUSTOMER";
 
+export interface SpaBrand {
+  id: string; slug: string; name: string; theme_color: string;
+  logo_url: string | null; cover_url: string | null; contact_phone: string | null;
+  is_owner?: boolean;
+  plan?: {price_usd:number; branch_limit:number; staff_limit:number; branches:number; staff:number};
+}
+
 export interface AuthUser {
   id: string;
   tenant_id: string;
@@ -10,6 +17,7 @@ export interface AuthUser {
 }
 
 export interface TokenResponse {
+  spa_slug?: string | null;
   access_token: string;
   token_type: string;
   expires_in: number;
@@ -31,6 +39,7 @@ export interface TenantInfo {
 }
 
 export interface MeResponse {
+  spa?: SpaBrand | null;
   user: AuthUser;
   tenant: TenantInfo;
 }
@@ -47,6 +56,7 @@ export interface ServiceItem {
 }
 
 export interface PublicTenantResponse {
+  spa_slug?: string;
   address?: string | null;
   contact_phone?: string | null;
   id: string;

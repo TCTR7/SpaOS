@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { spaPath } from "@/lib/spa-path";
 import { SpaLogo } from "@/components/spa-logo";
 import { ImageCropper } from "@/components/image-cropper";
 import { useBranchGuard } from "@/lib/branch-guard";
@@ -134,7 +135,7 @@ export default function AdminSettingsPage(): React.ReactElement {
           </CardTitle>
           <CardDescription>
             Đường dẫn đặt lịch công khai cho khách hàng:{" "}
-            <code className="font-semibold text-primary">/{slug}</code>
+            <code className="font-semibold text-primary">{spaPath("/"+slug)}</code>
           </CardDescription>
         </CardHeader>
 

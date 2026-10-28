@@ -101,10 +101,10 @@ export async function customerApiRequest<T>(
 
 // ------------------------- Public Tenant & Services -------------------------
 export async function fetchPublicTenant(
-  slug: string
+  slug: string, day?:string
 ): Promise<PublicTenantResponse> {
   return customerApiRequest<PublicTenantResponse>(
-    `/public/tenants/${encodeURIComponent(slug.trim().toLowerCase())}`,
+    `/public/tenants/${encodeURIComponent(slug.trim().toLowerCase())}`+(day?"?day="+encodeURIComponent(day):""),
     { slug }
   );
 }

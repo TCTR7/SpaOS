@@ -27,12 +27,16 @@ const nextConfig = {
     }] : [];
   },
   async rewrites() {
-    return [
+    return {beforeFiles:[
+      {source:"/s/:spa_slug/admin/:path*",destination:"/admin/:path*"},
+      {source:"/s/:spa_slug/b/:tenant_slug/:path*",destination:"/:tenant_slug/:path*"},
+      {source:"/s/:spa_slug",destination:"/"},
+    ],afterFiles:[
       {
         source: "/api/v1/:path*",
         destination: `${backendOrigin}/api/v1/:path*`,
       },
-    ];
+    ],fallback:[]};
   },
 };
 

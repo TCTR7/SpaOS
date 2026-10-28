@@ -8,8 +8,8 @@ import { ContactLinks } from "@/components/contact-links";
 import { NetworkStatus } from "@/components/network-status";
 import { useBrandColor } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from "@/components/spa-link";
+import { usePathname } from "@/lib/spa-navigation";
 import {
   MoreHorizontal,
   CircleHelp,

@@ -1,5 +1,14 @@
 # Chạy thử trước phát hành SpaOS
 
+## Shared SaaS 0012 — hướng dẫn hiện hành (28/10/2026)
+
+Đợt triển khai mới dùng một deployment nhiều chủ, từng spa có scope/nhận diện/PWA. Trước thao tác release/migration, ưu tiên [runbook shared SaaS](SHARED_SAAS_MIGRATION_RUNBOOK.md) và [báo cáo QA](SHARED_SAAS_IMPLEMENTATION_REPORT.md). Các mục deployment riêng/0005 và đường dẫn cũ bên dưới là lịch sử, không phải lệnh cutover 0012.
+
+QA hiện hành: backend dùng `docker compose exec -T backend python -m scripts.test_isolated`; E2E dùng `python -B -m automation_test.run_ui_qa`; tải ba spa + backup/restore chỉ trên QA tạm dùng `python -B -m automation_test.run_shared_pilot` (Python có dependencies tại `automation_test/.venv/Scripts/python.exe`). Không chạy seed_demo/test/load hoặc rehearsal dump trên DB ứng dụng như một phần kiểm thử mặc định.
+
+PWA/push mới phải mở `/s/{spa_slug}/admin/bookings` hoặc `/s/{spa_slug}/b/{branch_slug}/appointments`, xác minh còn quyền trước xem dữ liệu. Kiểm tra hai spa trên cùng thiết bị với scope/worker riêng. Cần nghiệm thu Android/iOS thật trên HTTPS; browser QA không thay bằng chứng này.
+
+
 ## Kiểm thử tải local/staging
 
 Chạy từ root sau khi backend và PostgreSQL đã sẵn sàng:

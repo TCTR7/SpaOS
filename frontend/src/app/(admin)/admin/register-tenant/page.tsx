@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/spa-link";
+import { useRouter } from "@/lib/spa-navigation";
 import { Sparkles } from "lucide-react";
 import { registerTenant, saveAuthSession } from "@/lib/api";
 import { useAdminAuth } from "@/components/admin/auth-context";

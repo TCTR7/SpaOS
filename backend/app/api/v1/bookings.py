@@ -71,7 +71,10 @@ async def create_booking(
 ) -> BookingOut:
     booking = await svc.create_booking(db, tenant_id, user, body)
     background_tasks.add_task(drain_events, tenant_id)
-    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    result = (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    # Release response reads before background outbox work.
+    await db.commit()
+    return result
 
 
 @router.get("", response_model=List[BookingOut])
@@ -136,7 +139,10 @@ async def get_booking(
     booking = await svc.get_booking_full(db, tenant_id, booking_id)
     if booking is None or (user.role == UserRole.CUSTOMER and booking.customer_id != user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch hẹn")
-    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    result = (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    # Release response reads before background outbox work.
+    await db.commit()
+    return result
 
 
 @router.get("/{booking_id}/available-slots", response_model=AvailableSlotsOut)
@@ -180,7 +186,10 @@ async def update_status(
 ) -> BookingOut:
     booking, changed = await svc.update_booking_status(db, tenant_id, booking_id, body.status, actor=user)
     if changed: background_tasks.add_task(drain_events, tenant_id)
-    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    result = (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    # Release response reads before background outbox work.
+    await db.commit()
+    return result
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingOut)
@@ -193,7 +202,10 @@ async def cancel_booking(
 ) -> BookingOut:
     booking, changed = await svc.cancel_booking(db, tenant_id, user, booking_id)
     if changed: background_tasks.add_task(drain_events, tenant_id)
-    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    result = (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    # Release response reads before background outbox work.
+    await db.commit()
+    return result
 
 
 @router.patch("/{booking_id}", response_model=BookingOut)
@@ -204,4 +216,7 @@ async def edit_booking(booking_id: uuid.UUID, body: BookingUpdate,
                        db: AsyncSession = Depends(get_tenant_db)):
     booking = await svc.reschedule_booking(db, tenant_id, user, booking_id, body)
     background_tasks.add_task(drain_events, tenant_id)
-    return (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    result = (await svc.present_bookings(db, tenant_id, [booking], actor=user))[0]
+    # Release response reads before background outbox work.
+    await db.commit()
+    return result

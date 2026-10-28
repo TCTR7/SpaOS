@@ -2,14 +2,16 @@
 
 import * as React from "react";
 import { SpaLogo } from "@/components/spa-logo";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { CalendarPlus, Clock, Sparkles, Ticket } from "lucide-react";
 import { useCustomerTenant } from "@/components/customer/customer-context";
 import { formatCurrency } from "@/lib/utils";
 import { Badge, Card, CardContent } from "@/components/ui/card";
+import { useBranding } from "@/components/brand-provider";
 
 export default function TenantPublicHomePage(): React.ReactElement | null {
   const { tenant } = useCustomerTenant();
+  const { branding } = useBranding();
   const [filterType, setFilterType] = React.useState<
     "all" | "single" | "package"
   >("all");
@@ -33,6 +35,7 @@ export default function TenantPublicHomePage(): React.ReactElement | null {
 
   return (
     <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
+      {branding.cover_url && <img src={branding.cover_url} alt={`Ảnh bìa ${branding.name || tenant.name}`} className="max-h-64 w-full rounded-2xl object-cover" />}
       {/* Hero Banner */}
       <div
         className="rounded-2xl p-5 text-white shadow-md space-y-3"

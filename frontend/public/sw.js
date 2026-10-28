@@ -56,10 +56,12 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const data = event.notification.data || {};
-  let targetPath = "/";
+  let targetPath = new URL(self.registration.scope).pathname;
   try {
     const target = new URL(data.url || "/admin/bookings", self.location.origin);
-    if (target.origin === self.location.origin && /^\/(?:admin\/bookings|[^/]+\/appointments)(?:$|\?)/.test(target.pathname + target.search)) targetPath = target.pathname + target.search;
+    const allowed = /^\/(?:s\/[a-z0-9-]+\/(?:admin\/bookings|b\/[^/]+\/appointments)|admin\/bookings|[^/]+\/appointments)(?:$|\?)/;
+    const scope = new URL(self.registration.scope).pathname;
+    if (target.origin === self.location.origin && allowed.test(target.pathname + target.search) && (scope === "/" || target.pathname.startsWith(scope))) targetPath = target.pathname + target.search;
   } catch { /* Fall back to the branch chooser. */ }
   // Open another window so a notification never replaces an unfinished form.
   event.waitUntil(self.clients.openWindow ? self.clients.openWindow(targetPath) : Promise.resolve());

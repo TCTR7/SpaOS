@@ -4,6 +4,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from contextvars import ContextVar
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import delete, select, or_, text
@@ -15,6 +16,20 @@ from app.services.booking_service import TZ
 
 logger = logging.getLogger("spaos.notifications")
 _current_event = ContextVar("notification_event", default=None)
+_current_session = ContextVar("notification_session", default=None)
+
+
+@asynccontextmanager
+async def notification_session(tenant_id):
+    """Outbox delivery shares its transaction, never waits for a second connection."""
+    shared = _current_session.get()
+    if shared is not None:
+        yield shared
+    else:
+        async with AsyncSessionLocal() as session:
+            await set_tenant_context(session, tenant_id)
+            yield session
+            await session.commit()
 
 _STATUS_TITLES = {
     "CREATED": "Bạn có lịch hẹn mới",
@@ -62,12 +77,11 @@ async def _send_one(sub: Dict[str, str], payload: str) -> Optional[int]:
 
 
 async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, booking_id: uuid.UUID) -> None:
-    """Lưu thông báo in-app (1 transaction riêng) rồi bắn Web Push tới các thiết bị đã đăng ký."""
+    """Lưu thông báo cùng transaction outbox, hoặc tự mở một transaction độc lập."""
     if not drafts:
         return
     jobs: List[Dict[str, Any]] = []
-    async with AsyncSessionLocal() as session:
-        await set_tenant_context(session, tenant_id)
+    async with notification_session(tenant_id) as session:
         customer_id = (await session.execute(select(Booking.customer_id).where(
             Booking.id == booking_id, Booking.tenant_id == tenant_id))).scalar_one_or_none()
         if customer_id is None:
@@ -126,13 +140,18 @@ async def _deliver(tenant_id: uuid.UUID, drafts: List[Draft], ntype: str, bookin
             ).scalars().all()
             by_user: Dict[uuid.UUID, Notification] = {n.user_id: n for n in rows}
             urls = {d.user_id: d.url for d in drafts}
+            from app.services.spa_service import tenant_spa
+            spa = await tenant_spa(session, tenant_id)
+            tenant = (await session.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one()
             for s in subs:
                 n = by_user[s.user_id]
+                relative = urls[s.user_id]
+                canonical = f"/s/{spa.slug}" + ("" if relative.startswith("/admin/") else "/b") + relative
                 session.add(NotificationDispatch(tenant_id=tenant_id, notification_id=n.id, subscription_id=s.id,
-                    url=urls[s.user_id] + "?booking_id=" + str(booking_id)))
-        await session.commit()
-    from app.services.notification_queue import drain_push
-    await drain_push(tenant_id)
+                    url=canonical + "?booking_id=" + str(booking_id) + "&target_branch=" + str(tenant_id)))
+    if _current_session.get() is None:
+        from app.services.notification_queue import drain_push
+        await drain_push(tenant_id)
 
 
 
@@ -147,8 +166,7 @@ async def notify_booking_event(
     """
     event_token = _current_event.set(event_id)
     try:
-        async with AsyncSessionLocal() as session:
-            await set_tenant_context(session, tenant_id)
+        async with notification_session(tenant_id) as session:
             booking = (
                 await session.execute(select(Booking).where(Booking.id == booking_id, Booking.tenant_id == tenant_id))
             ).scalar_one_or_none()

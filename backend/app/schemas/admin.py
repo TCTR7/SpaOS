@@ -100,6 +100,7 @@ class PublicStaffOut(BaseModel):
 
 class PublicTenantOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    spa_slug: str | None = None
 
     id: uuid.UUID
     slug: str
@@ -136,6 +137,7 @@ class UserDetailOut(BaseModel):
 
 
 class StaffCreate(BaseModel):
+    branch_ids: List[uuid.UUID] = Field(default_factory=list, max_length=20)
     full_name: str = Field(min_length=1, max_length=255)
     phone_number: str
     password: str = Field(min_length=6, max_length=128)

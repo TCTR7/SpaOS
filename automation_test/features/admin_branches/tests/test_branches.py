@@ -41,20 +41,23 @@ def test_owner_grants_staff_and_staff_logs_in_without_slug(scenario):
     with staff_page.expect_response(lambda r: r.url.endswith("/auth/login")) as login:
         staff_page.get_by_role("button", name="Đăng nhập").click()
     assert login.value.status == 200
-    expect(staff_page).to_have_url(config.frontend_url + "/admin/bookings")
+    expect(staff_page).to_have_url(config.frontend_url + "/s/"+s["slug"]+"/admin/bookings")
     expect(staff_page.locator("#activeBranch option")).to_have_count(2)
     expect(staff_page.locator("#activeBranch option[value='all']")).to_have_count(0)
     staff_page.locator("#activeBranch").select_option(branch["id"])
     expect(staff_page.locator("#activeBranch")).to_have_value(branch["id"])
-    staff_page.goto(config.frontend_url + "/admin/branches")
+    staff_page.goto(config.frontend_url + "/s/"+s["slug"]+"/admin/branches")
     expect(staff_page.get_by_role("alert").filter(has_text="Bạn chưa thể quản lý chi nhánh")).to_be_visible()
 
 def test_public_home_selects_branch_by_name_and_preserves_customer_route(scenario):
     s = scenario
     page = s["page"]("", True)
-    page.goto(config.frontend_url + "/")
-    choice = page.locator('a[href="/' + s["slug"] + '"]')
+    # Public root no longer exposes the entire shared deployment directory.
+    s["call"]("POST","/branches",json={"name":"Another public branch"})
+    page.goto(config.frontend_url + "/s/"+s["slug"]+"/")
+    path="/s/"+s["slug"]+"/b/"+s["slug"]
+    choice = page.locator('a[href="'+path+'"]')
     expect(choice).to_be_visible()
     choice.click()
-    expect(page).to_have_url(s["url"])
+    expect(page).to_have_url(config.frontend_url+path)
     expect(page.get_by_text("QA Treatment", exact=True)).to_be_visible()

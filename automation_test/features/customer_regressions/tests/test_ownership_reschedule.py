@@ -14,6 +14,7 @@ def test_admin_transfers_profile_and_old_staff_only_retains_assigned_booking(sce
     first_token = api_helper.login(s["slug"], s["staff"]["phone_number"], "Staff@123")["access_token"]
     second_token = api_helper.login(s["slug"], second["phone_number"], "Staff@123")["access_token"]
     first, second_page = s["page"](first_token, True), s["page"](second_token, True)
+    second_page.add_init_script("localStorage.setItem('spaos_guide_v2_MANAGEMENT_" + second["id"] + "','seen')")
     first.goto(config.frontend_url + "/admin/customers")
     expect(first.get_by_text("QA Customer", exact=True).first).to_be_visible()
     second_page.goto(config.frontend_url + "/admin/customers")

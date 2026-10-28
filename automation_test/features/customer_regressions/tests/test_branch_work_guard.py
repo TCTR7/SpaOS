@@ -33,7 +33,8 @@ def blocked(page, target, text):
 @pytest.mark.parametrize("target_scope", ["branch", "all"])
 def test_dirty_branch_confirmation_cancel_and_discard(scenario, target_scope):
     s = scenario
-    target = branch(s) if target_scope == "branch" else "all"
+    created = branch(s)
+    target = created if target_scope == "branch" else "all"
     page = open_admin(s)
     writes = []
     page.on("request", lambda r: writes.append(r.url) if r.method == "PATCH" else None)
@@ -62,7 +63,9 @@ def test_other_tab_dirty_blocks_switch_then_session_clears_old_ui(scenario):
     blocked(other, target, "Tab khác còn form")
     first.locator("#spaName").fill("QA Spa")
     first.wait_for_function("async()=> !(await navigator.locks.query()).held.some(l=>l.name==='spaos-admin-branch-work')")
-    other.locator("#activeBranch").select_option(target)
+    with other.expect_response(lambda r:r.url.endswith("/branches/"+target+"/switch")) as switched:
+        other.locator("#activeBranch").select_option(target)
+    assert switched.value.status==200
     expect(other.locator("#activeBranch")).to_have_value(target)
     expect(first.locator("#activeBranch")).to_have_value(target)
     expect(first.locator("#spaName")).to_have_count(0)
@@ -89,7 +92,10 @@ def test_other_tab_pending_write_blocks_branch_until_response(scenario):
     held[0][0].fulfill(response=held[0][1])
     expect(first.locator("#spaName")).to_have_value("Saved after response")
     first.wait_for_function("async()=> !(await navigator.locks.query()).held.some(l=>l.name==='spaos-admin-branch-work')")
-    other.locator("#activeBranch").select_option(target)
+    expect(first.get_by_text("Đã lưu cấu hình Spa thành công!",exact=True)).to_be_visible()
+    with other.expect_response(lambda r:r.url.endswith("/branches/"+target+"/switch")) as switched:
+        other.locator("#activeBranch").select_option(target)
+    assert switched.value.status==200
     expect(other.locator("#activeBranch")).to_have_value(target)
 
 

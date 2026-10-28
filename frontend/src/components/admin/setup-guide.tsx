@@ -1,9 +1,10 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { ArrowUpRight, CheckCircle2, ChevronDown, ClipboardList, Copy, Settings, Sparkles, Users } from "lucide-react";
 import { setupSummary, type SetupSummary } from "@/lib/experience-api";
 import { Button } from "@/components/ui/button";
+import { spaPath } from "@/lib/spa-path";
 export function SetupGuide(): React.ReactElement {
   const [data, setData] = React.useState<SetupSummary | null>(null), [error, setError] = React.useState(false), [attempt, setAttempt] = React.useState(0);
   const [copyMessage, setCopyMessage] = React.useState("");
@@ -37,8 +38,8 @@ export function SetupGuide(): React.ReactElement {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-muted/50 p-4">
           <div className="min-w-0 flex-1"><h3 className="text-sm font-semibold">Mời khách đặt lịch online</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Kiểm tra giờ trống trước khi chia sẻ trang đặt lịch với khách.</p></div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={"/" + data.slug + "/book"} target="_blank" rel="noreferrer">Xem trang đặt lịch<ArrowUpRight className="h-4 w-4" /></a>
-            <Button type="button" className="min-h-11 whitespace-normal rounded-lg" onClick={async () => { try { if (!navigator.clipboard) throw new Error(); await navigator.clipboard.writeText(window.location.origin + "/" + data.slug); setCopyMessage("Đã sao chép đường dẫn."); } catch { setCopyMessage("Chưa sao chép được. Bạn có thể sao chép địa chỉ trang đặt lịch trong thanh trình duyệt."); } }}><Copy className="h-4 w-4 shrink-0" />Sao chép đường dẫn cho khách</Button>
+            <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={spaPath("/" + data.slug + "/book")} target="_blank" rel="noreferrer">Xem trang đặt lịch<ArrowUpRight className="h-4 w-4" /></a>
+            <Button type="button" className="min-h-11 whitespace-normal rounded-lg" onClick={async () => { try { if (!navigator.clipboard) throw new Error(); await navigator.clipboard.writeText(window.location.origin + spaPath("/" + data.slug)); setCopyMessage("Đã sao chép đường dẫn."); } catch { setCopyMessage("Chưa sao chép được. Bạn có thể sao chép địa chỉ trang đặt lịch trong thanh trình duyệt."); } }}><Copy className="h-4 w-4 shrink-0" />Sao chép đường dẫn cho khách</Button>
           </div>
           {copyMessage && <p role="status" className="w-full text-sm">{copyMessage}</p>}
         </div>

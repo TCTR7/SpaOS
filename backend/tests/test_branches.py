@@ -87,8 +87,8 @@ async def test_account_membership_rls_and_branch_deactivation(client):
         assert len(links) == 1
         await db.execute(text("UPDATE tenants SET status='INACTIVE' WHERE id=:tid"), {"tid": tid})
         await db.commit()
-    assert (await client.get(f"{B}/services", headers=second)).status_code == 403
-    assert (await client.get(f"{B}/bookings", headers=second)).status_code == 403
+    assert (await client.get(f"{B}/services", headers=second)).status_code == 401
+    assert (await client.get(f"{B}/bookings", headers=second)).status_code == 401
     assert (await client.post(f"{B}/branches/{tid}/switch", headers=c["ah"])).status_code == 404
 
 @pytest.mark.asyncio

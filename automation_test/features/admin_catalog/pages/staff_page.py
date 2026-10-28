@@ -25,4 +25,4 @@ class AdminStaffPage(BasePage):
         self.click_by_text("Lưu Kỹ thuật viên")
 
     def save_week_schedule(self) -> None:
-        self.click_by_text("Lưu lịch tuần")
+        self.click_by_text("Lưu phân công tuần")

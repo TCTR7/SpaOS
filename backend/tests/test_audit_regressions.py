@@ -25,6 +25,13 @@ async def test_create_and_complete_package_do_not_deadlock(client, monkeypatch):
     package_locked, completion_started = asyncio.Event(), asyncio.Event()
     original_packages, original_booking = svc._lock_packages, svc.get_booking_full
     original_access = svc.booking_access
+    from app.services import assignment_service
+    original_workforce = assignment_service.lock_workforce
+    async def lock_workforce(*args, **kwargs):
+        if asyncio.current_task().get_name() == "audit-complete":
+            completion_started.set()
+        return await original_workforce(*args, **kwargs)
+    monkeypatch.setattr(assignment_service, "lock_workforce", lock_workforce)
 
     async def access(*args, **kwargs):
         if asyncio.current_task().get_name() == "audit-complete":

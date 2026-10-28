@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@/lib/spa-navigation";
 import {
   clearAuthSession,
   fetchMe,
@@ -15,9 +15,12 @@ import {
   ADMIN_SESSION_VERSION_KEY,
   ApiError,
   getStoredToken,
+  resolveAdminSession,
   unsubscribeWebPush,
 } from "@/lib/api";
+import { currentAdminBookingTarget, rememberAdminBookingTarget } from "@/lib/admin-booking-target";
 import { withBranchChange, useBranchGuard } from "@/lib/branch-guard";
+import { spaPath, spaSlug, adminStorageKey } from "@/lib/spa-path";
 import type { AuthUser, TenantInfo, BranchAccess, TokenResponse } from "@/lib/types";
 
 interface AdminAuthContextValue {
@@ -57,6 +60,7 @@ export function AdminAuthProvider({
   const [loading, setLoading] = React.useState<boolean>(true);
   const [authError, setAuthError] = React.useState<string | null>(null);
   const operation = React.useRef(0);
+  const detailsRevision = React.useRef(0);
   const [recoveryPending, setRecoveryPending] = React.useState(false);
   React.useEffect(() => {
     const check = (): void => {
@@ -81,6 +85,7 @@ export function AdminAuthProvider({
     const token = getStoredToken();
     setUser(null); setTenant(null); setBranches([]); setAuthError(null); setLoading(true);
     if (!token) {
+      rememberAdminBookingTarget();
       setUser(null);
       setTenant(null);
       setLoading(false);
@@ -93,6 +98,8 @@ export function AdminAuthProvider({
     try {
       const me = await fetchMe();
       if (!current()) return;
+      const expectedSpa = spaSlug(window.location.pathname);
+      if (expectedSpa && me.spa?.slug !== expectedSpa) throw new ApiError(401, "Tài khoản không thuộc spa này");
       if (me.user.role !== "ADMIN" && me.user.role !== "STAFF") {
         clearAuthSession();
         setUser(null);
@@ -105,12 +112,18 @@ export function AdminAuthProvider({
       const verifiedBranches = await fetchBranches();
       if (!current()) return;
       saveVerifiedAdminSlug(me.tenant.slug);
-      setUser(me.user); setTenant(me.tenant); setBranches(verifiedBranches);
+      setUser(me.user); setTenant({...me.tenant, theme_color:me.spa?.theme_color || me.tenant.theme_color, logo_url:me.spa?.logo_url || me.tenant.logo_url}); setBranches(verifiedBranches);
     } catch (error) {
       if (!current()) return;
       if (error instanceof ApiError && error.status === 401) {
-        clearAuthSession();
-        if (!isPublicAuthRoute) router.replace("/admin/login");
+        try {
+          if (await resolveAdminSession()) return;
+          if (!current()) return;
+          clearAuthSession();
+          if (!isPublicAuthRoute) router.replace("/admin/login");
+        } catch {
+          if (current()) setAuthError("Chưa xác minh được quyền chi nhánh. Vui lòng thử lại khi có mạng.");
+        }
       } else {
         setAuthError("Chưa tải được tài khoản và chi nhánh. Vui lòng thử lại.");
       }
@@ -121,13 +134,35 @@ export function AdminAuthProvider({
 
   // Refresh saved branding without unmounting the settings form or losing feedback.
   const reloadTenant = React.useCallback(async (): Promise<void> => {
-    const request = ++operation.current;
+    const request = operation.current;
+    const details = ++detailsRevision.current;
     const session = getAdminSessionIdentity();
     const [me, verifiedBranches] = await Promise.all([fetchMe(), fetchBranches()]);
-    if (operation.current !== request || session !== getAdminSessionIdentity()) return;
+    if (operation.current !== request || details !== detailsRevision.current || session !== getAdminSessionIdentity()) return;
     if (me.user.id !== user?.id || me.tenant.id !== tenant?.id) return;
-    setUser(me.user); setTenant(me.tenant); setBranches(verifiedBranches);
+    // A routine focus check must not reload booking reference data or disturb drafts.
+    const nextTenant={...me.tenant,theme_color:me.spa?.theme_color||me.tenant.theme_color,logo_url:me.spa?.logo_url||me.tenant.logo_url};
+    setUser(previous=>JSON.stringify(previous)===JSON.stringify(me.user)?previous:me.user);
+    setTenant(previous=>JSON.stringify(previous)===JSON.stringify(nextTenant)?previous:nextTenant);
+    setBranches(previous=>JSON.stringify(previous)===JSON.stringify(verifiedBranches)?previous:verifiedBranches);
   }, [user?.id, tenant?.id]);
+
+  React.useEffect(() => {
+    if (!user || isPublicAuthRoute) return;
+    let pending = false;
+    const check = async (): Promise<void> => {
+      if (pending || document.visibilityState !== "visible") return;
+      pending = true;
+      try { await reloadTenant(); }
+      catch (error) { if (error instanceof ApiError && error.status === 401) void refreshMe(); }
+      finally { pending = false; }
+    };
+    const timer = window.setInterval(() => { void check(); }, 30000);
+    const visible = (): void => { void check(); };
+    window.addEventListener("focus", visible);
+    document.addEventListener("visibilitychange", visible);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", visible); document.removeEventListener("visibilitychange", visible); };
+  }, [user?.id, isPublicAuthRoute, reloadTenant, refreshMe]);
 
   React.useEffect(() => {
     void refreshMe();
@@ -184,15 +219,17 @@ export function AdminAuthProvider({
     if (!current()) return;
     setUser(null); setTenant(null); setBranches([]); setLoading(true);
     saveAuthSession(result.access_token, target.tenant.slug);
-    window.location.assign(result.user.role === "ADMIN" ? "/admin/dashboard" : "/admin/bookings");
+    const bookingTarget=currentAdminBookingTarget();
+    const destination=bookingTarget&&new URLSearchParams(window.location.search).get("target_branch")===id?bookingTarget:(result.user.role === "ADMIN" ? "/admin/dashboard" : "/admin/bookings");
+    window.location.assign(spaPath(destination));
   }, discard);
   React.useEffect(() => {
     const changed = (event: StorageEvent): void => {
-      if (event.key === "spaos_admin_token" || event.key === ADMIN_SESSION_VERSION_KEY || event.key === null) {
+      if (event.key === adminStorageKey("spaos_admin_token") || event.key === adminStorageKey(ADMIN_SESSION_VERSION_KEY) || event.key === null) {
         invalidateAdminSessionRequests();
         operation.current += 1;
         setUser(null); setTenant(null); setBranches([]); setLoading(true);
-        window.location.replace("/admin");
+        window.location.replace(spaPath("/admin"));
       }
     };
     const invalidated = (): void => { void refreshMe(); };

@@ -102,7 +102,7 @@ async def owners(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge
         .order_by(OwnerProvision.created_at.desc(), OwnerProvision.id).limit(limit).offset(offset))).scalars().all())
 
 def request_digest(body):
-    payload = body.model_dump(mode="json", exclude={"password", "theme_color"})
+    payload = body.model_dump(mode="json", exclude={"password", "theme_color"}, exclude_none=True)
     if body.theme_color is not None:
         payload["theme_color"] = body.theme_color
     payload["password"] = body.password.get_secret_value()
@@ -120,9 +120,12 @@ async def create_owner(body: OwnerCreate, operator=Depends(get_operator), db: As
         if not hmac.compare_digest(old.request_digest, digest):
             raise HTTPException(409, "Mã yêu cầu đã được dùng với nội dung khác")
         return old
-    if settings.ENVIRONMENT == "production" and (await db.execute(select(Tenant.id).limit(1))).first():
-        raise HTTPException(409, "Hệ thống đã có chi nhánh. Mỗi khách hàng dùng một deployment riêng; không tạo chủ mới trên dữ liệu hiện có.")
-    tenant = Tenant(name=body.branch_name, slug="cn-"+uuid.uuid4().hex)
+    from app.services.spa_service import new_spa
+    spa = await new_spa(db, body.spa_name or body.branch_name, operator_id=operator.id, theme_color=body.theme_color)
+    spa.logo_url, spa.cover_url = body.logo_url, body.cover_url
+    from app.api.v1.spas import apply_images
+    apply_images(spa, body.logo_data, body.cover_data)
+    tenant = Tenant(name=body.branch_name, slug="cn-"+uuid.uuid4().hex, spa_id=spa.id)
     db.add(tenant)
     try:
         await db.flush()
@@ -138,8 +141,6 @@ async def create_owner(body: OwnerCreate, operator=Depends(get_operator), db: As
         db.add(record)
         await db.flush()
         audit(db, tenant.id, None, "OWNER_PROVISIONED", "user", owner.id, {"operator_id": str(operator.id)})
-        if body.theme_color is not None:
-            await save_branding(db, operator.id, body.theme_color)
         result = ProvisionOut.model_validate(record)
         await db.commit()
         return result

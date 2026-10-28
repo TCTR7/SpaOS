@@ -91,9 +91,9 @@ def test_reload_does_not_replay_or_claim_to_restore_unsaved_manual_draft(scenari
     assert page.url.endswith("/admin/bookings")
 
 
-def test_dialog_keeps_branch_theme_when_portaled(scenario):
+def test_dialog_keeps_spa_theme_when_portaled(scenario):
     s = scenario
-    s["call"]("PATCH", "/tenants/me", json={"theme_color": "#000080"})
+    s["call"]("PATCH", "/spas/me", json={"name":"QA Spa","theme_color": "#000080"})
     page = s["page"](s["admin"], True)
     page.route("**/api/v1/branding", lambda route: route.fulfill(json={"theme_color": "#be185d", "configured": False}))
     page.goto(config.frontend_url + "/admin/bookings")

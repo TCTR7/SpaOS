@@ -7,8 +7,8 @@ import { useAvailableSlots } from "@/lib/use-available-slots";
 import { CalendarDownload } from "@/components/customer/calendar-download";
 import { ReschedulePreview } from "@/components/reschedule-preview";
 import { ApiError } from "@/lib/api";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import Link from "@/components/spa-link";
+import { useSearchParams } from "@/lib/spa-navigation";
 import {
   CalendarCheck,
   CalendarClock,

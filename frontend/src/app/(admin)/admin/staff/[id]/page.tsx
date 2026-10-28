@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import Link from "@/components/spa-link";
+import { useParams } from "@/lib/spa-navigation";
 import { ArrowLeft, Camera, Save, Trash2 } from "lucide-react";
 import { StaffAvatar } from "@/components/admin/staff-avatar";
 import { useAdminAuth } from "@/components/admin/auth-context";

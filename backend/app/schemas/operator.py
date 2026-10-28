@@ -13,6 +13,18 @@ from app.schemas.branding import color
 
 class OwnerCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    spa_name: str | None = Field(default=None, min_length=1, max_length=255)
+    logo_url: str | None = Field(default=None, max_length=500)
+    cover_url: str | None = Field(default=None, max_length=500)
+    logo_data: str | None = Field(default=None, max_length=3000000)
+    cover_data: str | None = Field(default=None, max_length=3000000)
+
+    @field_validator("logo_url", "cover_url")
+    @classmethod
+    def local_asset(cls, value):
+        if value and (not value.startswith("/") or value.startswith("//") or "\\" in value):
+            raise ValueError("Ảnh phải nằm trên cùng hệ thống")
+        return value
     theme_color: str | None = None
     _theme = field_validator("theme_color")(lambda v: color(v) if v is not None else None)
     request_id: uuid.UUID

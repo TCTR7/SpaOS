@@ -13,6 +13,7 @@ import {
   unsubscribeCustomerWebPush,
 } from "./customer-api";
 import { urlBase64ToUint8Array } from "./utils";
+import { spaSlug } from "./spa-path";
 
 type Active = () => boolean;
 function sessionGuard(slug: string | undefined, active: Active): () => void {
@@ -54,8 +55,10 @@ export async function registerSpaServiceWorker(): Promise<ServiceWorkerRegistrat
     return null;
   }
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js", {
-      scope: "/",
+    const slug = spaSlug(window.location.pathname);
+    const scope = slug ? `/s/${slug}/` : "/";
+    const registration = await navigator.serviceWorker.register(scope+"sw.js", {
+      scope,
     });
     return registration;
   } catch {

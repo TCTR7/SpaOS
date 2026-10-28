@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { brandImage } from "@/lib/brand-image";
 import { BrandColorPicker } from "@/components/brand-color-picker";
 import { OperatorBranding } from "@/components/operator-branding";
 import { useBranding, announceBranding } from "@/components/brand-provider";
@@ -32,6 +33,7 @@ export default function OperatorPage(): React.ReactElement {
   const [loadAttempt, setLoadAttempt] = React.useState(0);
   const locked = busy || attempt !== null;
   const hasOwners = rows.length > 0 || offset > 0 || success !== null;
+  const [spaName,setSpaName]=React.useState(""),[logoData,setLogoData]=React.useState<string|undefined>(),[coverData,setCoverData]=React.useState<string|undefined>();
   const load = async (page = offset): Promise<void> => setRows(await operatorRequest<OwnerProvision[]>("/owners?limit=50&offset="+page));
   React.useEffect(() => {
     let cancelled = false;
@@ -43,12 +45,13 @@ export default function OperatorPage(): React.ReactElement {
   const create = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault(); if (createFlight.current || busy) return;
     if (!attempt && password !== confirm) { setError("Mật khẩu nhập lại không khớp."); return; }
-    const body = attempt || {request_id: crypto.randomUUID(), branch_name: branch.trim(), owner_full_name: name.trim(), phone_number: phone.trim(), password, theme_color: hasOwners ? branding.theme_color : ownerColor || branding.theme_color};
+    const body = attempt || {request_id: crypto.randomUUID(),spa_name:spaName.trim()||branch.trim(),logo_data:logoData,cover_data:coverData, branch_name: branch.trim(), owner_full_name: name.trim(), phone_number: phone.trim(), password, theme_color: ownerColor || branding.theme_color};
     createFlight.current = true;
     setAttempt(body); setBusy(true); setError(null); setSuccess(null); setMessage("");
     try {
       const record = await operatorRequest<OwnerProvision>("/owners", body);
       setAttempt(null); setPassword(""); setConfirm(""); setBranch(""); setName(""); setPhone(""); setOwnerColor(null);
+      setSpaName("");setLogoData(undefined);setCoverData(undefined);
       await refresh(); announceBranding();
       setSuccess(record); setMessage("Đã tạo tài khoản chủ spa và chi nhánh đầu tiên.");
       setSelectedOwner(record.id);
@@ -76,12 +79,14 @@ export default function OperatorPage(): React.ReactElement {
     </div>}
     {operator && <form onSubmit={(e) => void create(e)} className="grid gap-3 rounded-xl border neu-surface bg-card p-5 sm:grid-cols-2">
       <h2 className="font-bold sm:col-span-2">Tạo chủ spa</h2>
+      <div className="sm:col-span-2"><Label htmlFor="newSpaName">Tên spa / thương hiệu</Label><Input id="newSpaName" maxLength={255} value={spaName} disabled={locked} onChange={e=>setSpaName(e.target.value)} placeholder="Để trống dùng tên chi nhánh đầu"/></div>
+      {([false,true] as const).map(isCover=><div key={String(isCover)}><Label htmlFor={isCover?"newSpaCover":"newSpaLogo"}>{isCover?"Ảnh bìa spa":"Logo spa"}</Label><Input id={isCover?"newSpaCover":"newSpaLogo"} type="file" accept="image/*" disabled={locked} onChange={e=>{const file=e.target.files?.[0];if(file){setBusy(true);void brandImage(file,isCover).then(v=>isCover?setCoverData(v):setLogoData(v)).catch(e=>setError(e instanceof Error?e.message:"Ảnh không hợp lệ")).finally(()=>setBusy(false));}}}/></div>)}
       <div><Label htmlFor="ownerName">Họ tên chủ spa</Label><Input id="ownerName" required maxLength={255} value={name} disabled={locked} onChange={(e) => setName(e.target.value)} /></div>
       <div><Label htmlFor="ownerPhone">Số điện thoại chủ spa</Label><Input id="ownerPhone" type="tel" required value={phone} disabled={locked} onChange={(e) => setPhone(e.target.value)} /></div>
       <div className="sm:col-span-2"><Label htmlFor="firstBranch">Tên chi nhánh đầu tiên</Label><Input id="firstBranch" required maxLength={255} value={branch} disabled={locked} onChange={(e) => setBranch(e.target.value)} /></div>
       <div><Label htmlFor="ownerPassword">Mật khẩu bàn giao</Label><Input id="ownerPassword" type="password" autoComplete="new-password" minLength={8} required value={password} disabled={locked} onChange={(e) => setPassword(e.target.value)} /></div>
       <div><Label htmlFor="ownerConfirm">Nhập lại mật khẩu</Label><Input id="ownerConfirm" type="password" autoComplete="new-password" required value={confirm} disabled={locked} onChange={(e) => setConfirm(e.target.value)} /></div>
-      {!hasOwners && <div className="sm:col-span-2"><BrandColorPicker id="ownerThemeColor" value={ownerColor || branding.theme_color} onChange={setOwnerColor} disabled={locked} /></div>}
+      <div className="sm:col-span-2"><BrandColorPicker id="ownerThemeColor" value={ownerColor || branding.theme_color} onChange={setOwnerColor} disabled={locked} /></div>
       {attempt && !busy && <p className="text-sm sm:col-span-2">Chưa xác nhận được tài khoản đã tạo. Nhấn thử lại để kiểm tra và tiếp tục.</p>}
       <Button type="submit" disabled={busy}>{busy ? "Đang tạo..." : attempt ? "Thử lại tạo tài khoản" : "Tạo tài khoản chủ spa"}</Button>
     </form>}
@@ -92,7 +97,6 @@ export default function OperatorPage(): React.ReactElement {
       {rows.map((row) => <article key={row.id} data-testid="provision-row" className="space-y-2 rounded-xl border p-4 text-sm"><strong>{row.owner_name}</strong><p>{row.phone_number} • {row.branch_name}</p><p className="text-xs text-muted-foreground">{formatDateTimeVN(row.created_at)}</p><Button variant="outline" disabled={locked} onClick={()=>setSelectedOwner(row.id)}>Quản lý & Bàn giao</Button></article>)}
       <div className="flex gap-2"><Button variant="outline" disabled={locked || offset === 0} onClick={() => setOffset(Math.max(0,offset-50))}>Trang trước</Button><Button variant="outline" disabled={locked || rows.length<50} onClick={() => setOffset(offset+50)}>Trang sau</Button></div>
     </section>}
-    {operator && hasOwners && <details className="disclosure"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Cài đặt giao diện</summary><OperatorBranding disabled={locked} /></details>}
     {operator && selectedOwner && <OperatorOwner key={selectedOwner} id={selectedOwner}/>}
   </main>;
 }

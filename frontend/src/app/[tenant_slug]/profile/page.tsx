@@ -4,7 +4,7 @@ import * as React from "react";
 import { ProfileEditor } from "@/components/customer/profile-editor";
 import { PackageHistory } from "@/components/package-history";
 import { customerAuthHref } from "@/lib/customer-return-to";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import {
   CalendarPlus,
   LogOut,

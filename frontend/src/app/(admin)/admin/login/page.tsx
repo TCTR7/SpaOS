@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { PasswordInput } from "@/components/ui/password-input";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/spa-navigation";
 import { Sparkles, Lock, Phone } from "lucide-react";
 import { loginAdmin, saveAuthSession } from "@/lib/api";
+import { takeAdminBookingTarget } from "@/lib/admin-booking-target";
+import { spaSlug } from "@/lib/spa-path";
+import { useBranding } from "@/components/brand-provider";
 import { useAdminAuth } from "@/components/admin/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -18,6 +21,7 @@ import {
 
 export default function AdminLoginPage(): React.ReactElement {
   const router = useRouter();
+  const {branding}=useBranding();
   const { refreshMe } = useAdminAuth();
 
   const [phoneNumber, setPhoneNumber] = React.useState<string>("");
@@ -43,9 +47,18 @@ export default function AdminLoginPage(): React.ReactElement {
         setError("Tài khoản này không có quyền truy cập trang Quản trị Spa.");
         return;
       }
+      const currentSpa = spaSlug(window.location.pathname);
+      if (currentSpa && currentSpa !== res.spa_slug) throw new Error("Tài khoản không thuộc spa này. Mở đúng ứng dụng được bàn giao.");
+      const destination=(res.spa_slug?takeAdminBookingTarget(res.spa_slug):null)||(res.user.role === "ADMIN"?"/admin/dashboard":"/admin/bookings");
+      if (!currentSpa && res.spa_slug) {
+        window.localStorage.setItem("spaos_admin_token:"+res.spa_slug, res.access_token);
+        window.localStorage.setItem("spaos_admin_session_version:"+res.spa_slug, crypto.randomUUID());
+        window.location.assign(`/s/${res.spa_slug}${destination}`);
+        return;
+      }
       saveAuthSession(res.access_token, "");
       await refreshMe();
-      router.push(res.user.role === "ADMIN" ? "/admin/dashboard" : "/admin/bookings");
+      router.push(destination);
     } catch (err) {
       setError(
         err instanceof Error
@@ -62,10 +75,10 @@ export default function AdminLoginPage(): React.ReactElement {
       <Card className="w-full min-w-0 max-w-md shadow-lg [overflow-wrap:anywhere]">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow">
-            <Sparkles className="h-6 w-6" />
+            {branding.logo_url?<img src={branding.logo_url} alt={branding.name||"Logo spa"} className="h-12 w-12 rounded-xl object-contain"/>:<Sparkles className="h-6 w-6" />}
           </div>
           <CardTitle className="text-xl font-bold">
-            Đăng nhập
+            {branding.name||"Đăng nhập"}
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -29,3 +29,7 @@ api_router.include_router(branding.router)
 
 from app.api.v1 import experience
 api_router.include_router(experience.router)
+
+from app.api.v1 import workforce, spas
+api_router.include_router(workforce.router)
+api_router.include_router(spas.router)

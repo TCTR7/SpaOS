@@ -1,5 +1,9 @@
 # Định hướng SpaOS: triển khai riêng từng chủ spa, hỗ trợ nhiều chi nhánh
 
+> **PO duyệt triển khai 28/10/2026:** thực hiện toàn bộ P0–P6 theo SHARED_SAAS_IMPLEMENTATION_PLAN, dùng chung nhiều chủ và phân công nhân viên một nơi/ngày. Đang triển khai; lịch sử phê duyệt và kiến trúc cũ bên dưới không thay kết quả thực tế ở PROGRESS. Không tự gộp tài khoản/dữ liệu cũ hoặc deploy production.
+
+> **Kiến trúc hiện hành sau phê duyệt 28/10/2026:** một hệ thống nhiều chủ, nhận diện/PWA riêng, nhân viên nhiều chi nhánh nhưng mỗi ngày một nơi; SĐT vận hành duy nhất, điều chuyển sau bàn giao, gói thử nghiệm 10 USD/hai nhánh/10 nhân viên. Code và migration 0012 đã triển khai, kiểm chứng QA riêng; phần native/hạ tầng đích còn mở. Kết quả mới nhất xem [báo cáo bàn giao](SHARED_SAAS_IMPLEMENTATION_REPORT.md). Xem [luồng người dùng](SHARED_SAAS_USER_JOURNEYS.md), [thiết kế](SHARED_SAAS_TECHNICAL_DESIGN.md), [runbook](SHARED_SAAS_MIGRATION_RUNBOOK.md) và PROGRESS. DB ứng dụng chưa cutover/deploy. Nội dung 17/10 bên dưới được giữ làm lịch sử.
+
 - Ngày ghi nhận: 17/10/2026.
 - Trạng thái: **ĐÃ TRIỂN KHAI BẢN ĐẦU VÀ KIỂM CHỨNG LOCAL (17/10/2026)**.
 - Phạm vi được phép hiện tại: triển khai theo chỉ thị PO ngày 17/10/2026; xem mục Phê duyệt triển khai và PROGRESS.

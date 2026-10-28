@@ -35,6 +35,8 @@ async def get_result(db, tenant_id, actor, request_id):
 
 
 async def create_batch(db, tenant_id, actor, body):
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     digest = hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True,
                                        separators=(",", ":")).encode()).hexdigest()
     try:

@@ -5,11 +5,13 @@ Never restores over the running database. Dump contains sensitive customer data.
 import argparse
 import json
 import pathlib
+import re
 import subprocess
 import time
 import uuid
 
 COMPOSE = ["docker-compose"]
+QA_DATABASE = None
 INVENTORY = """
 SELECT format('SELECT json_build_object(''table'', %L, ''rows'', count(*), ''rls'', %L, ''force_rls'', %L) FROM %I.%I;',
               c.relname, c.relrowsecurity, c.relforcerowsecurity, n.nspname, c.relname)
@@ -24,7 +26,8 @@ def capture(command, **kwargs):
 
 
 def source_sql(sql):
-    return capture(COMPOSE + ["exec", "-T", "db", "sh", "-c", SOURCE_SQL], input=sql.encode()).decode()
+    extra = ["-e", "POSTGRES_DB="+QA_DATABASE] if QA_DATABASE else []
+    return capture(COMPOSE + ["exec", "-T"] + extra + ["db", "sh", "-c", SOURCE_SQL], input=sql.encode()).decode()
 
 
 def inventory(sql):
@@ -34,11 +37,16 @@ def inventory(sql):
 
 def main():
     parser = argparse.ArgumentParser()
-    global COMPOSE
+    global COMPOSE, QA_DATABASE
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--compose-project", help="Compose project của đúng khách hàng")
     parser.add_argument("--env-file", type=pathlib.Path, help="File cấu hình riêng của khách hàng")
+    parser.add_argument("--qa-database", help="Chỉ database QA tạm, không trỏ database ứng dụng")
     args = parser.parse_args()
+    if args.qa_database:
+        if not re.fullmatch(r"spaos_(?:qa|e2e)_[a-f0-9]{32}",args.qa_database):
+            parser.error("Tên database QA không hợp lệ")
+        QA_DATABASE=args.qa_database
     COMPOSE = ["docker-compose"]
     if args.env_file:
         COMPOSE += ["--env-file", str(args.env_file)]
@@ -49,7 +57,8 @@ def main():
     # Require a quiescent source: inventories before/after dump must match.
     before = inventory(source_sql)
     with target.open("xb") as stream:
-        subprocess.run(COMPOSE + ["exec", "-T", "db", "sh", "-c",
+        extra = ["-e", "POSTGRES_DB="+QA_DATABASE] if QA_DATABASE else []
+        subprocess.run(COMPOSE + ["exec", "-T"] + extra + ["db", "sh", "-c",
                        'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc'],
                        stdout=stream, check=True)
     after = inventory(source_sql)
@@ -100,6 +109,17 @@ def main():
         no_context = "SET ROLE restore_probe; " + "; ".join(
             f"SELECT count(*) FROM {t}" for t in business + ["login_accounts", "deployment_operators"]) + ";"
         assert all(line == "0" for line in restored_sql(no_context).splitlines()), "RLS leaked without context"
+        if any(r["table"] == "spas" for r in restored):
+            for table in ("spas","staff_assignments"):
+                assert any(r["table"]==table and r["rls"]=="t" and r["force_rls"]=="t" for r in restored)
+                assert restored_sql("SET ROLE restore_probe; SELECT count(*) FROM "+table+";").strip()=="0"
+            spa=restored_sql("SELECT id FROM spas ORDER BY id LIMIT 1;").strip()
+            uuid.UUID(spa)
+            assert restored_sql(f"SET ROLE restore_probe; SET app.current_spa_id='{spa}'; SELECT count(*) FROM spas;").strip()=="1"
+            expected=restored_sql(f"SELECT count(*) FROM staff_assignments WHERE spa_id='{spa}';")
+            visible=restored_sql(f"SET ROLE restore_probe; SET app.current_spa_id='{spa}'; SELECT count(*) FROM staff_assignments;")
+            assert expected==visible
+            assert restored_sql(f"SET ROLE restore_probe; SET app.current_spa_id='{spa}'; SELECT count(*) FROM users;").strip()=="0"
         tenant = restored_sql("SELECT tenant_id FROM users ORDER BY id LIMIT 1;").strip()
         uuid.UUID(tenant)
         counts = "; ".join(f"SELECT count(*) FROM {t} WHERE tenant_id='{tenant}'" for t in business) + ";"

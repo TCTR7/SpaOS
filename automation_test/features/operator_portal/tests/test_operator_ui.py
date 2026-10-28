@@ -1,3 +1,4 @@
+import re
 """Real browser + disposable API/database; no operator seeded in the application database."""
 from playwright.sync_api import expect
 from common_setup.config import config
@@ -26,6 +27,7 @@ def test_operator_creates_vietnamese_owner_then_owner_logs_in(operator_ui):
     assert created.value.status == 201
     expect(page.get_by_test_id("owner-created")).to_contain_text("Trần Cao Trung")
     expect(page.get_by_test_id("provision-row").filter(has_text=phone)).to_have_count(1)
+
     expect(page.locator("#ownerPassword")).to_have_value("")
     expect(page.locator("#ownerConfirm")).to_have_value("")
     owner = page_for()
@@ -33,10 +35,56 @@ def test_operator_creates_vietnamese_owner_then_owner_logs_in(operator_ui):
     owner.locator("#phone").fill(phone)
     owner.locator("#password").fill("OwnerQa@123")
     owner.get_by_role("button", name="Đăng nhập", exact=True).click()
-    expect(owner).to_have_url(config.frontend_url + "/admin/dashboard")
-    expect(owner.get_by_role("heading", name="Tổng quan Chi nhánh Đà Nẵng")).to_be_visible()
+    expect(owner).to_have_url(re.compile(re.escape(config.frontend_url)+r"/s/[^/]+/admin/dashboard$"))
+    expect(owner.get_by_role("heading", name="Tổng quan",exact=True)).to_be_visible()
     expect(owner.get_by_test_id("branch-dashboard")).to_be_visible()
     assert owner.evaluate("sessionStorage.getItem('spaos_operator_token')") is None
+
+
+def test_operator_provisions_independent_brand_colors_and_owner_can_update(operator_ui):
+    page_for,backend=operator_ui
+    page=page_for();ui=OperatorPage(page);ui.login()
+    phone=ui.fill_owner()
+    page.locator("#newSpaName").fill("Blue Brand QA")
+    page.locator("#ownerThemeColor").fill("#2563eb")
+    ui.submit()
+    expect(page.get_by_test_id("owner-created")).to_be_visible()
+    owner=page_for();owner.goto(config.frontend_url+"/admin/login")
+    owner.locator("#phone").fill(phone);owner.locator("#password").fill("OwnerQa@123")
+    # Full-document login navigation can discard the browser response body.
+    auth=owner.request.post(backend+"/api/v1/auth/login",data={"phone_number":phone,"password":"OwnerQa@123"}).json()
+    slug=auth["spa_slug"]
+    owner.get_by_role("button",name="Đăng nhập",exact=True).click()
+    expect(owner).to_have_url(config.frontend_url+"/s/"+slug+"/admin/dashboard")
+    expect(owner.locator("html")).to_have_css("--brand-color","#2563eb")
+    me=owner.request.get(backend+"/api/v1/auth/me",headers={"Authorization":"Bearer "+auth["access_token"]}).json()
+    customer=page_for();customer.goto(config.frontend_url+"/s/"+slug+"/b/"+me["tenant"]["slug"])
+    sign_in=customer.get_by_role("link",name="Đăng nhập",exact=True)
+    expect(sign_in).to_have_css("background-color","rgb(37, 99, 235)")
+    ui.fill_owner();page.locator("#newSpaName").fill("Pink Brand QA");page.locator("#ownerThemeColor").fill("#be185d");ui.submit()
+    expect(page.get_by_test_id("owner-created")).to_contain_text("Trần Cao Trung")
+    expect(page.locator("#ownerPassword")).to_have_value("")
+    assert page.request.get(backend+"/api/v1/spas/public/"+slug).json()["theme_color"]=="#2563eb"
+    changed=owner.request.patch(backend+"/api/v1/spas/me",headers={"Authorization":"Bearer "+auth["access_token"]},
+        data={"name":"Blue Brand QA","theme_color":"#ffff00"})
+    assert changed.status==200
+    customer.reload();expect(sign_in).to_have_css("background-color","rgb(255, 255, 0)")
+    expect(sign_in).to_have_css("color","rgb(0, 0, 0)")
+    owner.reload();expect(owner.locator("html")).to_have_css("--brand-color","#ffff00")
+    assert customer.locator('meta[name="theme-color"]').first.get_attribute("content")=="#ffff00"
+
+
+def test_operator_keeps_per_spa_editor_available_for_next_owner(operator_ui):
+    page_for,_=operator_ui
+    page=page_for();ui=OperatorPage(page);ui.login()
+    expect(page.locator("#ownerThemeColor")).to_be_visible()
+    expect(page.locator("#deploymentColor")).to_have_count(0)
+    ui.fill_owner();ui.submit()
+    expect(page.get_by_test_id("owner-created")).to_be_visible()
+    page.reload()
+    expect(page.get_by_test_id("provision-row").first).to_be_visible()
+    expect(page.locator("#ownerThemeColor")).to_be_visible()
+    expect(page.locator("#deploymentColor")).to_have_count(0)
 
 def test_operator_retry_preserves_request_after_lost_response(operator_ui):
     page_for, backend = operator_ui
@@ -61,69 +109,3 @@ def test_operator_retry_preserves_request_after_lost_response(operator_ui):
     expect(page.get_by_test_id("owner-created")).to_be_visible()
     assert len(calls) == 2 and calls[0] == calls[1]
     expect(page.get_by_test_id("provision-row").filter(has_text=phone)).to_have_count(1)
-
-
-def test_operator_updates_branding_across_login_customer_and_light_palette(operator_ui):
-    page_for, backend = operator_ui
-    page = page_for()
-    ui = OperatorPage(page)
-    ui.login()
-    owner_phone = ui.fill_owner()
-    if page.locator("#ownerThemeColor").count():
-        page.locator("#ownerThemeColor").fill("#2563eb")
-    ui.submit()
-    expect(page.get_by_test_id("owner-created")).to_be_visible()
-    expect(page.locator("#ownerThemeColor")).to_have_count(0)
-    page.locator("summary").filter(has_text="Cài đặt giao diện").click()
-    page.locator("#deploymentColor").fill("#2563eb")
-    with page.expect_response(lambda r: r.url.endswith("/operator/branding") and r.request.method == "POST") as saved:
-        page.get_by_role("button", name="Lưu màu thương hiệu", exact=True).click()
-    assert saved.value.status == 200
-    expect(page.get_by_role("status").filter(has_text="Đã lưu màu thương hiệu")).to_be_visible()
-    expect(page.get_by_test_id("preview-deploymentColor").locator(".bg-primary")).to_have_css("background-color","rgb(37, 99, 235)")
-    owner = page_for()
-    owner.goto(config.frontend_url + "/admin/login")
-    expect(owner.get_by_role("button",name="Đăng nhập")).to_have_css("background-color","rgb(37, 99, 235)")
-    owner.locator("#phone").fill(owner_phone)
-    owner.locator("#password").fill("OwnerQa@123")
-    owner.get_by_role("button", name="Đăng nhập",exact=True).click()
-    expect(owner.get_by_test_id("branch-dashboard")).to_be_visible()
-    token = owner.evaluate("localStorage.getItem('spaos_admin_token')")
-    me = owner.request.get(backend+"/api/v1/auth/me", headers={"Authorization":"Bearer "+token}).json()
-    customer = page_for()
-    customer.goto(config.frontend_url+"/"+me["tenant"]["slug"])
-    sign_in = customer.get_by_role("link",name="Đăng nhập",exact=True)
-    expect(sign_in).to_have_css("background-color","rgb(37, 99, 235)")
-    page.locator("#deploymentColor").fill("#ffff00")
-    expect(page.get_by_test_id("preview-deploymentColor").locator(".bg-primary")).to_have_css("color","rgb(0, 0, 0)")
-    with page.expect_response(lambda r: r.url.endswith("/operator/branding") and r.request.method == "POST") as updated:
-        page.get_by_role("button",name="Lưu màu thương hiệu",exact=True).click()
-    assert updated.value.status == 200
-    expect(page.get_by_role("status").filter(has_text="Đã lưu màu thương hiệu")).to_be_visible()
-    customer.reload()
-    expect(sign_in).to_have_css("background-color","rgb(255, 255, 0)")
-    expect(sign_in).to_have_css("color","rgb(0, 0, 0)")
-    owner.reload()
-    expect(owner.get_by_test_id("branch-dashboard")).to_be_visible()
-    expect(owner.locator("html")).to_have_css("--brand-color","#ffff00")
-    assert customer.locator('meta[name="theme-color"]').first.get_attribute("content") == "#ffff00"
-
-
-def test_operator_has_one_branding_editor_per_stage(operator_ui):
-    page_for, _ = operator_ui
-    page = page_for()
-    page.route("**/api/v1/operator/owners?*", lambda route: route.fulfill(json=[]))
-    ui = OperatorPage(page)
-    ui.login()
-    expect(page.locator("#ownerThemeColor")).to_be_visible()
-    expect(page.locator("#deploymentColor")).to_have_count(0)
-    ui.fill_owner()
-    ui.submit()
-    expect(page.get_by_test_id("owner-created")).to_be_visible()
-    page.unroute("**/api/v1/operator/owners?*")
-    page.reload()
-    expect(page.locator("#ownerName")).to_be_visible()
-    expect(page.get_by_test_id("provision-row").first).to_be_visible()
-    expect(page.locator("#ownerThemeColor")).to_have_count(0)
-    page.locator("summary").filter(has_text="Cài đặt giao diện").click()
-    expect(page.locator("#deploymentColor")).to_be_visible()

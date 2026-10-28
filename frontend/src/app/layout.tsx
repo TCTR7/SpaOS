@@ -4,9 +4,10 @@ import { brandStyle } from "@/lib/brand-theme";
 import { APP_APPLE_ICON, APP_ICON_192, APP_ICON_512 } from "@/lib/app-icons";
 import { BrandProvider } from "@/components/brand-provider";
 import { PwaRegister } from "@/components/pwa-register";
+import { headers } from "next/headers";
 import "./globals.css";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "SpaOS - Đặt lịch & Quản lý Spa",
   description:
     "Đặt lịch spa, theo dõi thẻ liệu trình và nhận thông báo cập nhật lịch hẹn.",
@@ -26,6 +27,17 @@ export const metadata: Metadata = {
     ],
   },
 };
+
+export async function generateMetadata():Promise<Metadata> {
+  const slug=headers().get("x-spa-slug");
+  if(!slug)return baseMetadata;
+  try{
+    const response=await fetch((process.env.BACKEND_INTERNAL_URL||"http://localhost:8001")+"/api/v1/spas/public/"+encodeURIComponent(slug),{cache:"no-store",signal:AbortSignal.timeout(3000)});
+    if(!response.ok)return {...baseMetadata,title:"Không tìm thấy spa"};
+    const spa=await response.json() as {name:string;logo_url:string|null};
+    return {...baseMetadata,title:spa.name,manifest:`/s/${slug}/manifest.webmanifest`,appleWebApp:{capable:true,title:spa.name,statusBarStyle:"default"},...(spa.logo_url?{icons:{icon:spa.logo_url,apple:spa.logo_url}}:{})};
+  }catch{return {...baseMetadata,manifest:`/s/${slug}/manifest.webmanifest`};}
+}
 
 export async function generateViewport(): Promise<Viewport> {
   const brand = await getServerBranding();
