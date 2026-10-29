@@ -19,7 +19,7 @@ import {
   unsubscribeWebPush,
 } from "@/lib/api";
 import { currentAdminBookingTarget, rememberAdminBookingTarget } from "@/lib/admin-booking-target";
-import { withBranchChange, useBranchGuard } from "@/lib/branch-guard";
+import { withBranchChange } from "@/lib/branch-guard";
 import { spaPath, spaSlug, adminStorageKey } from "@/lib/spa-path";
 import type { AuthUser, TenantInfo, BranchAccess, TokenResponse } from "@/lib/types";
 
@@ -61,18 +61,6 @@ export function AdminAuthProvider({
   const [authError, setAuthError] = React.useState<string | null>(null);
   const operation = React.useRef(0);
   const detailsRevision = React.useRef(0);
-  const [recoveryPending, setRecoveryPending] = React.useState(false);
-  React.useEffect(() => {
-    const check = (): void => {
-      const key = tenant && user ? "spaos_manual_batch_" + tenant.id + "_" + user.id : "";
-      setRecoveryPending(!!key && !!sessionStorage.getItem(key));
-    };
-    check();
-    window.addEventListener("spaos:manual-batch-changed", check);
-    return () => window.removeEventListener("spaos:manual-batch-changed", check);
-  }, [tenant?.id, user?.id]);
-  useBranchGuard(false, recoveryPending);
-
   const isPublicAuthRoute =
     pathname?.startsWith("/admin/login") ||
     pathname === "/admin/recover" ||

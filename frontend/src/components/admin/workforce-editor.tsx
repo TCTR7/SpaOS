@@ -33,7 +33,10 @@ export function WorkforceEditor({staffId, readOnly=false,onDirtyChange,onBusyCha
   }));},[data,from]);
   function changeDay(index:number, patch:Partial<Assignment>):void {setDirty(true);setDays(v=>v.map((r,i)=>i===index?{...r,...patch}:r));}
   async function save(kind:"week"|"day"|"access"|"remove-day"):Promise<void>{
-    if(flight.current)return;flight.current=true;setBusy(true);setError("");setMessage("");
+    if(flight.current)return;
+    if(kind==="remove-day"&&!window.confirm("Bỏ ngoại lệ ngày "+exception+" và áp dụng lại ca tuần?"))return;
+    if(kind==="access"&&data?.branches.some(b=>!selected.includes(b.id))&&!window.confirm("Thu hồi quyền chi nhánh đã bỏ chọn? Chỉ hoàn tất khi lịch và khách đã bàn giao."))return;
+    flight.current=true;setBusy(true);setError("");setMessage("");
     try{
       const body=kind==="week"?{effective_from:from,days:days.map(r=>({weekday:r.weekday,tenant_id:r.tenant_id,start_time:r.start_time,end_time:r.end_time}))}:
         kind==="day"?{day:exception,tenant_id:exceptionBranch||null,start_time:exceptionBranch?start:null,end_time:exceptionBranch?end:null}:

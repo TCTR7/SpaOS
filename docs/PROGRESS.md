@@ -2,6 +2,26 @@
 
 *Quy tắc cho AI: Sau khi hoàn thành mỗi Sprint hoặc Task lớn, hãy tự động cập nhật trạng thái `[x]` vào file này và ghi chú ngắn gọn các file quan trọng vừa tạo.*
 
+## Review lại code UX — 29/10/2026
+
+- [x] Rà thay đổi UX/guest requests, tenant/RLS, giao dịch booking và frontend recovery. Ba probe Node trên source thực với API/React giả lập xác nhận: CRM ghim lại khách deep link khi tìm kiếm; form mới dùng lại UUID thao tác cũ; tour mở hai modal tại Trợ giúp. `git diff --check` PASS.
+- [x] PO yêu cầu sửa: đã vá cả ba WARNING P2. CRM chỉ mở deep link ở lần tải đầu; form mới tách operation, giữ retry/queue cũ; library không mở tour modal. Regression source-level với API/storage/React giả lập **5/5 PASS (1.60s)**; chưa chạy lại backend/browser suite, DB local còn lỗi mount. Chi tiết: [UX_CODE_REVIEW_2026-10-29.md](UX_CODE_REVIEW_2026-10-29.md). Không sửa DB/secrets.
+- [x] Sau vá: `npm run build` production PASS, gồm lint/TypeScript strict và tạo trang; `git diff --check` PASS. Giữ nguyên cấu hình TypeScript strict/noImplicitAny. Không deploy.
+
+## Cải thiện UX và khách chưa có tài khoản — 29/10/2026
+
+- PO đã cho phép triển khai toàn bộ phản ánh sau review; phạm vi: [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md).
+- [x] Code: hàng đợi nhiều batch và khôi phục nháp theo tab/người dùng/chi nhánh; sửa lỗi definitive rejection khóa form; xác nhận xóa; KTV theo kỹ năng/giờ rảnh; CRM/Thu tiền quay đúng khách; thiết lập/chuyển nhánh và chỉ vị trí tab đang dở; bố cục mobile; hướng dẫn từng màn hình và tour có thể bỏ qua/xem lại.
+- [x] Code API/UI khách gửi yêu cầu không cần đăng nhập, không giữ slot hoặc tạo tài khoản trước xác minh; hộp yêu cầu chờ gọi; capability riêng chỉ xem một yêu cầu; migration 0013 tenant FORCE RLS. Xác nhận dùng transaction/khóa chung với booking, không tự ghép hồ sơ theo số điện thoại.
+- [x] QA bước đầu: hồi quy booking/shared **26/26 PASS (58.61s)**; nhóm guest mới **5/5 PASS (12.32s)** sau sửa timezone response. Build production/strict TypeScript PASS trước các điều chỉnh cuối. Không gộp nhiều lượt thành full suite.
+- [x] Backend full **161/161 PASS (384.40s)** trên DB QA tạm; có 25 cảnh báo Alembic path_separator đã có từ trước.
+- [x] E2E mở rộng production **52 PASS/2 lỗi fixture (192.47s)**; 43 ca hồi quy đều qua. Hai fixture đòi dropdown hiện ở spa một chi nhánh đã sửa. Production build/TypeScript và nhóm mới **11/11 PASS (39.72s)**; ảnh mobile/tour/khách xác nhận đã kiểm tra.
+- [x] Sau bổ sung liên kết khách đọc giờ/trạng thái sau dời/hủy: backend guest **5/5 PASS (9.74s)**, TypeScript strict PASS, browser dev **1/1 PASS (18.09s)**. Lượt full 161 phía trên là trước chỉnh cuối này.
+- [x] Hai vá cuối về gửi yêu cầu tiếp theo/bản nháp hết hạn qua nhóm **12 ca mới** trong lượt production **53 PASS/2 ERROR fixture HTTP 401 (192.48s)**, không có assertion FAIL; chạy lại đúng hai ca trên browser dev **2/2 PASS (16.70s)**. Không gọi là một lượt 55/55 sạch.
+- [x] Đồng bộ spa xác nhận → lịch CONFIRMED trong cùng transaction. Backend booking/batch/quyền/thông báo/guest **34 PASS/2 lỗi chuẩn bị dữ liệu (89.66s)**; log xác định `ImmatureSignatureError`, `iat` đi trước 2.32–3.13 giây sau clock Docker lùi. Hai ca chạy lại **2/2 PASS (5.46s)**; không nới JWT. Bản cuối production build/strict TypeScript + SSR/rewrite PASS, E2E guest **1/1 PASS (6.48s)** gồm xác nhận/hủy/gửi lần tiếp theo. Báo cáo và ảnh: [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md).
+- Docker DB ứng dụng đã dừng do lỗi host mount `docker/init-db.sh`; QA cuối dùng PostgreSQL/API tạm độc lập, không restart/migrate DB ứng dụng. Đã dọn container/network/DB QA. Gate clock ổn định và full suite sạch vẫn mở; không gộp các lượt thành full PASS.
+- Push: runtime và hai dòng VAPID trong `.env` đều trống. Đã sinh cặp VAPID local vào `.env`, không in khóa/không ghi đè khóa có sẵn. Chưa restart backend, chưa áp migration vào DB ứng dụng hoặc deploy production; push thiết bị thật vẫn cần HTTPS/Android/iOS.
+
 ## Bộ automation mặc định và đối chiếu yêu cầu — 28/10/2026
 
 - [x] E2E mặc định dùng duy nhất `automation_test/pytest.ini`: features + reviews/test_shared_saas.py. Runner chạy từ automation_test, giữ path/node từ root và option-only `-k`; explicit path vẫn chạy riêng. Không collect backend hoặc review probes lịch sử trong bộ mặc định.

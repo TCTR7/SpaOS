@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "@/components/spa-link";
 import { useAdminAuth } from "@/components/admin/auth-context";
 import { PaymentLedger } from "@/components/admin/payment-ledger";
 import { apiRequest, fetchStaffList } from "@/lib/api";
@@ -49,7 +50,8 @@ export default function PaymentsPage(): React.ReactElement {
   const currentCollectionKey = React.useRef(collectionKey);
   currentCollectionKey.current = collectionKey;
   const collectionRequest = React.useRef(0);
-  const rows = rowsScope === collectionKey ? storedRows : [];
+  const rows = rowsScope === collectionKey ? storedRows.slice(0,50) : [];
+  const hasNextPage = rowsScope === collectionKey && storedRows.length > 50;
   const collectionLoading = loading || rowsScope !== collectionKey;
   const [locked, setLocked] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
@@ -126,7 +128,7 @@ export default function PaymentsPage(): React.ReactElement {
   if (user?.role !== "ADMIN") return <p role="alert">Bạn chưa thể xem trang thu tiền. Vui lòng liên hệ chủ spa.</p>;
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-bold">Thu tiền</h1>
+      {customerId && <Link className="action-link mb-3 inline-flex" href={"/admin/customers?customer_id=" + encodeURIComponent(customerId)}>← Về hồ sơ khách hàng</Link>}<h1 className="text-xl font-bold">Thu tiền</h1>
       {customerId && <p className="text-sm">Đang xem khoản thu của khách đã chọn. <Button variant="outline" onClick={() => setCustomerId(undefined)}>Xem mọi khách</Button></p>}
       <p className="text-sm text-muted-foreground">Khách và dịch vụ có sẵn từ lịch hẹn, thẻ liệu trình. Xác nhận khi bạn đã thực nhận tiền.</p>
       {summary && <section data-testid="payment-summary" className="grid gap-3 rounded-xl border neu-surface bg-card p-4 sm:grid-cols-3">
@@ -185,8 +187,8 @@ export default function PaymentsPage(): React.ReactElement {
             </article>)}
           </>}
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError || offset === 0} onClick={() => setOffset(Math.max(0, offset-50))}>Trang trước</Button>
-            <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError || rows.length < 50} onClick={() => setOffset(offset+50)}>Trang sau</Button>
+            {offset > 0 && <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError} onClick={() => setOffset(Math.max(0, offset-50))}>Trang trước</Button>}
+            {hasNextPage && <Button size="sm" variant="outline" disabled={locked || busy || collectionLoading || !!collectionError} onClick={() => setOffset(offset+50)}>Trang sau</Button>}
           </div>
         </section>
       </> : <section className="space-y-3 rounded-xl border neu-surface bg-card p-4">
@@ -198,8 +200,8 @@ export default function PaymentsPage(): React.ReactElement {
           <p className="break-words text-muted-foreground">{describe(event)}</p>
         </div>)}
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" disabled={auditOffset === 0} onClick={() => setAuditOffset(Math.max(0, auditOffset-50))}>Nhật ký mới hơn</Button>
-          <Button size="sm" variant="outline" disabled={logs.length < 50} onClick={() => setAuditOffset(auditOffset+50)}>Nhật ký cũ hơn</Button>
+          {auditOffset > 0 && <Button size="sm" variant="outline" onClick={() => setAuditOffset(Math.max(0, auditOffset-50))}>Nhật ký mới hơn</Button>}
+          {logs.length >= 50 && <Button size="sm" variant="outline" onClick={() => setAuditOffset(auditOffset+50)}>Nhật ký cũ hơn</Button>}
         </div>
       </section>}
     </div>

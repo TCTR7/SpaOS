@@ -86,7 +86,7 @@ export async function enableAdminWebPush(active: Active = () => true): Promise<v
   const vapid = await fetchVapidPublicKey();
   check();
   if (!vapid.enabled || !vapid.public_key) {
-    throw new Error("Thông báo trên thiết bị chưa sẵn sàng. Vui lòng thử lại sau.");
+    throw new Error("Spa chưa bật dịch vụ thông báo thiết bị. Liên hệ người quản trị cấu hình Web Push; thông báo trong ứng dụng vẫn dùng được.");
   }
   const permission = await Notification.requestPermission();
   check();
@@ -139,7 +139,7 @@ export async function enableCustomerWebPush(slug: string, active: Active = () =>
   const vapid = await fetchCustomerVapidKey(slug);
   check();
   if (!vapid.enabled || !vapid.public_key) {
-    throw new Error("Thông báo trên thiết bị chưa sẵn sàng. Vui lòng thử lại sau.");
+    throw new Error("Spa chưa bật dịch vụ thông báo thiết bị. Liên hệ người quản trị cấu hình Web Push; thông báo trong ứng dụng vẫn dùng được.");
   }
   const permission = await Notification.requestPermission();
   check();

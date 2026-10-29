@@ -491,7 +491,8 @@ async def _consume_package_sessions(db: AsyncSession, tenant_id: uuid.UUID, book
 
 
 async def update_booking_status(
-    db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus, actor: Optional[User] = None
+    db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus, actor: Optional[User] = None,
+    *, commit: bool = True,
 ) -> Tuple[Booking, bool]:
     """Trả về (booking, changed). changed=False khi gửi lại đúng trạng thái hiện tại (no-op)."""
     from app.services.assignment_service import lock_workforce
@@ -529,6 +530,9 @@ async def update_booking_status(
     if actor is not None:
         from app.services.notification_queue import enqueue_event
         enqueue_event(db, tenant_id, booking.id, actor, new_status.value)
+    if not commit:
+        await db.flush()
+        return booking, True
     await db.commit()
 
     await set_tenant_context(db, tenant_id)

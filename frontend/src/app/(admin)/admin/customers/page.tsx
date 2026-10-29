@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { apiRequest } from "@/lib/api";
 import Link from "@/components/spa-link";
 import { CustomerVisits } from "@/components/admin/customer-visits";
 import { PackageHistory } from "@/components/package-history";
@@ -105,7 +106,7 @@ export default function AdminCustomersPage(): React.ReactElement {
   const [pkgExpiry, setPkgExpiry] = React.useState<string>("");
   const [savingPackage, setSavingPackage] = React.useState<boolean>(false);
 
-  const loadCustomers = React.useCallback(async (q = "", append = false): Promise<void> => {
+  const loadCustomers = React.useCallback(async (q = "", append = false, initialTarget: string | null = null): Promise<void> => {
     const request = ++customerRequest.current;
     if (append) setMoreLoading(true);
     else { setLoading(true); setCustomers([]); setNextOffset(null); listQuery.current = q; }
@@ -115,7 +116,17 @@ export default function AdminCustomersPage(): React.ReactElement {
       if (request !== customerRequest.current) return;
       setCustomers((previous) => Array.from(new Map([...(append ? previous : []), ...page.items].map((c) => [c.id, c])).values()));
       setNextOffset(page.nextOffset);
-      if (!append) selectCustomer(page.items.find((c) => c.id === selectedId.current) || page.items[0] || null);
+      if (!append) {
+        // Only the initial load opens a linked profile. Later searches must
+        // select from their own results, even while the URL retains the link.
+        const target = initialTarget;
+        const found = page.items.find(c => c.id === (target || selectedId.current));
+        if (target && !found) {
+          const customer = await apiRequest<UserDetail>("/customers/" + encodeURIComponent(target));
+          if (request !== customerRequest.current) return;
+          setCustomers(rows => [customer,...rows.filter(c=>c.id!==customer.id)]); selectCustomer(customer); detail.open();
+        } else { selectCustomer(found || page.items[0] || null); if(target) detail.open(); }
+      }
     } catch (err) {
       if (request === customerRequest.current) setError(err instanceof Error ? err.message : "Không tải được khách hàng");
     } finally {
@@ -149,7 +160,13 @@ export default function AdminCustomersPage(): React.ReactElement {
   }, []);
 
   React.useEffect(() => {
-    void loadCustomers("");
+    const target = new URLSearchParams(window.location.search).get("customer_id");
+    let q = "";
+    try {
+      const saved=JSON.parse(sessionStorage.getItem("spaos_crm_return_"+user?.tenant_id+"_"+user?.id)||"null") as {id:string;q:string;y:number;at:number}|null;
+      if(target && saved?.id===target && Date.now()-saved.at<8*3600000){q=saved.q;setSearchQuery(q);}
+    } catch { /* Optional list restoration. */ }
+    void loadCustomers(q, false, target);
     void loadPackageServices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { customerRequest.current += 1; packageRequest.current += 1; };
@@ -473,7 +490,7 @@ export default function AdminCustomersPage(): React.ReactElement {
                 ) : (
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Link className="inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold" href={"/admin/bookings?customer_id=" + selectedCustomer.id}>Đặt lịch cho khách</Link>
-                    {user?.role === "ADMIN" && <Link className="inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold" href={"/admin/payments?customer_id=" + selectedCustomer.id}>Xem khoản cần thu</Link>}
+                    {user?.role === "ADMIN" && <Link className="inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold" onClick={()=>sessionStorage.setItem("spaos_crm_return_"+user?.tenant_id+"_"+user?.id,JSON.stringify({id:selectedCustomer.id,q:searchQuery,y:window.scrollY,at:Date.now()}))} href={"/admin/payments?customer_id=" + selectedCustomer.id}>Xem khoản cần thu</Link>}
                     <Button
                       variant="outline"
                       size="sm"

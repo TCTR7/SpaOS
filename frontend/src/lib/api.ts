@@ -428,12 +428,14 @@ export async function issueCustomerPackage(payload: {
 // ------------------------- 2.6 Bookings -------------------------
 export async function fetchAvailableSlots(params: {
   booking_id?: string;
+  all_staff?: boolean;
   date: string;
   service_ids: string[];
   staff_id?: string | null;
 }): Promise<AvailableSlotsResponse> {
   const qs = new URLSearchParams();
   qs.set("date", params.date);
+  if (params.all_staff) qs.set("all_staff", "true");
   for (const sid of params.service_ids) {
     qs.append("service_ids", sid);
   }

@@ -147,3 +147,7 @@ Read-only connection checks restored before migration. Runtime and migration rol
 PO cho phép triển khai lần lượt toàn bộ kế hoạch: sửa logo/icon PWA; popup lần đầu và menu trợ giúp theo vai trò; Tổng quan gồm các mục mặc định đóng, tách số liệu theo ngày và hiện tại. Giữ phạm vi chi nhánh, quyền và công thức nghiệp vụ. Đang triển khai, chưa ghi nhận kiểm thử hay deploy test từ phiên này.
 
 Triển khai UX 23/10/2026 đã qua production QA build/strict TypeScript và 61/61 ca E2E theo phạm vi PROGRESS. Không có thay đổi tenant/RLS, quyền hoặc công thức tổng hợp. Deploy test và nghiệm thu thiết bị thật chưa thực hiện từ phiên này.
+
+
+### Phê duyệt cải thiện UX — 29/10/2026
+PO cho phép cập nhật toàn bộ các phản ánh đã review theo thứ tự, gồm form/đối chiếu, xác nhận xóa, nhân viên rảnh/kỹ năng, điều hướng, thiết lập chi nhánh, push/mobile và hướng dẫn. Bổ sung yêu cầu khách chưa đăng nhập chờ spa xác minh, có liên kết riêng để xem lại. Giữ tenant/RLS và quyền CRM; không tự ghép tài khoản theo SĐT, không đặt cọc tự động. Triển khai/QA theo UX_UPDATE_2026-10-29, chưa áp migration vào DB ứng dụng hoặc deploy production từ phiên này.

@@ -34,6 +34,7 @@ async def available_slots(
     day: date_type = Query(..., alias="date", description="YYYY-MM-DD (theo giờ Asia/Ho_Chi_Minh)"),
     service_ids: List[uuid.UUID] = Query(..., min_length=1, max_length=10),
     staff_id: Optional[uuid.UUID] = None,
+    all_staff: bool = False,
     ctx: TenantCtx = Depends(get_optional_tenant_ctx),
 ) -> AvailableSlotsOut:
     """Khách (header `X-Tenant-Slug` hoặc JWT) và Admin/Staff (JWT) đều gọi được."""
@@ -46,7 +47,9 @@ async def available_slots(
         await svc.get_active_staff(db, tenant_id, staff_id)
         staff_ids = [staff_id]
     else:
-        staff_ids = await svc.list_active_staff_ids(db, tenant_id, service_ids)
+        if all_staff and (ctx.user is None or ctx.user.role != UserRole.ADMIN):
+            raise HTTPException(403, "Chỉ chủ spa được xem gợi ý ngoài kỹ năng")
+        staff_ids = await svc.list_active_staff_ids(db, tenant_id, None if all_staff else service_ids)
 
     slots = await svc.compute_available_slots(db, tenant, day, duration, staff_ids)
     return AvailableSlotsOut(

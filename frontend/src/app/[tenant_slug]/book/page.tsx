@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { GuestBooking } from "@/components/customer/guest-booking";
 import { useCustomerBookingRequest } from "@/lib/use-customer-booking-request";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useNearestAvailableDay } from "@/lib/use-nearest-available-day";
@@ -716,14 +717,15 @@ function BookingWizardInner(): React.ReactElement | null {
             </CardContent>
           </Card>
 
-          {/* Inline Auth if Customer is not logged in */}
+          {!user && <GuestBooking slug={slug} start={selectedSlotStart} services={selectedLines.map(l=>l.service_id)} staff={selectedStaffId} note={note}/>}
+          {/* Optional account access for packages and booking history. */}
           {!user && (
             <Card className="border-primary/40">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground">
                     {authMode === "login"
-                      ? "Đăng nhập nhanh để hoàn tất đặt lịch"
+                      ? "Có tài khoản? Đăng nhập để dùng thẻ và xem lịch sử"
                       : "Đăng ký nhanh tài khoản khách hàng"}
                   </p>
                   <button
@@ -851,13 +853,14 @@ function BookingWizardInner(): React.ReactElement | null {
             </Button>
           ) : (
             <Button
-              type="button"
+              type={user ? "button" : "submit"}
+              form={user ? undefined : "guest-request-form"}
               size="sm"
-              disabled={submitting || slotsLoading || !user || !selectedSlotStart || !bookingRequest.ready}
+              disabled={submitting || slotsLoading || !selectedSlotStart || (!!user && !bookingRequest.ready)}
               style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
-              onClick={() => void handleConfirmBooking()}
+              onClick={user ? () => void handleConfirmBooking() : undefined}
             >
-              {submitting ? "Đang gửi lịch hẹn..." : "Xác nhận Đặt lịch"}
+              {submitting ? "Đang gửi lịch hẹn..." : user ? "Xác nhận Đặt lịch" : "Gửi yêu cầu chờ xác nhận"}
             </Button>
           )}
         </div>

@@ -479,3 +479,20 @@ class StaffPhoto(TimestampMixin, TenantOwnedMixin, Base):
     staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     content_type: Mapped[str] = mapped_column(String(20), nullable=False, default="image/png", server_default="image/png")
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class GuestBookingRequest(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "guest_booking_requests"
+    __table_args__ = (UniqueConstraint("tenant_id", "request_id", name="uq_guest_request"),
+        CheckConstraint("status IN ('PENDING','CONFIRMED','REJECTED')", name="ck_guest_request_status"))
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(String(950))
+    service_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+    staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING", server_default="PENDING")
+    booking_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"))

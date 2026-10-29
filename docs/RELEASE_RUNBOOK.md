@@ -1,5 +1,15 @@
 # Chạy thử trước phát hành SpaOS
 
+## Cập nhật UX 29/10/2026
+
+FE/BE cần cùng bản, migration head `0013_guest_requests`. Phạm vi, bằng chứng QA và giới hạn: [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md). Trước triển khai giữ backup/cutover theo runbook shared SaaS; không dùng `stamp` thay migration. Phiên cập nhật này không migrate DB ứng dụng hoặc deploy production.
+
+Khách không đăng nhập gửi yêu cầu chưa giữ chỗ. Spa vào Lịch hẹn → Khách chờ liên hệ xác nhận, gọi xác minh, chọn rõ hồ sơ cũ trong phạm vi quyền hoặc tạo mới rồi xác nhận. Liên kết riêng chỉ xem một yêu cầu và cập nhật trạng thái khi lịch được dời/hủy; chưa có SMS tự gửi liên kết hoặc thanh toán đặt cọc tự động.
+
+Cặp VAPID local đã được bổ sung vì cả hai dòng cấu hình trống. Nạp `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` qua môi trường triển khai khi restart/redeploy backend; không in khóa riêng vào log hoặc commit `.env`. Không đổi khóa của môi trường đang có subscription. Cấu hình local không tự đổi container/hosting đang chạy; Web Push vẫn phải nghiệm thu HTTPS/thiết bị thật.
+
+Khi Docker báo lỗi mount `docker/init-db.sh` dù file host vẫn tồn tại, xử lý chia sẻ ổ đĩa/mount của Docker Desktop trước khi khởi động DB ứng dụng. Không xóa volume, reset DB hoặc đổi loại file để thử sửa lỗi. Đợt QA cuối dùng PostgreSQL/API tạm không host mount, không sửa lỗi mount bằng cách thay dữ liệu ứng dụng.
+
 ## Shared SaaS 0012 — hướng dẫn hiện hành (28/10/2026)
 
 Đợt triển khai mới dùng một deployment nhiều chủ, từng spa có scope/nhận diện/PWA. Trước thao tác release/migration, ưu tiên [runbook shared SaaS](SHARED_SAAS_MIGRATION_RUNBOOK.md) và [báo cáo QA](SHARED_SAAS_IMPLEMENTATION_REPORT.md). Các mục deployment riêng/0005 và đường dẫn cũ bên dưới là lịch sử, không phải lệnh cutover 0012.

@@ -60,7 +60,10 @@ export function ProductGuide({ role, slug, identity, identities = [], mode = "au
     return () => { window.removeEventListener("appinstalled", installed); media.removeEventListener("change", update); };
   }, []);
   const close = (): void => { remember(); setOpen(false); };
-  const choose = (next: View): void => { remember(); setStep(0); setView(next); };
+  const choose = (next: View): void => {
+    remember(); setStep(0); setView(next);
+    if(next === "guide" && mode === "auto") { setOpen(false); setTimeout(()=>window.dispatchEvent(new Event("spaos:start-tour")),0); }
+  };
   const base = slug ? "/" + slug : "";
   const steps=role==="ADMIN"?[
     {title:"Thiết lập spa",text:"Bổ sung tên, logo, địa chỉ và giờ mở cửa để khách dễ nhận diện chi nhánh.",href:"/admin/settings",label:"Mở cài đặt spa"},
@@ -85,7 +88,7 @@ export function ProductGuide({ role, slug, identity, identities = [], mode = "au
         <p className="text-sm leading-6 text-muted-foreground">{role === "ADMIN" ? "Quản lý spa thuận tiện hơn, bắt đầu từ vài thao tác đơn giản." : role === "STAFF" ? "Xem lịch được giao và theo dõi công việc của bạn." : "Đặt lịch và theo dõi các buổi chăm sóc của bạn dễ dàng hơn."}</p>
       </div>
       <div className="space-y-3">
-        {([{ value: "guide", title: "Xem hướng dẫn nhanh", text: "Ba bước ngắn, phù hợp với công việc của bạn.", icon: BookOpen }, { value: "install", title: "Cài ứng dụng", text: `Thêm ${brandName} vào màn hình chính để mở nhanh hơn.`, icon: Download }] as const).map((item) => <button type="button" key={item.value} onClick={() => choose(item.value)} className="flex min-h-20 w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {([{ value: "guide", title: "Hướng dẫn qua các màn hình", text: "Đi qua từng màn hình và các thao tác phù hợp với vai trò của bạn.", icon: BookOpen }, { value: "install", title: "Cài ứng dụng", text: `Thêm ${brandName} vào màn hình chính để mở nhanh hơn.`, icon: Download }] as const).map((item) => <button type="button" key={item.value} onClick={() => choose(item.value)} className="flex min-h-20 w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <item.icon className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className="mt-1 block text-sm text-muted-foreground">{item.text}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
         </button>)}
       </div>

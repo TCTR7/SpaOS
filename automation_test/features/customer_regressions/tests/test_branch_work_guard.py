@@ -99,22 +99,23 @@ def test_other_tab_pending_write_blocks_branch_until_response(scenario):
     expect(other.locator("#activeBranch")).to_have_value(target)
 
 
-def test_unknown_manual_batch_stays_protected_when_dialog_closed(scenario):
+def test_parked_manual_batch_allows_switch_and_recovers_on_return(scenario):
     s = scenario
     target = branch(s)
-    first, modal, _ = prepare(s)
+    first, modal, phone = prepare(s)
+    origin = first.locator("#activeBranch").input_value()
     first.route("**/api/v1/bookings/manual-batches", lambda r: r.fulfill(status=503, json={"detail": "QA uncertain batch"}))
     modal.get_by_role("button", name="Xác nhận tạo 3 buổi hẹn", exact=True).click()
     expect(modal.get_by_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.", exact=True)).to_be_visible()
     modal.get_by_role("button", name="Kiểm tra sau", exact=True).click()
     expect(modal).to_have_count(0)
-    blocked(first, target, "Còn thao tác đang xử lý")
-    other = second_tab(s, first)
-    blocked(other, target, "Tab khác còn form")
-    # Recovery UUID survives navigating away; no customer payload in storage.
-    first.goto(config.frontend_url + "/admin/dashboard")
-    expect(first.locator("#activeBranch")).to_be_visible()
-    blocked(first, target, "Còn thao tác đang xử lý")
+    first.locator("#activeBranch").select_option(target)
+    expect(first.locator("#activeBranch")).to_have_value(target)
+    first.locator("#activeBranch").select_option(origin)
+    expect(first.locator("#activeBranch")).to_have_value(origin)
+    first.goto(config.frontend_url + "/admin/bookings")
+    first.get_by_role("button", name="Mở lại và kiểm tra", exact=True).click()
+    expect(modal.get_by_placeholder("Số điện thoại (9-15 số) *", exact=True)).to_have_value(phone)
 
 
 def test_switch_in_flight_does_not_replay_other_tab_write(scenario):

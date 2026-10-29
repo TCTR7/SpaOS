@@ -33,3 +33,6 @@ api_router.include_router(experience.router)
 from app.api.v1 import workforce, spas
 api_router.include_router(workforce.router)
 api_router.include_router(spas.router)
+
+from app.api.v1 import guest_requests
+api_router.include_router(guest_requests.router)

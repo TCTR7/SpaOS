@@ -79,7 +79,8 @@ async def verify_database_schema():
         inspector = inspect(connection)
         # Check the columns in the incident too: stamp head alone never applies DDL.
         columns = {c["name"] for c in inspector.get_columns("tenants")} if inspector.has_table("tenants") else set()
-        required={"spas":{"id","slug","name","logo_data","cover_data","branch_limit","staff_limit"},
+        required={"guest_booking_requests":{"tenant_id","request_id","token_hash","status","booking_id"},
+            "spas":{"id","slug","name","logo_data","cover_data","branch_limit","staff_limit"},
             "login_accounts":{"spa_id","default_branch_id"},
             "staff_assignments":{"spa_id","account_id","tenant_id","day","weekday","effective_from","start_time","end_time"}}
         shared = all(inspector.has_table(table) and fields.issubset({c["name"] for c in inspector.get_columns(table)})

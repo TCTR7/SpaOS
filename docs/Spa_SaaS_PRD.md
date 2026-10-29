@@ -7,6 +7,10 @@
 
 ---
 
+## Điều chỉnh PO ngày 29/10/2026
+
+Khách chưa có tài khoản được nhập tên/SĐT và gửi yêu cầu đặt lịch để spa gọi xác minh. Yêu cầu không giữ chỗ và chưa tạo tài khoản/lịch. Sau xác minh, quản lý chọn rõ hồ sơ cũ trong quyền hoặc tạo hồ sơ mới, rồi xác nhận với kiểm tra giờ trống nguyên tử. Liên kết riêng chỉ xem đúng yêu cầu; đăng nhập vẫn cần để dùng thẻ và xem lịch sử. Không tự ghép theo SĐT hoặc phát mật khẩu, chưa đặt cọc tự động. Thay thế yêu cầu buộc đăng nhập cho mọi khách ở các phần lịch sử bên dưới. Trạng thái kiểm chứng xem PROGRESS.
+
 ## 1. TỔNG QUAN DỰ ÁN (PROJECT OVERVIEW)
 
 ### 1.1. Mục tiêu sản phẩm

@@ -105,7 +105,7 @@ export default function StaffProfilePage(): React.ReactElement {
   };
 
   const removePhoto = async (): Promise<void> => {
-    if (!staff || photoBusy) return;
+    if (!staff || photoBusy || !window.confirm("Xóa ảnh nhân viên? Bạn cần tải lại ảnh nếu muốn khôi phục.")) return;
     setPhotoBusy(true); setError(null); setMessage(null);
     try {
       await deleteStaffPhoto(staff.id);

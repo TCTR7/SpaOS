@@ -30,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { BranchDirtyError, withBranchChange } from "@/lib/branch-guard";
+import { ScreenHelp } from "@/components/screen-help";
+import { UnfinishedWork } from "./unfinished-work";
 import type { UserRole } from "@/lib/types";
 
 interface NavItem {
@@ -305,7 +307,7 @@ function AdminShellContent({
           </div>
         </Modal>
 
-        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{sessionNotice && <p role="status" className="mb-3 rounded-lg border p-3 text-sm">{sessionNotice}</p>}{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id} identities={branches.map((branch) => branch.user.id)} autoOpen={pathname !== "/admin/help"} />{targetBranch&&targetBranch!==tenant.id?<section className="space-y-3 rounded-xl border p-4" aria-label="Chi nhánh của lịch hẹn">
+        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6"><UnfinishedWork />{sessionNotice && <p role="status" className="mb-3 rounded-lg border p-3 text-sm">{sessionNotice}</p>}{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id} identities={branches.map((branch) => branch.user.id)} autoOpen={pathname !== "/admin/help"} /><ScreenHelp role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id}/>{targetBranch&&targetBranch!==tenant.id?<section className="space-y-3 rounded-xl border p-4" aria-label="Chi nhánh của lịch hẹn">
           <p role="status">{linkedBranch?"Lịch hẹn thuộc chi nhánh "+linkedBranch.tenant.name+". Mở chi nhánh này để xem lịch.":"Bạn không còn được cấp chi nhánh của lịch hẹn này. Liên hệ chủ spa để kiểm tra."}</p>
           {linkedBranch&&<Button disabled={branchBusy} onClick={()=>void chooseBranch(linkedBranch.tenant.id)}>Mở lịch tại {linkedBranch.tenant.name}</Button>}
         </section>:<>{user.role === "STAFF" && <StaffWorkplace staffId={user.id} branchId={tenant.id}/>}{children}</>}</div></main>

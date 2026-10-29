@@ -2,6 +2,13 @@
 
 Ngày 28/10/2026. Phạm vi: các nhóm nghiệp vụ MVP trong PRD, P0–P6 shared SaaS và auto-migration. Đây là đối chiếu test hiện có với yêu cầu; không phải chứng nhận mọi tình huống đã có test hoặc số đo line/branch coverage. Tên ca dưới đây đã được kiểm tra tồn tại trong source. Có test không đồng nghĩa lượt chạy mới nhất của toàn bộ bản cuối đều PASS.
 
+## Bổ sung UX ngày 29/10/2026
+
+- `backend/tests/test_guest_requests.py`: 6 ca về token riêng/tenant/RLS/idempotency; xác nhận đồng thời chỉ tạo một lịch; rollback khi tranh giờ hoặc khi bước cập nhật trạng thái lỗi; chọn rõ hồ sơ cũ; giới hạn gửi và quyền gợi ý KTV ngoài kỹ năng. Ca xác nhận kiểm tra lịch thực sự `CONFIRMED`, liên kết khách phản ánh giờ dời và trạng thái hủy.
+- `features/customer_regressions/tests/test_ux_oct29.py`: 12 ca (gồm 2 biến thể kỹ năng) về xác nhận xóa/bố cục mobile, lỗi trùng SĐT không khóa form, để sau và khôi phục bản nháp, nháp hết hạn không dùng nhầm form khác, phân trang/đường về hồ sơ khách, guest gửi/xác nhận/hủy/gửi lần tiếp theo, hướng dẫn màn hình, tab đang dở, KTV có kỹ năng/nghỉ và thứ tự thiết lập chi nhánh, thông báo thiếu cấu hình push.
+- Các test hồi quy batch/nhiều tab đã cập nhật kỳ vọng: nháp được lưu trong phiên tab để mở lại; yêu cầu đã để sau không khóa chi nhánh. UUID chống trùng vẫn giữ khi kết quả 404 và khi sửa/retry.
+- Kiểm chứng và ảnh theo từng lượt nằm tại [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md). Push thiết bị thật, SMS/đặt cọc và full E2E toàn hệ thống không được suy ra từ nhóm hồi quy này.
+
 ## Cách chạy mặc định
 
 Từ root dự án:
