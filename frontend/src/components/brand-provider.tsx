@@ -1,8 +1,9 @@
 "use client";
 import * as React from "react";
 import { API_BASE_URL } from "@/lib/api";
+import { spaSlug } from "@/lib/spa-path";
 import { brandStyle, DEFAULT_BRAND, validBrandColor } from "@/lib/brand-theme";
-export interface Branding { theme_color: string; configured: boolean }
+export interface Branding { theme_color: string; configured: boolean; name?:string; logo_url?:string|null; cover_url?:string|null }
 const Context = React.createContext<{branding: Branding; refresh: () => Promise<void>}>({
   branding: {theme_color: DEFAULT_BRAND, configured: false}, refresh: async () => {},
 });
@@ -12,10 +13,11 @@ export function BrandProvider({children,initialBranding}: {children: React.React
   const refresh = React.useCallback(async (): Promise<void> => {
     const current = ++sequence.current;
     try {
-      const response = await fetch(API_BASE_URL+"/branding", {cache:"no-store"});
+      const slug = spaSlug(window.location.pathname);
+      const response = await fetch(API_BASE_URL+(slug ? "/spas/public/"+encodeURIComponent(slug) : "/branding"), {cache:"no-store"});
       if (!response.ok) return;
       const data = await response.json() as Branding;
-      if (current === sequence.current) setBranding({theme_color: validBrandColor(data.theme_color), configured: data.configured === true});
+      if (current === sequence.current) setBranding({theme_color: validBrandColor(data.theme_color), configured: !!slug || data.configured === true,...(slug?{name:data.name,logo_url:data.logo_url,cover_url:data.cover_url}:{})});
     } catch { /* Keep the last known theme when offline. */ }
   }, []);
   React.useEffect(() => {

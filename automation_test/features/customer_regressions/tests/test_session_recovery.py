@@ -13,7 +13,7 @@ def session_page(s, admin):
 
 def verified(page, admin):
     if admin:
-        expect(page.locator("#activeBranch")).to_be_visible()
+        expect(page.get_by_role("banner").get_by_role("button",name="Thông báo",exact=True)).to_be_visible()
         # Mobile CRM now opens details explicitly; validate its loaded list first.
         expect(page.get_by_role("button", name="QA Customer SĐT:", exact=False)).to_be_visible()
     else:
@@ -46,6 +46,8 @@ def test_current_401_only_clears_its_own_session(scenario, admin):
     other = "spaos_customer_token_" + s["slug"] if admin else "spaos_admin_token"
     page.add_init_script("localStorage.setItem(" + repr(other) + ", 'keep-other-role');")
     page.route("**/api/v1/auth/me", lambda route: route.fulfill(status=401, json={"detail": "QA expired"}))
+    if admin:
+        page.route("**/api/v1/auth/resolve",lambda route:route.fulfill(status=401,json={"detail":"QA expired credentials"}))
     page.goto(url)
     if admin:
         expect(page).to_have_url(config.frontend_url + "/admin/login")
@@ -119,7 +121,7 @@ def test_late_resource_401_does_not_clear_replacement_session(scenario, admin):
     page.route(pattern, hold_resource)
     page.goto(url)
     if admin:
-        expect(page.locator("#activeBranch")).to_be_visible()
+        expect(page.get_by_role("banner").get_by_role("button",name="Thông báo",exact=True)).to_be_visible()
     else:
         expect(page.get_by_role("button", name="Thoát", exact=True)).to_be_visible()
     page.wait_for_function("window.qaHeldResource === true")
@@ -152,7 +154,7 @@ def test_logout_in_another_tab_removes_verified_ui(scenario, admin):
 def test_late_branch_switch_cannot_replace_a_new_verified_branch(scenario, old_status):
     s = scenario
     b = s["call"]("POST", "/branches", json={"name": "QA Branch B"})["tenant"]
-    c = s["call"]("POST", "/branches", json={"name": "QA Branch C"})["tenant"]
+    c = s["call"]("GET", "/auth/me")["tenant"]
     replacement = s["call"]("POST", "/branches/" + c["id"] + "/switch")["access_token"]
     page, key, url = session_page(s, True)
     page.goto(url)

@@ -1,5 +1,9 @@
 # Định hướng SpaOS: triển khai riêng từng chủ spa, hỗ trợ nhiều chi nhánh
 
+> **PO duyệt triển khai 28/10/2026:** thực hiện toàn bộ P0–P6 theo SHARED_SAAS_IMPLEMENTATION_PLAN, dùng chung nhiều chủ và phân công nhân viên một nơi/ngày. Đang triển khai; lịch sử phê duyệt và kiến trúc cũ bên dưới không thay kết quả thực tế ở PROGRESS. Không tự gộp tài khoản/dữ liệu cũ hoặc deploy production.
+
+> **Kiến trúc hiện hành sau phê duyệt 28/10/2026:** một hệ thống nhiều chủ, nhận diện/PWA riêng, nhân viên nhiều chi nhánh nhưng mỗi ngày một nơi; SĐT vận hành duy nhất, điều chuyển sau bàn giao, gói thử nghiệm 10 USD/hai nhánh/10 nhân viên. Code và migration 0012 đã triển khai, kiểm chứng QA riêng; phần native/hạ tầng đích còn mở. Kết quả mới nhất xem [báo cáo bàn giao](SHARED_SAAS_IMPLEMENTATION_REPORT.md). Xem [luồng người dùng](SHARED_SAAS_USER_JOURNEYS.md), [thiết kế](SHARED_SAAS_TECHNICAL_DESIGN.md), [runbook](SHARED_SAAS_MIGRATION_RUNBOOK.md) và PROGRESS. DB ứng dụng chưa cutover/deploy. Nội dung 17/10 bên dưới được giữ làm lịch sử.
+
 - Ngày ghi nhận: 17/10/2026.
 - Trạng thái: **ĐÃ TRIỂN KHAI BẢN ĐẦU VÀ KIỂM CHỨNG LOCAL (17/10/2026)**.
 - Phạm vi được phép hiện tại: triển khai theo chỉ thị PO ngày 17/10/2026; xem mục Phê duyệt triển khai và PROGRESS.
@@ -143,3 +147,7 @@ Read-only connection checks restored before migration. Runtime and migration rol
 PO cho phép triển khai lần lượt toàn bộ kế hoạch: sửa logo/icon PWA; popup lần đầu và menu trợ giúp theo vai trò; Tổng quan gồm các mục mặc định đóng, tách số liệu theo ngày và hiện tại. Giữ phạm vi chi nhánh, quyền và công thức nghiệp vụ. Đang triển khai, chưa ghi nhận kiểm thử hay deploy test từ phiên này.
 
 Triển khai UX 23/10/2026 đã qua production QA build/strict TypeScript và 61/61 ca E2E theo phạm vi PROGRESS. Không có thay đổi tenant/RLS, quyền hoặc công thức tổng hợp. Deploy test và nghiệm thu thiết bị thật chưa thực hiện từ phiên này.
+
+
+### Phê duyệt cải thiện UX — 29/10/2026
+PO cho phép cập nhật toàn bộ các phản ánh đã review theo thứ tự, gồm form/đối chiếu, xác nhận xóa, nhân viên rảnh/kỹ năng, điều hướng, thiết lập chi nhánh, push/mobile và hướng dẫn. Bổ sung yêu cầu khách chưa đăng nhập chờ spa xác minh, có liên kết riêng để xem lại. Giữ tenant/RLS và quyền CRM; không tự ghép tài khoản theo SĐT, không đặt cọc tự động. Triển khai/QA theo UX_UPDATE_2026-10-29, chưa áp migration vào DB ứng dụng hoặc deploy production từ phiên này.

@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { GuestBooking } from "@/components/customer/guest-booking";
 import { useCustomerBookingRequest } from "@/lib/use-customer-booking-request";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useNearestAvailableDay } from "@/lib/use-nearest-available-day";
 import { useAvailableSlots } from "@/lib/use-available-slots";
 import { ApiError } from "@/lib/api";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "@/lib/spa-navigation";
 import {
   Calendar,
   Check,
@@ -20,6 +21,7 @@ import {
 import {
   createCustomerBooking,
   fetchMyCustomerPackages,
+  fetchPublicTenant,
   loginCustomer,
   registerCustomer,
   saveCustomerToken,
@@ -61,6 +63,7 @@ function BookingWizardInner(): React.ReactElement | null {
   const [selectedStaffId, setSelectedStaffId] = React.useState<string | null>(
     null
   );
+  const [staffPickerOpen, setStaffPickerOpen] = React.useState(false);
   const { slots: availableSlots, loading: slotsLoading, error: slotsError, retry: retrySlots,
     selectedStart: selectedSlotStart, select: setSelectedSlotStart } = useAvailableSlots({
     slug, date: selectedDate, serviceIds: selectedLines.map((line) => line.service_id),
@@ -127,7 +130,13 @@ function BookingWizardInner(): React.ReactElement | null {
     return () => { cancelled = true; };
   }, [slug, user, searchParams]);
 
-  const staffDirectory = tenant?.staff || [];
+  const [staffDirectory,setStaffDirectory]=React.useState<{id:string;full_name:string}[]>([]);
+  const [staffAttempt,setStaffAttempt]=React.useState(0);
+  const [staffLoadError,setStaffLoadError]=React.useState(false);
+  React.useEffect(()=>{let alive=true;setStaffDirectory([]);setStaffLoadError(false);setSelectedStaffId(null);
+    void fetchPublicTenant(slug,selectedDate).then(v=>{if(alive)setStaffDirectory(v.staff||[]);}).catch(()=>{if(alive)setStaffLoadError(true);});
+    return ()=>{alive=false;};
+  },[slug,selectedDate,staffAttempt]);
 
   const serviceById = React.useMemo(() => {
     const map = new Map<string, ServiceItem>();
@@ -534,7 +543,8 @@ function BookingWizardInner(): React.ReactElement | null {
             <Button type="button" variant="outline" className="h-auto min-h-11 max-w-full whitespace-normal text-left" disabled={nearest.searching || slotsLoading} onClick={() => void nearest.search()}>{nearest.searching ? "Đang tìm ngày còn chỗ..." : "Tìm ngày còn chỗ trong 7 ngày tiếp theo"}</Button>
             {nearest.message && <p role="status" className="text-sm text-muted-foreground">{nearest.message}</p>}
           </div>
-          <details className="rounded-xl border p-3" open={selectedStaffId !== null || undefined}>
+          <details className="rounded-xl border p-3" open={staffPickerOpen}
+            onToggle={(event) => setStaffPickerOpen(event.currentTarget.open)}>
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{selectedStaffId ? "Nhân viên: " + (staffDirectory.find((staff) => staff.id === selectedStaffId)?.full_name || "Đã chọn") : "Spa tự sắp xếp · Chọn nhân viên quen"}</summary>
           <h2 className="text-sm font-bold text-foreground">
             Chọn nhân viên thực hiện
@@ -581,6 +591,7 @@ function BookingWizardInner(): React.ReactElement | null {
               <p className="text-xs font-semibold text-muted-foreground">
                 Hoặc chọn Kỹ thuật viên; giờ trống được kiểm tra theo ngày:
               </p>
+              {staffLoadError&&<p role="alert" className="text-sm">Chưa tải được nhân viên theo ngày. <button className="underline" onClick={()=>setStaffAttempt(v=>v+1)}>Thử lại</button></p>}
               {staffDirectory.map(({ id: sid, full_name }) => {
                 const active = selectedStaffId === sid;
                 return (
@@ -706,14 +717,15 @@ function BookingWizardInner(): React.ReactElement | null {
             </CardContent>
           </Card>
 
-          {/* Inline Auth if Customer is not logged in */}
+          {!user && <GuestBooking slug={slug} start={selectedSlotStart} services={selectedLines.map(l=>l.service_id)} staff={selectedStaffId} note={note}/>}
+          {/* Optional account access for packages and booking history. */}
           {!user && (
             <Card className="border-primary/40">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground">
                     {authMode === "login"
-                      ? "Đăng nhập nhanh để hoàn tất đặt lịch"
+                      ? "Có tài khoản? Đăng nhập để dùng thẻ và xem lịch sử"
                       : "Đăng ký nhanh tài khoản khách hàng"}
                   </p>
                   <button
@@ -841,13 +853,14 @@ function BookingWizardInner(): React.ReactElement | null {
             </Button>
           ) : (
             <Button
-              type="button"
+              type={user ? "button" : "submit"}
+              form={user ? undefined : "guest-request-form"}
               size="sm"
-              disabled={submitting || slotsLoading || !user || !selectedSlotStart || !bookingRequest.ready}
+              disabled={submitting || slotsLoading || !selectedSlotStart || (!!user && !bookingRequest.ready)}
               style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
-              onClick={() => void handleConfirmBooking()}
+              onClick={user ? () => void handleConfirmBooking() : undefined}
             >
-              {submitting ? "Đang gửi lịch hẹn..." : "Xác nhận Đặt lịch"}
+              {submitting ? "Đang gửi lịch hẹn..." : user ? "Xác nhận Đặt lịch" : "Gửi yêu cầu chờ xác nhận"}
             </Button>
           )}
         </div>

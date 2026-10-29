@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/spa-navigation";
 import { useCustomerTenant } from "@/components/customer/customer-context";
 import { customerApiRequest, clearCustomerToken, getCustomerSessionIdentity } from "@/lib/customer-api";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export default function ActivatePage(): React.ReactElement {
   const [token, setToken] = React.useState(""), [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false), [error, setError] = React.useState("");
   const flight = React.useRef(false), alive = React.useRef(false);
-  React.useEffect(() => { alive.current = true; setToken(window.location.hash.slice(1)); window.history.replaceState(window.history.state, "", window.location.pathname); return () => { alive.current = false; }; }, []);
+  React.useEffect(() => { alive.current = true; if (window.location.hash) { setToken(window.location.hash.slice(1)); window.history.replaceState(window.history.state, "", window.location.pathname); } return () => { alive.current = false; }; }, []);
   return <div className="space-y-4 rounded-xl border p-4"><h1 className="text-xl font-bold">Đặt mật khẩu của bạn</h1>
     <form className="space-y-3" onSubmit={async (event) => {
       event.preventDefault(); if (flight.current) return; flight.current = true; setBusy(true); setError("");

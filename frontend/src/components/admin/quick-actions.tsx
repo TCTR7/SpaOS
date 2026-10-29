@@ -1,5 +1,5 @@
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { CalendarDays, Sparkles, UserCheck, Users, Wallet } from "lucide-react";
 
 const ACTIONS: { href: string; label: string; hint: string; icon: React.ComponentType<{ className?: string }> }[] = [

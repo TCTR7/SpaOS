@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { apiRequest } from "@/lib/api";
 import type { BookingRecord } from "@/lib/types";
 import { BOOKING_STATUS_META, formatDateTimeVN } from "@/lib/utils";

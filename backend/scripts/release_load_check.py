@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 
-async def run(args):
+async def run(args, *, emit=True, enforce_budget=True):
     metrics = {}
     async with httpx.AsyncClient(base_url=args.base_url.rstrip("/") + "/api/v1", timeout=60,
                                  limits=httpx.Limits(max_connections=30)) as client:
@@ -90,8 +90,11 @@ async def run(args):
                 "p50_ms": round(times[math.ceil(len(times)*.5)-1], 1),
                 "p95_ms": round(times[math.ceil(len(times)*.95)-1], 1),
                 "max_ms": round(times[-1], 1)}
-        print(json.dumps(result, indent=2))
-        assert all(m["p95_ms"] <= args.max_p95_ms for m in result["metrics"].values()), "p95 exceeded budget"
+        if emit:
+            print(json.dumps(result, indent=2))
+        result["within_budget"]=all(m["p95_ms"] <= args.max_p95_ms for m in result["metrics"].values())
+        if enforce_budget:assert result["within_budget"], "p95 exceeded budget"
+        return result
 
 
 if __name__ == "__main__":

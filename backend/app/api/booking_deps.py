@@ -46,9 +46,8 @@ async def get_optional_tenant_ctx(
                 logger.warning("Booking authentication user missing or inactive within tenant context")
                 raise _UNAUTHORIZED
             if user.role in (UserRole.ADMIN, UserRole.STAFF):
-                from app.services.branch_service import membership_for, account_for
-                if await membership_for(session, user):
-                    await account_for(session, user)
+                from app.services.branch_service import account_for
+                await account_for(session, user)
             active_tenant = (await session.execute(select(Tenant.id).where(Tenant.id == tenant_id, Tenant.status == "ACTIVE"))).scalar_one_or_none()
             if active_tenant is None:
                 raise HTTPException(403, "Chi nhánh đã bị khóa")
@@ -62,4 +61,6 @@ async def get_optional_tenant_ctx(
             await set_tenant_context(session, tenant_id)
         else:
             raise _UNAUTHORIZED
+        from app.services.spa_service import tenant_spa
+        await tenant_spa(session, tenant_id)
         yield TenantCtx(session, tenant_id, user)

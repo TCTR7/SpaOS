@@ -26,7 +26,9 @@ async def provision_account(db, user, *, owner=False):
     old = (await db.execute(select(LoginAccount).where(LoginAccount.phone_number == user.phone_number))).scalar_one_or_none()
     if old:
         raise HTTPException(409, "Số điện thoại đã có tài khoản chung. Dùng chức năng cấp quyền chi nhánh, không tạo tài khoản trùng.")
-    account = LoginAccount(phone_number=user.phone_number, password_hash=user.password_hash)
+    from app.services.spa_service import tenant_spa
+    spa = await tenant_spa(db, user.tenant_id)
+    account = LoginAccount(phone_number=user.phone_number, password_hash=user.password_hash, spa_id=spa.id, default_branch_id=user.tenant_id)
     db.add(account)
     await db.flush()
     link = BranchMembership(tenant_id=user.tenant_id, user_id=user.id, account_id=account.id, is_owner=owner)
@@ -43,10 +45,19 @@ async def account_for(db, user):
     account = (await db.execute(select(LoginAccount).where(LoginAccount.id == link.account_id))).scalar_one_or_none()
     if not account or not account.is_active:
         raise HTTPException(403, "Tài khoản đã bị khóa")
+    from app.services.spa_service import tenant_spa
+    spa = await tenant_spa(db, user.tenant_id)
+    if account.spa_id != spa.id:
+        raise HTTPException(403, "Tài khoản không thuộc spa này")
     return account, link
 
 async def branches_for(db, account_id):
     await account_context(db, account_id)
+    account = (await db.execute(select(LoginAccount).where(LoginAccount.id == account_id, LoginAccount.is_active.is_(True)))).scalar_one_or_none()
+    if not account or not account.spa_id:
+        return []
+    from app.services.spa_service import spa_context
+    await spa_context(db, account.spa_id)
     links = list((await db.execute(select(BranchMembership).where(
         BranchMembership.account_id == account_id, BranchMembership.is_active.is_(True))
         .order_by(BranchMembership.created_at, BranchMembership.id))).scalars().all())
@@ -55,7 +66,7 @@ async def branches_for(db, account_id):
         await set_tenant_context(db, link.tenant_id)
         user = (await db.execute(select(User).where(User.tenant_id == link.tenant_id,
                 User.id == link.user_id, User.is_active.is_(True), User.role.in_([UserRole.ADMIN, UserRole.STAFF])))).scalar_one_or_none()
-        tenant = (await db.execute(select(Tenant).where(Tenant.id == link.tenant_id, Tenant.status == "ACTIVE"))).scalar_one_or_none()
+        tenant = (await db.execute(select(Tenant).where(Tenant.id == link.tenant_id, Tenant.spa_id == account.spa_id, Tenant.status == "ACTIVE"))).scalar_one_or_none()
         if user and tenant:
             result.append((link, user, tenant))
     return result
@@ -69,7 +80,19 @@ async def authenticate_management(db, phone, password):
     branches = await branches_for(db, account.id)
     if not branches:
         raise HTTPException(401, "Tài khoản không có chi nhánh được phép truy cập")
-    return branches[0][1]
+    return await preferred_branch(db, account, branches)
+
+
+async def preferred_branch(db, account, branches):
+    target = next((row for row in branches if row[2].id == account.default_branch_id), branches[0])
+    if target[1].role == UserRole.STAFF:
+        from datetime import datetime
+        from app.services.assignment_service import assignment, TZ
+        assigned = await assignment(db, account.id, datetime.now(TZ).date())
+        if assigned and assigned.tenant_id:
+            target = next((row for row in branches if row[2].id == assigned.tenant_id), target)
+    await set_tenant_context(db, target[2].id)
+    return target[1]
 
 async def branch_password(db, user, password):
     link = await membership_for(db, user)

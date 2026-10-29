@@ -34,7 +34,9 @@ async def get_result(db, tenant_id, actor, request_id):
     return ManualBatchOut.model_validate(row)
 
 
-async def create_batch(db, tenant_id, actor, body):
+async def create_batch(db, tenant_id, actor, body, *, commit=True):
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     digest = hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True,
                                        separators=(",", ":")).encode()).hexdigest()
     try:
@@ -46,10 +48,14 @@ async def create_batch(db, tenant_id, actor, body):
                 raise HTTPException(409, "Mã tạo lịch đã dùng với nội dung khác")
             output = ManualBatchOut.model_validate(old)
             # Release retry/customer locks before post-response notification sessions.
-            await db.commit()
+            if commit: await db.commit()
             return output
         if body.new_customer:
             new = body.new_customer
+            existing = (await db.execute(select(User.role).where(User.tenant_id == tenant_id, User.phone_number == new.phone_number))).scalar_one_or_none()
+            if existing:
+                detail = "Số điện thoại thuộc tài khoản quản lý/nhân viên tại chi nhánh. Dùng số liên hệ khác cho hồ sơ khách." if existing != UserRole.CUSTOMER else "Khách đã có hồ sơ tại chi nhánh. Chọn Khách hiện có và tìm số điện thoại này."
+                raise HTTPException(409, detail)
             customer = User(tenant_id=tenant_id, role=UserRole.CUSTOMER,
                 full_name=new.full_name, phone_number=new.phone_number, notes=new.notes,
                 password_hash=hash_password(secrets.token_urlsafe(24)),
@@ -99,7 +105,7 @@ async def create_batch(db, tenant_id, actor, body):
         db.add(result)
         await db.flush()
         output = ManualBatchOut.model_validate(result)
-        await db.commit()
+        if commit: await db.commit()
         return output
     except IntegrityError:
         await db.rollback()

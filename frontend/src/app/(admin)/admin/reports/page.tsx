@@ -300,7 +300,7 @@ export default function AdminReportsPage(): React.ReactElement {
                         <span className="block text-xs font-normal text-muted-foreground lg:hidden">Dịch vụ đã làm</span>
                         {item.completed_services_count}
                       </td>
-                      <td className="block min-w-0 px-4 py-3 lg:table-cell text-center">
+                      <td className="col-span-2 block min-w-0 px-4 py-2 lg:table-cell text-center">
                         <span className="text-slate-700">
                           {item.single_services_count} lẻ
                         </span>{" "}
@@ -309,11 +309,11 @@ export default function AdminReportsPage(): React.ReactElement {
                           {item.package_sessions_count} buổi thẻ
                         </span>
                       </td>
-                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell text-right font-bold text-foreground">
+                      <td className="block min-w-0 border-t px-4 py-3 lg:table-cell lg:border-0 font-bold text-foreground">
                         <span className="block text-xs font-normal text-muted-foreground lg:hidden">Giá trị dịch vụ</span>
                         {formatCurrency(rev)}
                       </td>
-                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell text-right font-bold text-emerald-700">
+                      <td className="block min-w-0 border-t px-4 py-3 lg:table-cell lg:border-0 font-bold text-emerald-700">
                         <span className="block text-xs font-normal text-muted-foreground lg:hidden">Hoa hồng ước tính ({commissionRate}%)</span>
                         {formatCurrency(commission)}
                       </td>

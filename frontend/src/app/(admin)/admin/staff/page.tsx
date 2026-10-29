@@ -1,22 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { DateOverrides } from "@/components/admin/date-overrides";
+import { WorkforceEditor } from "@/components/admin/workforce-editor";
+import { useAdminAuth } from "@/components/admin/auth-context";
 import { CredentialForm } from "@/components/credential-form";
 import { useBranchGuard } from "@/lib/branch-guard";
 import { useListDetail } from "@/lib/use-list-detail";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { StaffAvatar } from "@/components/admin/staff-avatar";
 import { CalendarClock, Contact, Edit2, Plus, Save, UserCheck } from "lucide-react";
 import {
   createStaff,
   fetchStaffList,
-  fetchStaffSchedules,
-  saveStaffSchedules,
   updateStaff,
 } from "@/lib/api";
-import type { StaffScheduleItem, UserDetail } from "@/lib/types";
-import { cn, DAY_OF_WEEK_LABELS } from "@/lib/utils";
+import type { UserDetail } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Badge,
@@ -29,38 +28,21 @@ import {
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
-const DAY_ORDER: number[] = [1, 2, 3, 4, 5, 6, 0]; // Thứ 2 -> Chủ Nhật
-
-function buildDefaultWeekSchedules(): StaffScheduleItem[] {
-  return DAY_ORDER.map((dow) => ({
-    day_of_week: dow,
-    start_time: "09:00:00",
-    end_time: "20:00:00",
-    is_day_off: false,
-  }));
-}
-
 export default function AdminStaffPage(): React.ReactElement {
+  const {branches,tenant} = useAdminAuth();
+  const [branchIds,setBranchIds] = React.useState<string[]>([]);
   const detail = useListDetail();
   const [accountDirty, setAccountDirty] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [dateDirty, setDateDirty] = React.useState(false), [dateBusy, setDateBusy] = React.useState(false);
-  const staffRequest = React.useRef(0);
-  const selectedId = React.useRef<string | null>(null);
-  const [schedError, setSchedError] = React.useState<string | null>(null);
   const [schedDirty, setSchedDirty] = React.useState(false);
   const [pendingStaff, setPendingStaff] = React.useState<UserDetail | null>(null);
-  const scheduleFlight = React.useRef(false);
   const staffFlight = React.useRef(false);
   const [staffList, setStaffList] = React.useState<UserDetail[]>([]);
   const [selectedStaff, setSelectedStaff] = React.useState<UserDetail | null>(
     null
   );
-  const [schedules, setSchedules] = React.useState<StaffScheduleItem[]>(
-    buildDefaultWeekSchedules
-  );
   const [loading, setLoading] = React.useState<boolean>(true);
-  const [schedLoading, setSchedLoading] = React.useState<boolean>(false);
   const [savingSched, setSavingSched] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
@@ -86,7 +68,6 @@ export default function AdminStaffPage(): React.ReactElement {
       setStaffList(list);
       if (selectedStaff) setSelectedStaff((current) => list.find((row) => row.id === current?.id) || null);
       if (list.length > 0 && !selectedStaff) {
-        setSchedLoading(true);
         setSelectedStaff(list[0]);
       }
     } catch (err) {
@@ -100,40 +81,15 @@ export default function AdminStaffPage(): React.ReactElement {
     }
   }, [selectedStaff]);
 
-  selectedId.current = selectedStaff?.id || null;
-  const loadSchedulesForStaff = React.useCallback(async (staffId: string): Promise<void> => {
-    const request = ++staffRequest.current;
-    setSchedLoading(true); setSchedError(null); setSuccessMsg(null);
-    try {
-      const existing = await fetchStaffSchedules(staffId);
-      if (request !== staffRequest.current || selectedId.current !== staffId) return;
-      const byDay = new Map(existing.map((item) => [item.day_of_week, item]));
-      setSchedules(buildDefaultWeekSchedules().map((item) => byDay.get(item.day_of_week) || item));
-      setSchedDirty(false);
-    } catch (err) {
-      if (request === staffRequest.current && selectedId.current === staffId) {
-        setSchedules([]); setSchedError(err instanceof Error ? err.message : "Không tải được lịch làm việc");
-      }
-    } finally {
-      if (request === staffRequest.current && selectedId.current === staffId) setSchedLoading(false);
-    }
-  }, []);
-
   React.useEffect(() => {
     void loadStaff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  React.useEffect(() => {
-    if (selectedStaff) {
-      void loadSchedulesForStaff(selectedStaff.id);
-    }
-    return () => { staffRequest.current += 1; };
-  }, [selectedStaff?.id, loadSchedulesForStaff]);
-
   const openAddStaff = (): void => {
-    if (scheduleFlight.current) return;
+    if (savingSched) return;
     setEditingStaff(null);
+    setBranchIds(tenant ? [tenant.id] : []);
     setFullName("");
     setPhoneNumber("");
     setPassword("");
@@ -143,7 +99,7 @@ export default function AdminStaffPage(): React.ReactElement {
   };
 
   const openEditStaff = (st: UserDetail): void => {
-    if (scheduleFlight.current) return;
+    if (savingSched) return;
     setEditingStaff(st);
     setFullName(st.full_name);
     setPhoneNumber(st.phone_number);
@@ -185,13 +141,14 @@ export default function AdminStaffPage(): React.ReactElement {
         }
       } else {
         const created = await createStaff({
+          branch_ids:branchIds,
           full_name: fullName.trim(),
           phone_number: phoneNumber.trim(),
           password: password.trim(),
           notes: notes.trim() || null,
         });
         setStaffList((prev) => [created, ...prev]);
-        setSchedules([]); setSchedLoading(true); setSelectedStaff(created); detail.open();
+        setSelectedStaff(created); detail.open();
       }
       setModalOpen(false);
     } catch (err) {
@@ -201,47 +158,6 @@ export default function AdminStaffPage(): React.ReactElement {
     } finally {
       staffFlight.current = false;
       setSavingStaff(false);
-    }
-  };
-
-  const updateDaySchedule = (
-    dayOfWeek: number,
-    patch: Partial<StaffScheduleItem>
-  ): void => {
-    setSchedDirty(true);
-    setSchedules((prev) =>
-      prev.map((item) =>
-        item.day_of_week === dayOfWeek ? { ...item, ...patch } : item
-      )
-    );
-  };
-
-  const handleSaveSchedules = async (): Promise<void> => {
-    if (scheduleFlight.current || !selectedStaff || schedLoading || schedError) return;
-    scheduleFlight.current = true;
-    setSavingSched(true);
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      const normalized = schedules.map((s) => ({
-        day_of_week: s.day_of_week,
-        start_time:
-          s.start_time.length === 5 ? `${s.start_time}:00` : s.start_time,
-        end_time: s.end_time.length === 5 ? `${s.end_time}:00` : s.end_time,
-        is_day_off: s.is_day_off,
-      }));
-      await saveStaffSchedules(selectedStaff.id, normalized);
-      setSchedDirty(false);
-      setSuccessMsg(
-        `Đã lưu lịch làm việc 7 ngày trong tuần cho KTV ${selectedStaff.full_name}!`
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Cập nhật lịch làm việc thất bại"
-      );
-    } finally {
-      scheduleFlight.current = false;
-      setSavingSched(false);
     }
   };
 
@@ -311,7 +227,7 @@ export default function AdminStaffPage(): React.ReactElement {
                     <button type="button" aria-pressed={active} disabled={savingSched || accountBusy || dateBusy}
                       onClick={(event) => {
                         if ((schedDirty || accountDirty || dateDirty) && selectedStaff?.id !== st.id) setPendingStaff(st);
-                        else { if (selectedStaff?.id !== st.id) { setSchedules([]); setSchedLoading(true); } setSelectedStaff(st); detail.open(event.currentTarget); }
+                        else { if (selectedStaff?.id !== st.id) { } setSelectedStaff(st); detail.open(event.currentTarget); }
                       }} className="min-w-0 flex-1 py-1 text-left">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-foreground">
@@ -353,128 +269,12 @@ export default function AdminStaffPage(): React.ReactElement {
           </CardContent>
         </Card></div>
 
-        {/* Right: 7-Day Schedule Editor */}
         <Card className={cn("min-w-0 lg:col-span-8", !detail.detailOpen && "hidden lg:block")}>
-          {!selectedStaff ? (
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <UserCheck className="h-10 w-10 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium">
-                Chọn 1 Kỹ thuật viên để cấu hình ca làm việc
-              </p>
-            </CardContent>
-          ) : (
-            <>
-              <div className="p-3 pb-0 lg:hidden"><Button variant="outline" onClick={detail.back}>Quay lại danh sách KTV</Button></div>
-              <CardHeader className="flex min-w-0 flex-col gap-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CalendarClock className="h-4 w-4 text-primary" />
-                    Lịch làm việc 7 ngày — {selectedStaff.full_name}
-                  </CardTitle>
-                  <CardDescription>
-                    Hệ thống dùng ca làm việc này kết hợp với giờ mở cửa của Spa
-                    để xác định giờ có thể nhận khách.
-                  </CardDescription>
-                </div>
-                <Button
-                  size="sm"
-                  disabled={savingSched || schedLoading || !!schedError}
-                  onClick={() => void handleSaveSchedules()}
-                >
-                  <Save className="h-4 w-4" />
-                  {savingSched ? "Đang lưu..." : "Lưu lịch tuần"}
-                </Button>
-              </CardHeader>
-
-              <CardContent className="pt-4">
-                {schedLoading ? (
-                  <p className="py-8 text-center text-xs text-muted-foreground">
-                    Đang tải lịch làm việc...
-                  </p>
-                ) : schedError ? (
-                  <div role="alert"><p>{schedError}</p><Button variant="outline" onClick={() => void loadSchedulesForStaff(selectedStaff.id)}>Thử tải lại ca làm</Button></div>
-                ) : (
-                  <div className="space-y-2.5">
-                    <details className="rounded-lg border p-3">
-                      <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Sao chép giờ làm cho cả tuần</summary>
-                      <p className="mb-2 text-xs text-muted-foreground">Sao chép giờ từ Thứ 2; giữ nguyên các ngày nghỉ. Kiểm tra từng ngày rồi nhấn Lưu lịch tuần.</p>
-                      <Button type="button" variant="outline" disabled={savingSched} onClick={() => {
-                        const source = schedules.find((item) => item.day_of_week === 1);
-                        if (!source) return;
-                        setSchedules((previous) => previous.map((item) => ({ ...item, start_time: source.start_time, end_time: source.end_time })));
-                        setSchedDirty(true);
-                      }}>Áp dụng giờ Thứ 2 cho các ngày</Button>
-                    </details>
-                    {schedules.map((s) => (
-                      <div
-                        key={s.day_of_week}
-                        className={cn(
-                          "flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3",
-                          s.is_day_off
-                            ? "border-border bg-muted/40 opacity-75"
-                            : "border-border neu-surface bg-card"
-                        )}
-                      >
-                        <div className="w-28 font-semibold text-sm text-foreground">
-                          {DAY_OF_WEEK_LABELS[s.day_of_week]}
-                        </div>
-
-                        <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto">
-                          <Input
-                            type="time"
-                            aria-label={`Giờ bắt đầu ${DAY_OF_WEEK_LABELS[s.day_of_week]}`}
-                            value={s.start_time.slice(0, 5)}
-                            disabled={s.is_day_off || savingSched}
-                            onChange={(e) =>
-                              updateDaySchedule(s.day_of_week, {
-                                start_time: e.target.value,
-                              })
-                            }
-                            className="min-w-0 flex-1 sm:w-32 sm:flex-none"
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            đến
-                          </span>
-                          <Input
-                            type="time"
-                            aria-label={`Giờ kết thúc ${DAY_OF_WEEK_LABELS[s.day_of_week]}`}
-                            value={s.end_time.slice(0, 5)}
-                            disabled={s.is_day_off || savingSched}
-                            onChange={(e) =>
-                              updateDaySchedule(s.day_of_week, {
-                                end_time: e.target.value,
-                              })
-                            }
-                            className="min-w-0 flex-1 sm:w-32 sm:flex-none"
-                          />
-                        </div>
-
-                        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={s.is_day_off}
-                            disabled={savingSched}
-                            onChange={(e) =>
-                              updateDaySchedule(s.day_of_week, {
-                                is_day_off: e.target.checked,
-                              })
-                            }
-                            className="h-4 w-4 accent-primary"
-                          />
-                          <span>Nghỉ hằng tuần</span>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </>
-          )}
+          {selectedStaff ? <><div className="p-3 lg:hidden"><Button variant="outline" onClick={detail.back}>Quay lại danh sách KTV</Button></div><WorkforceEditor key={selectedStaff.id} staffId={selectedStaff.id} onDirtyChange={setSchedDirty} onBusyChange={setSavingSched}/></> : <CardContent>Chọn nhân viên để phân công theo ngày.</CardContent>}
         </Card>
       </div>
 
       {selectedStaff && detail.detailOpen && <div className="ml-auto w-full max-w-2xl space-y-4">
-        <DateOverrides key={selectedStaff.id + ":dates"} staffId={selectedStaff.id} onBusyChange={setDateBusy} onDirtyChange={setDateDirty} />
         <CredentialForm key={selectedStaff.id + ":account"} staffId={selectedStaff.id} phone={selectedStaff.phone_number} onSaved={() => void loadStaff()} onBusyChange={setAccountBusy} onDirtyChange={setAccountDirty} />
       </div>}
       {/* Add / Edit Staff Modal */}
@@ -482,7 +282,7 @@ export default function AdminStaffPage(): React.ReactElement {
         <p>Đổi nhân viên sẽ bỏ các thay đổi chưa lưu.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setPendingStaff(null)}>Tiếp tục chỉnh sửa</Button>
-          <Button onClick={() => { setSelectedStaff(pendingStaff); setSchedules([]); setSchedLoading(true); setSchedDirty(false); setPendingStaff(null); detail.open(); }}>Bỏ thay đổi và chọn KTV</Button>
+          <Button onClick={() => { setSelectedStaff(pendingStaff); setSchedDirty(false); setPendingStaff(null); detail.open(); }}>Bỏ thay đổi và chọn KTV</Button>
         </div>
       </Modal>
       <Modal
@@ -536,6 +336,7 @@ export default function AdminStaffPage(): React.ReactElement {
             />
           </div>
 
+          {!editingStaff&&<fieldset className="space-y-2"><legend className="text-sm font-semibold">Chi nhánh được làm việc</legend>{branches.filter(b=>b.is_owner).map(b=><label key={b.tenant.id} className="flex min-h-11 items-center gap-3"><input type="checkbox" disabled={b.tenant.id===tenant?.id} checked={b.tenant.id===tenant?.id||branchIds.includes(b.tenant.id)} onChange={e=>setBranchIds(v=>e.target.checked?[...v,b.tenant.id]:v.filter(x=>x!==b.tenant.id))}/>{b.tenant.name}</label>)}</fieldset>}
           <div className="space-y-1.5">
             <Label htmlFor="stNotes">Chuyên môn / Ghi chú</Label>
             <Textarea

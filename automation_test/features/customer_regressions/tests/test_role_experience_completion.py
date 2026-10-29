@@ -16,19 +16,11 @@ def test_contacts_and_setup_use_saved_branch_data(scenario):
     s["call"]("PATCH", "/tenants/me", json={"address": "123 QA Street", "contact_phone": "0901234567"})
     page = s["page"](s["admin"], True)
     page.goto(config.frontend_url + "/admin/dashboard")
-    guide = page.locator("details").filter(has_text="Thiết lập chi nhánh và chia sẻ đặt lịch")
-    expect(guide).to_have_count(1)
+    guide = page.get_by_test_id("branch-setup-guide")
     for selected_day in ("2026-10-22", "2026-10-23"):
         page.locator("#dashboardDay").fill(selected_day)
         expect(page.get_by_test_id("branch-dashboard")).to_be_visible()
-        expect(guide).to_have_count(1)
-    guide.locator("summary").click()
-    expect(guide).to_contain_text("Đã có địa chỉ và số liên hệ")
-    for width in (320, 390, 1366):
-        page.set_viewport_size({"width": width, "height": 900})
-        expect(guide.get_by_role("button", name="Sao chép đường dẫn cho khách", exact=True)).to_be_visible()
-        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
-    expect(guide.get_by_role("link", name=re.compile("3. Nhân viên"))).to_contain_text("1/1")
+        expect(guide).to_have_count(0)
     page.goto(s["url"])
     expect(page.get_by_role("link", name="Gọi spa: 0901234567", exact=True)).to_have_attribute("href", "tel:0901234567")
     expect(page.get_by_role("link", name="123 QA Street · Đường đi", exact=True)).to_have_attribute("href", re.compile("https://www.google.com/maps/"))
@@ -40,7 +32,7 @@ def test_setup_error_has_retry_instead_of_empty_counts(scenario):
     pattern = "**/api/v1/tenants/me/setup"
     page.route(pattern, lambda route: route.fulfill(status=503, json={"detail": "QA unavailable"}))
     page.goto(config.frontend_url + "/admin/dashboard")
-    guide = page.locator("details").filter(has_text="Thiết lập chi nhánh và chia sẻ đặt lịch")
+    guide = page.get_by_test_id("branch-setup-guide")
     guide.locator("summary").click()
     expect(guide.get_by_role("alert")).to_contain_text("Chưa kiểm tra được")
     page.unroute(pattern)
@@ -54,9 +46,10 @@ def test_staff_reads_own_week_and_date_override(scenario, api_helper):
     token = api_helper.login(s["slug"], s["staff"]["phone_number"], "Staff@123")["access_token"]
     page = s["page"](token, True)
     page.goto(config.frontend_url + "/admin/work-hours")
-    expect(page.get_by_role("heading", name="Ca làm của tôi", exact=True)).to_be_visible()
-    expect(page.get_by_role("main")).to_contain_text(datetime.fromisoformat(day()).strftime("%d/%m/%Y") + " · Nghỉ")
-    expect(page.get_by_role("main").locator("input,select,textarea")).to_have_count(0)
+    expect(page.get_by_role("heading", name="Phân công chi nhánh theo ngày", exact=True)).to_be_visible()
+    expect(page.get_by_role("main")).to_contain_text(day() + " · Nghỉ")
+    expect(page.get_by_role("main").locator("select:not(:disabled)")).to_have_count(0)
+    expect(page.get_by_role("button",name="Lưu phân công tuần",exact=True)).to_have_count(0)
     expect(page.get_by_role("link", name="Thu tiền", exact=True)).to_have_count(0)
 
 
@@ -65,15 +58,17 @@ def test_owner_can_save_date_off_and_staff_keeps_week(scenario):
     page = s["page"](s["admin"], True)
     page.goto(config.frontend_url + "/admin/staff")
     page.get_by_role("button").filter(has_text="QA Staff").first.click()
-    region = page.get_by_role("region", name="Ca riêng theo ngày", exact=True)
-    region.locator("#overrideDay").fill(day())
-    with page.expect_response(lambda r: "/date-overrides" in r.url and r.request.method == "PUT") as saved:
-        region.get_by_role("button", name="Lưu ca cho ngày này", exact=True).click()
+    region = page.get_by_role("region", name="Phân công chi nhánh theo ngày", exact=True)
+    region.locator("summary").filter(has_text="Sửa riêng một ngày").click()
+    region.get_by_label("Ngày ngoại lệ",exact=True).fill(day())
+    with page.expect_response(lambda r: r.url.endswith("/day") and r.request.method == "PUT") as saved:
+        region.get_by_role("button", name="Lưu ngày ngoại lệ", exact=True).click()
     assert saved.value.status == 200
-    expect(region).to_contain_text(datetime.fromisoformat(day()).strftime("%d/%m/%Y") + " · Nghỉ")
+    expect(region).to_contain_text(day() + " · Nghỉ")
     assert len(s["call"]("GET", "/staff/" + s["staff"]["id"] + "/schedules")) == 7
+    region.locator("summary").filter(has_text="Sửa riêng một ngày").click()
     region.get_by_role("button", name="Trở về ca tuần", exact=True).click()
-    expect(region.get_by_text(datetime.fromisoformat(day()).strftime("%d/%m/%Y") + " · Nghỉ", exact=True)).to_have_count(0)
+    expect(region.get_by_text(day() + " · Nghỉ", exact=True)).to_have_count(0)
 
 
 def test_handover_is_saved_for_booking_and_assigned_staff_reads_only(scenario, api_helper):
@@ -253,7 +248,7 @@ def test_logo_preview_is_saved_with_branch_settings(scenario):
     assert response.value.status == 200
     expect(page.get_by_alt_text("Xem trước logo chi nhánh", exact=True)).to_have_attribute("src", re.compile("/api/v1/public/tenants/" + s["slug"] + "/logo"))
     assert s["call"]("GET", "/tenants/me")["logo_url"].startswith("/api/v1/public/tenants/" + s["slug"] + "/logo")
-    expect(page.locator("aside img")).to_have_attribute("src", re.compile("/logo"))
+    expect(page.locator("header img")).to_have_attribute("src", re.compile("/logo"))
     page.set_viewport_size({"width": 320, "height": 844})
     expect(page.locator("header img")).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")

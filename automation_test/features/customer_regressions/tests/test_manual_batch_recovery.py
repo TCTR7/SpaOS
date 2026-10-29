@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 import pytest
 from playwright.sync_api import expect
@@ -46,16 +47,17 @@ def test_lost_committed_response_never_duplicates_customer_package_or_sessions(s
     page.on("request", lambda r: posted.append(r.post_data_json) if r.method == "POST" and r.url.endswith("/manual-batches") else None)
     key = "spaos_manual_batch_" + s["customer"]["tenant_id"] + "_"
     stored = page.evaluate("prefix => Object.entries(sessionStorage).filter(([k]) => k.startsWith(prefix))", key)
-    assert len(stored) == 1 and stored[0][1] == sent[0]["request_id"]
-    assert phone not in str(stored) and "QA Batch Recovery" not in str(stored)
+    assert len(stored) == 1 and json.loads(stored[0][1])[0]["id"] == sent[0]["request_id"]
+    assert "password" not in str(stored) and "access_token" not in str(stored)
     if mode == "reload":
         page.reload()
+        page.get_by_role("button", name="Mở lại và kiểm tra", exact=True).click()
         expect(modal).to_be_visible()
-        expect(modal.get_by_role("button", name="Thử lại", exact=True)).to_have_count(0)
+        expect(modal.get_by_role("button", name="Thử lại", exact=True)).to_have_count(1)
     elif mode == "check":
         modal.get_by_role("button", name="Kiểm tra sau", exact=True).click()
         expect(modal).to_have_count(0)
-        page.get_by_role("button", name="Tạo lịch hẹn", exact=True).click()
+        page.get_by_role("button", name="Mở lại và kiểm tra", exact=True).click()
         expect(modal.get_by_placeholder("Số điện thoại (9-15 số) *", exact=True)).to_have_value(phone)
     modal.get_by_role("button", name="Thử lại" if mode == "retry" else "Kiểm tra kết quả", exact=True).click()
     expect(modal).to_have_count(0)

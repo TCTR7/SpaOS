@@ -2,11 +2,12 @@ import type { OwnerDetail } from "@/components/operator-owner";
 export type Sheet = {key:string;title:string;name:string;url:string;lines:string[];logo?:string|null};
 export function handoverSheets(owner:OwnerDetail, origin:string):Sheet[]{
   const base=new URL(origin).origin;
+  const brand=owner.spa?"/s/"+encodeURIComponent(owner.spa.slug):"";
   const branches=owner.branches.filter(b=>b.active);
   return [
-    {key:"management",title:"DÀNH CHO CHỦ SPA & NHÂN VIÊN",name:"Trang quản lý spa",url:base+"/admin/login",lines:["Chủ spa: "+owner.full_name,"Số điện thoại đăng nhập: "+owner.phone_number,"Nhân viên sử dụng tài khoản riêng do chủ spa cấp.","Mật khẩu hoặc liên kết kích hoạt được gửi riêng.","Đăng nhập, mở Hướng dẫn & Cài ứng dụng để bắt đầu."]},
-    {key:"customers",title:"DÀNH CHO KHÁCH HÀNG",name:"Đặt lịch tại spa",url:base,lines:["Chọn chi nhánh, dịch vụ và khung giờ phù hợp.","Lưu đường dẫn hoặc thêm ứng dụng vào màn hình chính.","Bạn có thể chia sẻ trang này cho khách hàng của spa."]},
-    ...branches.map(b=>({key:b.id,title:"ĐẶT LỊCH TẠI CHI NHÁNH",name:b.name,url:base+"/"+encodeURIComponent(b.slug),logo:b.logo_url,lines:[...(b.address?[b.address]:[]),"Quét mã để xem dịch vụ và chọn lịch hẹn.","Mã này dẫn thẳng đến chi nhánh; phù hợp để in tại quầy."]})),
+    {key:"management",title:"DÀNH CHO CHỦ SPA & NHÂN VIÊN",name:owner.spa?.name||"Trang quản lý spa",url:base+brand+"/admin/login",logo:owner.spa?.logo_url,lines:["Chủ spa: "+owner.full_name,"Số điện thoại đăng nhập: "+owner.phone_number,"Nhân viên sử dụng tài khoản riêng do chủ spa cấp.","Mật khẩu hoặc liên kết kích hoạt được gửi riêng.","Đăng nhập, mở Hướng dẫn & Cài ứng dụng để bắt đầu."]},
+    {key:"customers",title:"DÀNH CHO KHÁCH HÀNG",name:owner.spa?.name||"Đặt lịch tại spa",url:base+brand+"/",logo:owner.spa?.logo_url,lines:["Chọn chi nhánh, dịch vụ và khung giờ phù hợp.","Lưu đường dẫn hoặc thêm ứng dụng vào màn hình chính.","Bạn có thể chia sẻ trang này cho khách hàng của spa."]},
+    ...branches.map(b=>({key:b.id,title:"ĐẶT LỊCH TẠI CHI NHÁNH",name:b.name,url:base+(brand?brand+"/b":"")+"/"+encodeURIComponent(b.slug),logo:b.logo_url||owner.spa?.logo_url,lines:[...(b.address?[b.address]:[]),"Quét mã để xem dịch vụ và chọn lịch hẹn.","Mã này dẫn thẳng đến chi nhánh; phù hợp để in tại quầy."]})),
   ];
 }
 export function handoverMessage(owner:OwnerDetail,origin:string):string{

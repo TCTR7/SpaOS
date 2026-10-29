@@ -175,6 +175,11 @@ async def check_override(db, tenant_id, staff_id, day, windows):
 @router.put("/staff/{staff_id}/date-overrides")
 async def save_override(staff_id: uuid.UUID, body: DateOverrideIn, actor: User = Depends(admin), tenant_id: uuid.UUID = Depends(get_current_tenant_id), db: AsyncSession = Depends(get_tenant_db)):
     if body.day < datetime.now(bookings.TZ).date(): raise HTTPException(422, "Chọn hôm nay hoặc ngày tương lai")
+    from app.services.assignment_service import save_assignments
+    from app.schemas.workforce import AssignmentIn
+    await save_assignments(db, actor, staff_id, [AssignmentIn(day=body.day,
+        tenant_id=None if body.is_day_off else tenant_id, start_time=None if body.is_day_off else body.start_time,
+        end_time=None if body.is_day_off else body.end_time)], body.day, weekly=False)
     await bookings._lock_staff_row(db, tenant_id, staff_id)
     await bookings.get_active_staff(db, tenant_id, staff_id)
     tenant = (await db.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one()
@@ -195,6 +200,15 @@ async def save_override(staff_id: uuid.UUID, body: DateOverrideIn, actor: User =
 async def remove_override(staff_id: uuid.UUID, day: date, actor: User = Depends(admin), tenant_id: uuid.UUID = Depends(get_current_tenant_id), db: AsyncSession = Depends(get_tenant_db)):
     await bookings._lock_staff_row(db, tenant_id, staff_id)
     await bookings.get_active_staff(db, tenant_id, staff_id)
+    from app.services.assignment_service import staff_account, verify_bookings
+    from app.services.spa_service import tenant_spa
+    from app.models.models import StaffAssignment
+    spa = await tenant_spa(db, tenant_id)
+    aid = await staff_account(db, tenant_id, staff_id)
+    await db.execute(delete(StaffAssignment).where(StaffAssignment.spa_id == spa.id,
+        StaffAssignment.account_id == aid, StaffAssignment.day == day))
+    await verify_bookings(db, spa, aid, day)
+    await set_tenant_context(db, tenant_id)
     await db.execute(delete(StaffDateOverride).where(StaffDateOverride.tenant_id == tenant_id,
         StaffDateOverride.staff_id == staff_id, StaffDateOverride.day == day))
     tenant = (await db.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one()
@@ -240,9 +254,15 @@ async def setup_summary(actor: User = Depends(admin), tenant_id: uuid.UUID = Dep
     staff_ids = select(User.id).where(User.tenant_id == tenant_id, User.role == UserRole.STAFF, User.is_active.is_(True))
     service_count = (await db.execute(select(func.count(Service.id)).where(Service.tenant_id == tenant_id, Service.is_active.is_(True)))).scalar_one()
     staff_count = (await db.execute(select(func.count(User.id)).where(User.tenant_id == tenant_id, User.id.in_(staff_ids)))).scalar_one()
-    schedules = (await db.execute(select(func.count(func.distinct(StaffSchedule.staff_id))).where(StaffSchedule.tenant_id == tenant_id,
-        StaffSchedule.staff_id.in_(staff_ids), StaffSchedule.is_day_off.is_(False), StaffSchedule.end_time > StaffSchedule.start_time))).scalar_one()
     tenant = (await db.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one()
+    from app.services.assignment_service import effective_windows
+    ids=list((await db.execute(staff_ids)).scalars())
+    working=set()
+    today=datetime.now(bookings.TZ).date()
+    for offset in range(7):
+        windows=await effective_windows(db,tenant,ids,today+timedelta(days=offset))
+        working.update(sid for sid,hours in windows.items() if hours)
+    schedules=len(working)
     return {"services": service_count, "staff": staff_count, "staff_with_hours": schedules,
         "contact_ready": bool(tenant.address and tenant.contact_phone), "slug": tenant.slug}
 
@@ -361,7 +381,9 @@ async def customer_booking(body: CustomerBookingRequest, background_tasks: Backg
     booking = await bookings.get_booking_full(db, tenant_id, booking_id)
     from app.services.notification_queue import drain_events
     background_tasks.add_task(drain_events, tenant_id)
-    return (await bookings.present_bookings(db, tenant_id, [booking], actor))[0]
+    result = (await bookings.present_bookings(db, tenant_id, [booking], actor))[0]
+    await db.commit()
+    return result
 
 
 @router.get("/booking-requests/{request_id}")

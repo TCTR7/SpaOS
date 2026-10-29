@@ -12,6 +12,7 @@ _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 def _check_phone(v: str) -> str:
     v = re.sub(r"[\s.\-()]", "", v.strip())
+    v = re.sub(r"^\+?84([35789]\d{8})$", r"0\1", v)
     if not _PHONE_RE.match(v):
         raise ValueError("Số điện thoại không hợp lệ")
     return v
@@ -67,6 +68,7 @@ class TenantOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    spa_id: Optional[uuid.UUID] = None
     slug: str
     name: str
     address: Optional[str] = None
@@ -78,6 +80,7 @@ class TenantOut(BaseModel):
 
 
 class TokenResponse(BaseModel):
+    spa_slug: str | None = None
     access_token: str
     token_type: str = "bearer"
     expires_in: int
@@ -87,3 +90,4 @@ class TokenResponse(BaseModel):
 class MeResponse(BaseModel):
     user: UserOut
     tenant: TenantOut
+    spa: dict | None = None

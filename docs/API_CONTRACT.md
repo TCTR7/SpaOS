@@ -3,6 +3,8 @@
 *Quy tắc cho AI: Khi viết hoặc sửa bất kỳ API Endpoint nào ở Backend (FastAPI), BẮT BUỘC cập nhật Method, URL, Request Body và Response mẫu ngắn gọn vào file này để Frontend (Next.js) sử dụng ở Sprint 5 và 6.*
 
 ## 1. Xác thực & Định danh (Auth & Tenant Context)
+
+**Hiện hành 28/10/2026:** shared SaaS theo `0012_shared_spas`; xem phần **Shared SaaS 0012** cuối tài liệu cho auth, spa, phân công, gói và directory. Các mục triển khai riêng/deployment branding 0005–0007 giữ làm lịch sử; quy tắc shared mới có ưu tiên khi khác nhau. `tenant_id` vẫn là chi nhánh, không phải thương hiệu/chủ spa.
 - **Header bắt buộc cho Admin/Staff:** `Authorization: Bearer <jwt_token>`
 - **Header/Param cho Khách hàng (Public/PWA):** Truyền `X-Tenant-Slug: <slug>` hoặc qua URL.
 
@@ -23,7 +25,7 @@ JWT payload: `sub` (user_id), `tenant_id`, `role` (`ADMIN|STAFF|CUSTOMER`), `exp
 | POST | `/auth/login` | `X-Tenant-Slug` | `{ "phone_number", "password" }` | `200` Token. `401` sai thông tin, `404` slug sai |
 | GET | `/auth/me` | `Authorization: Bearer` | - | `200` `{ "user": {...}, "tenant": { "id","slug","name","logo_url","theme_color","buffer_minutes","status" } }`. `401` token sai/hết hạn |
 
-Ghi chú: `phone_number` dạng `^\+?\d{9,15}$`; `tenant_slug` dạng `[a-z0-9-]`. `tenant_id` luôn lấy từ JWT/slug, KHÔNG gửi trong body. Admin/Staff đăng nhập cũng dùng `/auth/login` với `X-Tenant-Slug` của Spa.
+Ghi chú: `phone_number` sau chuẩn hóa dạng `^\+?\d{9,15}$`; số mobile +84/84 đổi về 0 và bỏ khoảng trắng/dấu phân cách. `tenant_slug` dạng `[a-z0-9-]`. `tenant_id` luôn lấy từ JWT/slug, KHÔNG nhận tenant ghi nghiệp vụ từ body. Admin/Staff ưu tiên `/auth/login` **không** `X-Tenant-Slug`; khách đăng nhập theo nhánh với header này. Header nhánh được giữ cho tương thích management đã liên kết.
 ### 2.2. Public & Tenant Settings (Sprint 2)
 Mọi endpoint dưới đây (trừ Public) cần `Authorization: Bearer <jwt>`. Quyền: ADMIN = chủ Spa, STAFF = kỹ thuật viên/lễ tân. Sai quyền -> `403`, không tìm thấy (kể cả thuộc tenant khác) -> `404`, dữ liệu sai -> `422`, trùng SĐT -> `409`. PATCH chỉ cập nhật các field được gửi; field bắt buộc không được gửi `null`.
 
@@ -245,7 +247,7 @@ Danh tính deployment_operators tách biệt UserRole và login_accounts nghiệ
 - POST /operator/owners → 201 ProvisionOut. Body {request_id:UUID,branch_name,owner_full_name,phone_number,password}, extra forbid; tên không rỗng/tối đa 255, password ít nhất 8 ký tự/tối đa 72 byte UTF-8. Client không gửi role/tenant_id/operator_id.
 - ProvisionOut {id,tenant_id,owner_user_id,branch_name,owner_name,phone_number,created_at}; không trả password/hash/request_digest.
 - POST tạo tenant, User ADMIN, LoginAccount, BranchMembership is_owner=true, OwnerProvision và audit OWNER_PROVISIONED atomically. Tenant ID sinh tại server. Advisory lock serialize khởi tạo và retry; cùng request_id/nội dung trả bản cũ, khác nội dung 409 (HMAC digest chứa request nhưng không lưu plaintext password). Trùng danh tính SĐT 409/rollback, không gộp.
-- ENVIRONMENT=production: nếu database đã có tenant, tạo chủ độc lập mới bị từ chối 409; chủ hiện tại vẫn tạo thêm chi nhánh. /auth/register-tenant luôn bị chặn trên production, không còn mở bằng ALLOW_TENANT_REGISTRATION.
+- ENVIRONMENT=production: `/auth/register-tenant` bị chặn. Từ 0012, operator được tạo nhiều spa/chủ độc lập trong cùng deployment; mỗi lần tạo có spa riêng, không tự nhận tenant legacy. Chủ chỉ thêm nhánh trong spa và hạn mức của mình.
 - Operator API yêu cầu token riêng; ADMIN/STAFF/CUSTOMER token trả 401. Operator token bị từ chối tại API nghiệp vụ (không có tenant_id và sai audience). Operator không tự có quyền đọc hồ sơ khách/thẻ/lịch.
 - UI /operator/login và /operator dùng sessionStorage key spaos_operator_token, không ghi đè token Admin/Customer. Pending create giữ UUID/payload trong memory, khóa sửa form khi chưa rõ kết quả; retry gửi lại cùng body. Mật khẩu xóa khỏi form sau thành công.
 - OPERATOR_PHONE/NAME/PASSWORD chỉ dùng bootstrap seed cấu hình; không đưa password vào URL, log hoặc response. Seed không đổi credential/active state đã tồn tại. Demo và chủ spa không được seed mặc định.
@@ -312,3 +314,87 @@ API không nhận thêm endpoint trong hotfix này. Lifespan kiểm tra revision
 - Lọc theo kỹ năng: `GET /bookings/available-slots`, `GET /bookings/{id}/available-slots`, tự xếp KTV trong `POST /bookings`, `POST /bookings/manual-batches` và dời lịch chỉ xét KTV có kỹ năng cho TẤT CẢ dịch vụ của lịch. KTV chưa khai báo kỹ năng nào vẫn được xét (tương thích dữ liệu cũ). Chỉ định trực tiếp `staff_id` không bị chặn ở backend; giao diện Admin chỉ gợi ý KTV phù hợp.
 
 - Giới hạn ảnh logo (`POST /tenants/me/logo`, `PATCH /tenants/me` `logo_data`) và ảnh nhân viên (`POST /staff/{id}/photo`): nâng trần kích thước lên tối đa 2 MB (2.097.152 bytes) và 3.000.000 ký tự base64. Client tích hợp công cụ cắt chỉnh canvas kéo thả (`ImageCropper`) để tự căn chỉnh và tối ưu dung lượng trước khi gửi.
+
+## Shared SaaS 0012 — 28/10/2026
+
+Phần này thay thế giả định một chủ/deployment và phân công độc lập theo staff_id chi nhánh trong các mục lịch sử. Production cutover xem SHARED_SAAS_MIGRATION_RUNBOOK; schema có thể đã nâng nhưng tenant chưa mapping vẫn bị chặn 409. Spa/chi nhánh inactive bị chặn. Không tin spa_id/tenant_id tự gửi để chọn context ghi.
+
+### Auth và điều hướng
+
+- `POST /auth/login`, body `{phone_number,password}`, không header nhánh → TokenResponse thêm `spa_slug`. Một SĐT vận hành duy nhất, một spa/account. STAFF ưu tiên nhánh phân công hôm nay theo Asia/Ho_Chi_Minh; nếu không có ca lấy default hợp lệ/nhánh còn quyền. Owner ưu tiên default được lưu khi switch. Sai credentials/không nhánh active 401. CUSTOMER tiếp tục dùng header X-Tenant-Slug và namespace khách của nhánh.
+- `GET /auth/me` → `{user,tenant,spa}`; tenant thêm `spa_id`; spa = `{id,slug,name,theme_color,logo_url,cover_url,contact_phone}`. Không trả dữ liệu ảnh/base64 hoặc credential.
+- `POST /auth/resolve`, Authorization token còn chữ ký/thời hạn, không body → TokenResponse kèm spa_slug cho nhánh còn quyền. Xác minh user/auth_version ở nhánh gốc và account/spa, rồi chọn lại từ membership active. Nguồn đã thu hồi không được dùng business API. Credential thay đổi/hết hạn/không còn quyền 401; không phải cơ chế refresh cho token hết hạn.
+- `POST /branches/{id}/switch` kiểm tra quyền và lưu default của account, trả TokenResponse của nhánh đích. Không thay lịch làm hoặc khả năng nhận lịch. Không có quyền 404.
+- Mutation chờ khóa workforce trước khi đọc user/membership/version, tránh dùng quyền cũ sau thao tác thu hồi. Client đổi context phải bỏ response cũ, không replay mutation.
+
+### Spa, nhận diện và gói
+
+- `GET /spas/public/{slug}` public/no-store → public spa DTO ở trên và `branches:[{id,slug,name,address,contact_phone}]`, chỉ ACTIVE. Sai slug 404. Không trả hạn mức/quyền/người dùng/tài chính.
+- `GET /branches/public?spa_slug={slug}` → `{brand_name,branches:[{id,name,slug,address,contact_phone}]}` chỉ trong spa đó. Thiếu spa_slug trả `{brand_name:<platform>,branches:[]}`; không dùng để liệt kê mọi chủ.
+- `GET /spas/public/{slug}/logo` hoặc `/cover` → PNG/JPEG, nosniff/no-cache; chưa có ảnh 404. Chỉ tải cột ảnh khi phục vụ endpoint ảnh, không eager-load BLOB trong auth/booking.
+- `GET /spas/me` management → public spa DTO + `is_owner`; nếu owner ADMIN thêm `plan:{price_usd:10,branch_limit,staff_limit,branches,staff}`. Giá chỉ mô tả gói thử nghiệm, chưa tạo hóa đơn/thu phí SaaS.
+- `PATCH /spas/me` chỉ owner ADMIN: `{name,theme_color,logo_data?,cover_data?,cover_url?,contact_phone?}`; name/color bắt buộc. PNG/JPEG base64 tối đa 3 triệu ký tự, ảnh tối đa 2 MB/2048×2048. cover_url chỉ cùng hệ thống; contact_phone chuẩn hóa. Bỏ field tùy chọn giữ giá trị cũ; null contact/cover_url xóa giá trị tương ứng; logo_data/cover_data null không thay ảnh. Trả public spa DTO, không đổi slug. Lỗi ảnh rollback toàn bộ; STAFF/non-owner 403, dữ liệu sai 422.
+- `POST /operator/owners` thêm `spa_name?` (thiếu dùng tên nhánh đầu), `theme_color?`, `logo_data?`, `cover_data?`, `logo_url?`, `cover_url?` same-origin. Tạo Spa + chi nhánh + owner/account/membership/provision/audit trong một transaction. Nhiều chủ độc lập được phép trên production; vẫn giữ idempotency request_id/payload, duplicate identity 409. Màu không còn ghi deployment_branding. `GET /operator/owners/{id}` thêm `spa` public DTO cho bàn giao URL/QR đúng thương hiệu.
+- `POST /branches` gán spa từ owner đã xác minh, khóa/đếm nhánh ACTIVE trước tạo, mặc định tối đa 2. `POST /staff` và kích hoạt/cấp quyền kiểm tra tối đa 10 account STAFF active duy nhất; owner không tính, một account nhiều nhánh chỉ tính một. Chạm hạn mức 409; dữ liệu cũ vượt gói không bị xóa hay tự khóa đọc.
+- `/branding` và `/operator/branding` còn phục vụ giao diện nền tảng trung tính/tương thích, không là nguồn nhận diện mọi spa. Các route canonical lấy branding theo spa.
+
+### Nhân viên và phân công
+
+- `POST /staff` thêm `branch_ids?:UUID[]`: chi nhánh hiện tại luôn được cấp, thêm các nhánh owner được phép trong cùng spa. Tạo account/hồ sơ/membership toàn bộ nguyên tử; một nhánh sai rollback cả yêu cầu. Mặc định chưa phân công không có slot, chủ cần lưu lịch tuần/ngày.
+- `GET /workforce/staff/{staff_id}` owner ADMIN hoặc chính STAFF ở nhánh hiện tại → `{account_id,default_branch_id,branches:[{id,name,staff_id}],assignments:[{id,tenant_id,day,weekday,effective_from,start_time,end_time}]}`. Danh sách branch chỉ còn user/membership/tenant active. Không có danh tính/membership hợp lệ 409; sai quyền 403.
+- `PUT /workforce/staff/{staff_id}/week`, owner: `{effective_from:"YYYY-MM-DD",days:[{weekday:0..6,tenant_id:UUID|null,start_time?:"HH:MM",end_time?:"HH:MM"}]}`. Cần đúng bảy thứ khác nhau; ngày nghỉ tenant_id=null và không có giờ. Phiên bản ngày hiệu lực được thay nguyên tử, các phiên bản khác giữ nguyên.
+- `PUT /workforce/staff/{staff_id}/day`, owner: `{day:"YYYY-MM-DD",tenant_id:UUID|null,start_time?,end_time?}`. Một ngoại lệ/account/ngày; không gửi weekday. Ngoại lệ ngày ưu tiên mẫu tuần hiệu lực gần nhất. Ngày/hiệu lực từ hôm nay, giờ local không có offset, cùng một ngày và start<end. Sai schema/chưa có quyền nhánh 422; lịch hẹn bị ảnh hưởng 409. Thành công `{updated:true}`.
+- `DELETE /workforce/staff/{staff_id}/day/{YYYY-MM-DD}`, owner: không body → `{removed:true}`, trở về mẫu tuần. Không xóa quá khứ (422); xác minh lại toàn bộ booking liên quan trước commit, có lịch không khớp thì 409/rollback. Không tự dời/hủy booking.
+- `PUT /workforce/staff/{staff_id}/access`, owner: `{branch_ids:[UUID],default_branch_id:UUID}`. Mảng không rỗng; default nằm trong mảng; mọi nhánh thuộc owner/spa. Cấp thêm hoặc khôi phục membership; loại nhánh chỉ sau xử lý lịch tương lai/đang thực hiện và khách đang phụ trách, nếu chưa xử lý 409/rollback toàn bộ. Đóng tham chiếu phân công tương lai đến nhánh bị thu hồi, không đổi ID hoặc chuyển CRM/booking/thẻ/bút toán lịch sử. Trả `{updated:true}`. JWT nguồn bị chặn ngay; có thể resolve đến nhánh còn quyền nếu credentials còn hợp lệ.
+- `PATCH /staff/{id}` is_active=false cũng dùng cùng kiểm tra bàn giao, không phải đường bỏ qua. Kích hoạt lại chịu hạn mức và kiểm tra quan hệ spa.
+- `PUT /staff/{id}/schedules` tương thích: chuyển đủ tuần sang engine phân công với ngày hiệu lực hôm nay; ngày thiếu thành nghỉ. `PUT/DELETE /staff/{id}/date-overrides` cũng xác minh qua engine mới. `GET /account/work-hours` legacy không phải nguồn phân công liên chi nhánh; UI mới dùng `/workforce/staff/{id}`.
+
+### Booking, public staff và push
+
+- `GET /public/tenants/{branch_slug}?day=YYYY-MM-DD` thêm spa_slug; có day chỉ trả staff có phân công làm tại nhánh/ngày đó. day sai 422. Bỏ day giữ danh bạ public tương thích; không dùng danh bạ này thay điều kiện nhận lịch.
+- Slots, tạo lịch khách/quầy, booking request/batch, auto-assign và dời lịch đều dùng phân công account chung + membership/user active + giờ mở cửa + điều kiện kỹ năng hiện hành + busy/buffer. Một người không nhận ở hai nhánh cùng ngày; dropdown không thay điều này. Buffer tiếp tục được xét qua nửa đêm khi hôm sau làm nhánh khác.
+- Sửa phân công kiểm tra booking tương lai không giới hạn 30 ngày; mutation và booking serialize theo spa rồi giữ row locking/quy tắc thẻ hiện có. Mất quyền trong lúc chờ phải bị chặn khi đọc lại identity.
+- Push thêm tên/logo spa và URL `/s/{spa}/admin/bookings?booking_id=...&target_branch=...` hoặc `/s/{spa}/b/{branch}/appointments?...`. Không mở dữ liệu ngoài quyền hiện tại khi click.
+- Frontend manifest `/s/{spa}/manifest.webmanifest`: id ổn định `/pwa/spa/{uuid}`, name/icon của spa, scope `/s/{spa}/`, start_url `/s/{spa}/?launch=1` để mở lại theo phiên/vai trò quản lý đã xác minh hoặc vào public nếu anonymous/khách. Worker `/s/{spa}/sw.js` đúng scope và không cache API/HTML nghiệp vụ. Cổng operator giữ riêng.
+
+
+### Quản lý trạng thái chi nhánh trong spa (28/10/2026)
+
+- `GET /api/v1/branches/manage`: chỉ owner ADMIN; trả cùng BranchOut như `/branches` nhưng gồm cả nhánh tạm ngưng thuộc chính spa/tài khoản chủ. Danh sách `/branches` cho dropdown và public directory vẫn chỉ có nhánh ACTIVE.
+- `PATCH /api/v1/branches/{branch_id}/status`, body `{"status":"ACTIVE"}` hoặc `{"status":"INACTIVE"}`; chỉ owner của nhánh đích trong spa hiện tại, không nhận scope từ body. Idempotent khi đã cùng trạng thái. Mở lại kiểm tra quota nhánh ACTIVE dưới cùng khóa workforce/spa với tạo mới.
+- Tạm ngưng nhánh đang mở trả 409; chủ phải chuyển sang một nhánh ACTIVE khác trước. Còn lịch PENDING/CONFIRMED tương lai, bất kỳ IN_PROGRESS hoặc khách có assigned_staff_id thì 409, rollback đầy đủ. Chủ xử lý lịch và bàn giao khách về chủ (`assigned_staff_id:null`) trước; không tự chuyển CRM/thẻ giữa nhánh.
+- Tạm ngưng hợp lệ kết thúc các ca tương lai trỏ nhánh đó, giữ mẫu/ngoại lệ lịch sử và ca ở nhánh còn lại. Giữ user/membership và mọi ID nghiệp vụ; tenant INACTIVE bị chặn nghiệp vụ ngay. Phiên quản lý có thể `/auth/resolve` sang nơi còn quyền. Mở lại cần phân công ca mới trước nhận khách.
+- Endpoint và booking dùng cùng khóa để không nhận lịch sau khi nhánh đã tạm ngưng; thay đổi ghi audit nguyên tử. Không có thao tác xóa chi nhánh.
+
+
+Quy tắc một nơi/ngày cũng giữ sau khi một booking đã COMPLETED hoặc NO_SHOW: sửa phân công từ ngày đó không được chuyển sang chi nhánh khác hoặc làm booking cũ nằm ngoài ca. Chỉ booking CANCELLED được loại khỏi kiểm tra phân công; lịch sử trước ngày hiệu lực không bị sửa. Không dùng hoàn thành buổi để chuyển người sang nơi khác trong cùng ngày.
+
+
+### Đích thông báo quản lý theo chi nhánh
+
+Deep link quản lý có dạng `/s/{spa}/admin/bookings?booking_id={uuid}&target_branch={uuid}`. Nếu phiên đang ở nhánh khác, shell không mount nội dung booking trước khi xác minh target thuộc danh sách quyền; người dùng chọn “Mở lịch tại …” để chuyển bằng API hiện hành. Không còn quyền thì thông báo rõ và không tải chi tiết bằng phiên nhánh khác. Chuyển nhánh giữ booking_id/target_branch đã kiểm tra UUID, tiếp tục dùng guard form/pending nhiều tab; không phát lại mutation.
+
+Khi chưa đăng nhập hoặc hết phiên, chỉ hai UUID của đích hợp lệ được lưu trong sessionStorage theo spa, tối đa 30 phút, dùng một lần sau đăng nhập đúng spa. Không lưu token/khách vào intent này, không nhận URL tùy ý làm return target. Backend vẫn kiểm tra quyền/tenant/booking ở lần tải thật. In-app notification hiện thuộc nhánh đang xem; push có target_branch để xử lý sau khi người dùng đã đổi nhánh.
+
+
+### 28/10/2026 — Auto-migration khi khởi động Uvicorn
+
+Không thêm endpoint. Lifespan gọi `prepare_database_schema`: đọc Alembic revision qua runtime DATABASE_URL, so với code head; chỉ chạy upgrade khi khác. Alembic chạy bằng subprocess cùng interpreter và MIGRATION_DATABASE_URL từ environment, không truyền secrets qua argv, giữ advisory lock chống nhiều worker chạy DDL đồng thời. Sau đó kiểm tra lại cấu trúc và ownership. Lỗi migration/schema/mapping dừng startup trước HTTP/notification worker; không tự sửa stamp sai, map tenant, reset hoặc seed credentials. Không chạy Uvicorn với lifespan disabled nếu dùng cơ chế này.
+
+
+## Cập nhật trải nghiệm và yêu cầu khách chưa đăng nhập — 29/10/2026
+
+Migration `0013_guest_requests`: `guest_booking_requests` có tenant_id, ENABLE + FORCE RLS và policy tenant riêng; timestamp có timezone. Không gộp tài khoản, không tự phát mật khẩu; yêu cầu chưa tạo khách/lịch và không giữ slot. Khách đăng nhập tiếp tục dùng booking-requests/thẻ như hiện hành.
+
+- `POST /public/guest-requests`, header `X-Tenant-Slug`: `{request_id:UUID,token:64 ký tự hex ngẫu nhiên,full_name,phone_number,service_ids:UUID[1..10],staff_id?:UUID,start_time:ISO có offset,note?:string<=950}`. UUID + capability do browser sinh trước POST. Trả 201 `{request_id,status,start_time,message}`; POST lại cùng mã/token/payload trả cùng yêu cầu, payload khác 409, token sai 404. Chỉ lưu SHA256 token. Giờ từ tương lai đến 90 ngày; xác minh dịch vụ/ca/kỹ năng/giờ trống; chưa giữ chỗ. Giới hạn DB theo chi nhánh 100 yêu cầu/giờ và mỗi SĐT 3/giờ, vượt 429; retry cùng mã không tính thêm.
+- `POST /public/guest-requests/status`, cùng header, body `{request_id,token}`: chỉ trả trạng thái của đúng yêu cầu. Không trả SĐT, CRM, thẻ hoặc lịch sử. Không tra bằng SĐT. 404 khi token/mã/nhánh sai. Frontend dùng secret trong fragment liên kết, bỏ khỏi thanh địa chỉ ngay và gửi trong body, không gửi vào URL API.
+- `GET /guest-requests?offset=0`, ADMIN/STAFF tại chi nhánh: `{items:[{id,full_name,phone_number,start_time,note,service_ids,staff_id}],has_more}`; tối đa 50 yêu cầu PENDING/trang, sắp theo thời điểm nhận. Đây là liên hệ khách chủ động gửi đến chi nhánh, không mở quyền đọc hồ sơ khách hiện có.
+- `POST /guest-requests/{id}/decision`, ADMIN/STAFF: `{action:'confirm'|'reject',identity_verified:bool,customer_id?:UUID}`. Xác nhận cần spa gọi xác minh; chọn hồ sơ cũ một cách rõ ràng, đúng SĐT và qua kiểm tra quyền customer_access, không tự ghép theo SĐT. Tạo khách mới có assigned_staff khi STAFF xử lý. Xác nhận dùng transaction chung với batch/booking, khóa workforce + row request + khóa tài nguyên booking. Trùng giờ/quyền/hồ sơ thì rollback toàn bộ và giữ yêu cầu PENDING. Thành công trả `{status,booking_id}`; quyết định đã xử lý trả kết quả cũ, không tạo lịch khác. Từ chối không xóa lịch sử. Quyền quản lý lịch/thẻ sau xác nhận giữ nguyên.
+- `GET /bookings/available-slots` thêm `all_staff=true`, chỉ ADMIN, bỏ bộ lọc kỹ năng để cung cấp gợi ý ngoài kỹ năng; vẫn kiểm tra phân công, trạng thái, giờ mở cửa, busy/buffer. Luồng khách/tự xếp mặc định vẫn giữ lọc kỹ năng.
+- Manual batch: lỗi đã rollback (400/403/404/409/422, ngoại trừ xung đột mã đã dùng) cho chỉnh form ngay; mất kết nối/5xx giữ yêu cầu chờ đối chiếu. Một tab giữ nhiều yêu cầu theo user/tenant, UUID riêng từng yêu cầu. Kiểm tra sau không chặn phục vụ khách khác/chuyển chi nhánh. Bản nháp có dữ liệu khách trong sessionStorage của tab, không chứa mật khẩu/token đăng nhập; dữ liệu nháp hết hạn sau 8 giờ, UUID giữ để đối chiếu. Kiểm tra 404 vẫn giữ UUID khi sửa/retry để chặn POST cũ đến trễ.
+
+Không tích hợp đặt cọc/ngân hàng trong thay đổi này. Liên kết capability chỉ xem một yêu cầu, không thay thế xác thực tài khoản để xem CRM/thẻ/toàn bộ lịch.
+
+Bổ sung response public guest: `booking_status:null|PENDING|CONFIRMED|IN_PROGRESS|COMPLETED|CANCELLED|NO_SHOW`. Sau khi tiếp nhận, `start_time` và thông điệp được đọc từ chính lịch liên kết trong tenant context, phản ánh dời/hủy; không trả CRM, thông tin thẻ hoặc lịch khác. Sau khi xác minh yêu cầu đã lưu, frontend bỏ trạng thái gửi chưa rõ kết quả và giữ liên kết xem riêng, cho khách gửi yêu cầu mới trong cùng tab.
+
+Khi spa chọn xác nhận yêu cầu khách, lịch được chuyển sang `CONFIRMED` trong cùng transaction với tạo khách/thẻ/batch và cập nhật yêu cầu; ghi audit và outbox trạng thái bằng luồng booking hiện hành, không commit trung gian. Lỗi ở bước đổi trạng thái cũng rollback toàn bộ. Luồng tạo lịch trực tiếp/tại quầy khác vẫn mặc định `PENDING` như trước.

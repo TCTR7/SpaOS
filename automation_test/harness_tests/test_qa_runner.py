@@ -132,6 +132,8 @@ class RunnerLifecycleTests(unittest.TestCase):
                 result = runner.run(["automation_test/features", "-q"])
                 stop.assert_called_once_with(process)
                 self.assertEqual(launch.call_count, 1)
+                command=launch.call_args.args[0]
+                self.assertEqual(command[command.index("-c")+1],str(runner.ROOT / "automation_test" / "pytest.ini"))
                 self.assertEqual(list(Path(folder).iterdir()), [], "No pytest.log or isolation.json")
             self.assertEqual(events, ["backend-start", "frontend-start", "frontend-stop", "backend-stop"])
             return result
@@ -144,6 +146,44 @@ class RunnerLifecycleTests(unittest.TestCase):
 
     def test_interrupted_pytest_cleans_both_contexts(self):
         self.assertEqual(self.exercise(failure=KeyboardInterrupt()), 130)
+
+
+class DefaultSelectionTests(unittest.TestCase):
+    def test_default_cli_delegates_selection_to_pytest_config(self):
+        with patch.object(runner.sys,"argv",["run_ui_qa"]),patch.object(runner,"run",return_value=0) as run:
+            self.assertEqual(runner.main(),0)
+        self.assertEqual(run.call_args.args[0],["-q","--tb=short"])
+
+    def test_filtered_default_still_uses_configured_testpaths(self):
+        with patch.object(runner.sys,"argv",["run_ui_qa","--","-k","deep_link"]),patch.object(runner,"run",return_value=0) as run:
+            self.assertEqual(runner.main(),0)
+        self.assertEqual(run.call_args.args[0],["-k","deep_link"])
+
+    def test_explicit_selection_remains_targeted(self):
+        selected="automation_test/reviews/test_shared_saas.py"
+        with patch.object(runner.sys,"argv",["run_ui_qa","--",selected,"-q"]),patch.object(runner,"run",return_value=0) as run:
+            self.assertEqual(runner.main(),0)
+        self.assertEqual(run.call_args.args[0],[selected,"-q"])
+
+    def test_root_relative_explicit_node_is_resolved_without_adding_default_tests(self):
+        selected="automation_test/reviews/test_shared_saas.py::test_canonical_login_routes_brand_manifest_and_worker"
+        command=runner.pytest_command([selected,"-k","login or deep_link"])
+        self.assertEqual(command[-3:], [str(runner.ROOT / "automation_test" / "reviews" / "test_shared_saas.py")+"::test_canonical_login_routes_brand_manifest_and_worker","-k","login or deep_link"])
+
+    def test_default_collection_includes_shared_saas_once_without_legacy_probes(self):
+        # Collection never executes autouse fixtures or starts API/browser/DB.
+        result=subprocess.run(runner.pytest_command(["--collect-only","-qq","--color=no"]),cwd=runner.TEST_ROOT,
+            capture_output=True,text=True,encoding="utf-8",errors="replace",timeout=60)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        nodes=[line.strip() for line in result.stdout.splitlines() if "::test_" in line]
+        self.assertTrue(nodes,"No regression tests were collected")
+        self.assertEqual(len(nodes),len(set(nodes)),"Duplicate test collection")
+        shared=[node for node in nodes if "test_shared_saas.py::" in node]
+        self.assertGreaterEqual(len(shared),11,"Shared SaaS regressions disappeared from default selection")
+        self.assertTrue(any("test_admin_login.py::" in node for node in nodes))
+        self.assertTrue(any("test_branch_work_guard.py::" in node for node in nodes))
+        self.assertTrue(any("test_operator_ui.py::" in node for node in nodes))
+        self.assertFalse(any("reviews/" in node.replace("\\","/") and "test_shared_saas.py::" not in node for node in nodes),"One-off review probes must stay opt-in")
 
 
 if __name__ == "__main__":

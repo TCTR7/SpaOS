@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";

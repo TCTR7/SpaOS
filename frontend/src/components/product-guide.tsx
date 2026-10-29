@@ -1,11 +1,12 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { BookOpen, Download, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { installAvailable, subscribeInstall, promptInstall } from "@/lib/pwa-install";
 import { APP_ICON_192 } from "@/lib/app-icons";
+import { useBranding } from "@/components/brand-provider";
 
 type Role = "ADMIN" | "STAFF" | "CUSTOMER";
 type View = "welcome" | "guide" | "install";
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function ProductGuide({ role, slug, identity, identities = [], mode = "auto", autoOpen = true }: Props): React.ReactElement {
+  const {branding}=useBranding();
+  const brandName=branding.name||"SpaOS";
   const [open, setOpen] = React.useState(false);
   const [view, setView] = React.useState<View>(mode === "page" ? "guide" : "welcome");
   const [step, setStep] = React.useState(0);
@@ -57,7 +60,10 @@ export function ProductGuide({ role, slug, identity, identities = [], mode = "au
     return () => { window.removeEventListener("appinstalled", installed); media.removeEventListener("change", update); };
   }, []);
   const close = (): void => { remember(); setOpen(false); };
-  const choose = (next: View): void => { remember(); setStep(0); setView(next); };
+  const choose = (next: View): void => {
+    remember(); setStep(0); setView(next);
+    if(next === "guide" && mode === "auto") { setOpen(false); setTimeout(()=>window.dispatchEvent(new Event("spaos:start-tour")),0); }
+  };
   const base = slug ? "/" + slug : "";
   const steps=role==="ADMIN"?[
     {title:"Thiết lập spa",text:"Bổ sung tên, logo, địa chỉ và giờ mở cửa để khách dễ nhận diện chi nhánh.",href:"/admin/settings",label:"Mở cài đặt spa"},
@@ -78,11 +84,11 @@ export function ProductGuide({ role, slug, identity, identities = [], mode = "au
     {view === "welcome" ? <>
       <div className="space-y-3 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={APP_ICON_192} alt="SpaOS" className="mx-auto h-16 w-16 rounded-2xl" />
+        <img src={branding.logo_url||APP_ICON_192} alt={brandName} className="mx-auto h-16 w-16 rounded-2xl" />
         <p className="text-sm leading-6 text-muted-foreground">{role === "ADMIN" ? "Quản lý spa thuận tiện hơn, bắt đầu từ vài thao tác đơn giản." : role === "STAFF" ? "Xem lịch được giao và theo dõi công việc của bạn." : "Đặt lịch và theo dõi các buổi chăm sóc của bạn dễ dàng hơn."}</p>
       </div>
       <div className="space-y-3">
-        {([{ value: "guide", title: "Xem hướng dẫn nhanh", text: "Ba bước ngắn, phù hợp với công việc của bạn.", icon: BookOpen }, { value: "install", title: "Cài ứng dụng", text: "Thêm SpaOS vào màn hình chính để mở nhanh hơn.", icon: Download }] as const).map((item) => <button type="button" key={item.value} onClick={() => choose(item.value)} className="flex min-h-20 w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {([{ value: "guide", title: "Hướng dẫn qua các màn hình", text: "Đi qua từng màn hình và các thao tác phù hợp với vai trò của bạn.", icon: BookOpen }, { value: "install", title: "Cài ứng dụng", text: `Thêm ${brandName} vào màn hình chính để mở nhanh hơn.`, icon: Download }] as const).map((item) => <button type="button" key={item.value} onClick={() => choose(item.value)} className="flex min-h-20 w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <item.icon className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className="mt-1 block text-sm text-muted-foreground">{item.text}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
         </button>)}
       </div>
@@ -106,5 +112,5 @@ export function ProductGuide({ role, slug, identity, identities = [], mode = "au
       </section>}
     </>}
   </div>;
-  return mode === "page" ? content : <Modal open={open} onClose={close} title={view === "welcome" ? "Bắt đầu sử dụng SpaOS" : "Trợ giúp & Cài ứng dụng"}>{content}</Modal>;
+  return mode === "page" ? content : <Modal open={open} onClose={close} title={view === "welcome" ? `Bắt đầu sử dụng ${brandName}` : "Trợ giúp & Cài ứng dụng"}>{content}</Modal>;
 }

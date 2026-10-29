@@ -68,7 +68,10 @@ async def _get_or_create_user(
 async def seed(db: AsyncSession) -> None:
     tenant: Optional[Tenant] = (await db.execute(select(Tenant).where(Tenant.slug == SLUG))).scalar_one_or_none()
     if tenant is None:
+        from app.services.spa_service import new_spa
+        spa = await new_spa(db, "Spa Demo", slug=SLUG)
         tenant = Tenant(
+            spa_id=spa.id,
             slug=SLUG,
             name="Spa Demo",
             theme_color="#e91e63",
@@ -86,6 +89,13 @@ async def seed(db: AsyncSession) -> None:
 
     staff_users = [await _get_or_create_user(db, tenant_id, UserRole.STAFF, *s) for s in STAFF]
     for staff in staff_users:
+        from app.models.models import StaffAssignment
+        from app.services.assignment_service import staff_account
+        from datetime import date
+        aid = await staff_account(db, tenant_id, staff.id)
+        if not (await db.execute(select(StaffAssignment.id).where(StaffAssignment.account_id == aid).limit(1))).first():
+            db.add_all([StaffAssignment(spa_id=tenant.spa_id, account_id=aid, tenant_id=tenant_id,
+                weekday=dow, effective_from=date.today(), start_time=time(9), end_time=time(20)) for dow in range(7)])
         has_schedule = (
             await db.execute(
                 select(StaffSchedule.id).where(StaffSchedule.tenant_id == tenant_id, StaffSchedule.staff_id == staff.id).limit(1)

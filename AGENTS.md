@@ -8,7 +8,7 @@ Dự án **SpaOS (Nền tảng Quản lý và Đặt lịch Spa chuẩn SaaS)**[
 ## 0. BẮT ĐẦU TASK — ĐỊNH HƯỚNG CHIẾN LƯỢC
 
 - Trước mỗi task, đọc `docs/PROGRESS.md` và [định hướng đa chi nhánh](docs/MULTI_BRANCH_STRATEGY.md), sau đó đọc PRD/API_CONTRACT theo phạm vi.
-- Định hướng đang lưu: mỗi chủ spa một deployment riêng; nhiều chi nhánh trong deployment; đăng nhập SĐT/mật khẩu, dropdown chi nhánh và dashboard tổng hợp.
+- Định hướng mới PO duyệt 28/10/2026: một deployment phục vụ nhiều chủ, nhận diện/PWA theo spa, tenant_id tiếp tục là chi nhánh; xem docs/SHARED_SAAS_IMPLEMENTATION_PLAN.md. Đang triển khai, không coi kế hoạch là tính năng đã hoàn tất.
 - **Trạng thái: PO đã cho phép triển khai ngày 17/10/2026.** Đọc mục phê duyệt và tiến độ mới nhất để biết phần đang làm/đã kiểm chứng; không coi kế hoạch là tính năng đã hoàn thành.
 - Khi chưa có chỉ thị triển khai mới, tiếp tục task được giao trên kiến trúc hiện hành. Không tự gộp tài khoản/tenant hoặc bỏ kiểm soát tenant/RLS.
 - Khi PO cho phép triển khai, cập nhật phạm vi/trạng thái trong tài liệu chiến lược và PROGRESS; không hỏi lại quyền đã được cấp.
@@ -71,6 +71,7 @@ Khi người dùng yêu cầu Review sau mỗi Sprint, Codex KHÔNG tự ý đ�
 4. **Hiệu năng Async:** Có lỗi `MissingGreenlet` hay N+1 query trong SQLAlchemy Async không?
 5. **Báo cáo:** Xuất kết quả theo 3 mức `[CRITICAL]`, `[WARNING]`, `[PASSED]` kèm tên file, dòng lỗi và tự động vá các lỗi `[CRITICAL]`.
 ## Ghi chú kiến trúc sau thay đổi đa chi nhánh
+- PO duyệt P0–P6 ngày 28/10/2026: bảng cấp spa/danh tính/phân công ngày nghỉ là ngoại lệ tenant_id, phải có spa/account scope và FORCE RLS riêng; bảng nghiệp vụ chi nhánh giữ tenant_id. Một nhân viên tối đa một chi nhánh/ngày theo giờ Việt Nam; sửa phân công và booking phải phối hợp khóa danh tính chung.
 - tenant_id tiếp tục là mã chi nhánh nội bộ; không đổi/xóa ID dữ liệu nghiệp vụ cũ.
 - login_accounts là ngoại lệ danh tính xác thực cấp deployment, không có tenant_id; vẫn FORCE RLS theo account/phone bootstrap. branch_memberships có tenant_id và FORCE RLS, dùng để kiểm tra quyền trước khi đổi chi nhánh.
 - Dashboard tổng hợp chỉ đọc các chi nhánh đã được xác minh, lần lượt gán tenant context; không tắt RLS hoặc dùng role bypass.

@@ -35,6 +35,8 @@ export default function AdminServicesPage(): React.ReactElement {
   const [isPackage, setIsPackage] = React.useState<boolean>(false);
   const [totalSessions, setTotalSessions] = React.useState<number>(1);
   const [isActive, setIsActive] = React.useState<boolean>(true);
+  const [deleteTarget, setDeleteTarget] = React.useState<ServiceItem | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
   const [saving, setSaving] = React.useState<boolean>(false);
   const saveFlight = React.useRef(false);
 
@@ -122,9 +124,12 @@ export default function AdminServicesPage(): React.ReactElement {
 
   const handleDelete = async (svc: ServiceItem): Promise<void> => {
     setError(null);
+    if (deleting) return;
+    setDeleting(true);
     setInfoMessage(null);
     try {
       const res = await deleteService(svc.id);
+      setDeleteTarget(null);
       if (res.mode === "soft") {
         setInfoMessage(
           `Dịch vụ "${svc.name}" đã phát sinh lịch hẹn/thẻ nên được chuyển sang Ngưng hoạt động (Soft-delete).`
@@ -135,7 +140,7 @@ export default function AdminServicesPage(): React.ReactElement {
       await loadServices();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xóa dịch vụ thất bại");
-    }
+    } finally { setDeleting(false); }
   };
 
   return (
@@ -223,38 +228,38 @@ export default function AdminServicesPage(): React.ReactElement {
                         <Badge variant="secondary">Dịch vụ lẻ (1 buổi)</Badge>
                       )}
                     </td>
-                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell font-medium">
+                    <td className="block min-w-0 px-4 py-2 lg:table-cell font-medium">
                       <span className="block text-xs text-muted-foreground lg:hidden">Thời lượng</span>
                       {svc.duration_minutes} phút
                     </td>
-                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell font-bold text-foreground">
+                    <td className="block min-w-0 px-4 py-2 lg:table-cell font-bold text-foreground">
                       <span className="block text-xs font-normal text-muted-foreground lg:hidden">Đơn giá</span>
                       {formatCurrency(svc.price)}
                     </td>
-                    <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell">
+                    <td className="col-span-2 flex min-w-0 items-center px-4 py-2 lg:table-cell">
                       <Badge variant={svc.is_active ? "success" : "outline"}>
                         {svc.is_active ? "Đang hoạt động" : "Tạm ngưng"}
                       </Badge>
                     </td>
                     {isAdmin && (
-                      <td className="col-span-2 block min-w-0 px-4 py-3 lg:table-cell text-right">
-                        <div className="inline-flex items-center gap-1">
+                      <td className="col-span-2 block min-w-0 border-t px-4 py-3 lg:table-cell lg:border-0 text-right">
+                        <div className="grid grid-cols-2 items-center gap-2 lg:inline-flex">
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="outline"
+                            size="sm"
                             onClick={() => openEditModal(svc)}
-                            title="Chỉnh sửa"
+                            title="Chỉnh sửa" aria-label="Chỉnh sửa"
                           >
-                            <Edit2 className="h-3.5 w-3.5" />
+                            <Edit2 className="h-4 w-4" /><span className="whitespace-nowrap lg:sr-only">Sửa</span>
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="outline"
+                            size="sm"
                             className="text-rose-600 hover:text-rose-700"
-                            onClick={() => void handleDelete(svc)}
-                            title="Xóa / Ngưng dịch vụ"
+                            onClick={() => setDeleteTarget(svc)}
+                            title="Xóa / Ngưng dịch vụ" aria-label="Xóa / Ngưng dịch vụ"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" /><span className="whitespace-nowrap lg:sr-only">Xóa</span>
                           </Button>
                         </div>
                       </td>
@@ -267,6 +272,10 @@ export default function AdminServicesPage(): React.ReactElement {
         </Card>
       )}
 
+      <Modal open={!!deleteTarget} onClose={()=>setDeleteTarget(null)} pending={deleting} title="Xóa hoặc ngưng dịch vụ?">
+        {error && <p role="alert" className="mb-3 feedback-error">{error}</p>}<p className="mb-4 text-sm">{deleteTarget?.name}. Dịch vụ đã có lịch/thẻ sẽ được ngưng hoạt động và giữ lịch sử. Dịch vụ chưa phát sinh sẽ bị xóa vĩnh viễn.</p>
+        <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={deleting} onClick={()=>setDeleteTarget(null)}>Giữ dịch vụ</Button><Button variant="destructive" disabled={deleting} onClick={()=>deleteTarget && void handleDelete(deleteTarget)}>{deleting ? "Đang xử lý..." : "Xác nhận xóa / ngưng"}</Button></div>
+      </Modal>
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -339,7 +348,7 @@ export default function AdminServicesPage(): React.ReactElement {
                 }}
                 className="h-4 w-4 accent-primary"
               />
-              <span>Đây là Gói thẻ liệu trình nhiều buổi (is_package)</span>
+              <span>Đây là gói thẻ liệu trình nhiều buổi</span>
             </label>
 
             {isPackage && (

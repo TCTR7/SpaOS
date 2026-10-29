@@ -43,7 +43,10 @@ async def drain_push(tenant_id, limit=30):
             if not eligible:
                 row.delivered_at = datetime.now(timezone.utc)
             else:
-                payload = json.dumps({"title": notification.title, "body": notification.body, "type": notification.type,
+                from app.services.spa_service import tenant_spa
+                spa=await tenant_spa(db,tenant_id)
+                payload = json.dumps({"title": spa.name+" · "+notification.title, "body": notification.body, "type": notification.type,
+                    "icon":spa.logo_url or "/icons/icon-192x192.png?v=20261023",
                     "booking_id": str(notification.booking_id), "notification_id": str(notification.id), "url": row.url}, ensure_ascii=False)
                 try:
                     outcome = await _send_one({"endpoint": sub.endpoint, "p256dh": sub.p256dh, "auth": sub.auth}, payload)
@@ -60,7 +63,7 @@ async def drain_push(tenant_id, limit=30):
 
 
 async def drain_events(tenant_id, limit=30):
-    from app.services.notification_service import notify_booking_event
+    from app.services.notification_service import notify_booking_event, _current_session
     for _ in range(limit):
         async with AsyncSessionLocal() as db:
             await set_tenant_context(db, tenant_id)
@@ -69,13 +72,17 @@ async def drain_events(tenant_id, limit=30):
                 .order_by(NotificationEvent.created_at, NotificationEvent.id).limit(1)
                 .with_for_update(skip_locked=True, key_share=True))).scalar_one_or_none()
             if event is None: break
+            shared_token = _current_session.set(db)
             try:
-                await notify_booking_event(tenant_id, event.booking_id, event.event, event.actor_id, event.to_staff,
-                    event_id=event.id, strict=True)
+                async with db.begin_nested():
+                    await notify_booking_event(tenant_id, event.booking_id, event.event, event.actor_id, event.to_staff,
+                        event_id=event.id, strict=True)
                 event.processed_at = datetime.now(timezone.utc)
             except Exception:
                 logger.warning("Notification event will be retried")
                 event.next_attempt_at = datetime.now(timezone.utc) + timedelta(seconds=min(3600, 5 * 2 ** min(event.attempts, 10)))
+            finally:
+                _current_session.reset(shared_token)
             event.attempts += 1
             await db.commit()
     await drain_push(tenant_id)

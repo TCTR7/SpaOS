@@ -208,12 +208,12 @@ def test_copy_week_hours_is_a_draft_until_explicit_save(scenario):
     monday = page.get_by_label("Giờ bắt đầu Thứ 2", exact=True)
     expect(monday).to_have_value("00:00")
     monday.fill("09:00")
-    page.locator("details > summary").click()
     page.get_by_role("button", name="Áp dụng giờ Thứ 2 cho các ngày", exact=True).click()
     expect(page.get_by_label("Giờ bắt đầu Thứ 3", exact=True)).to_have_value("09:00")
-    old = s["call"]("GET", "/staff/" + s["staff"]["id"] + "/schedules")
+    old = s["call"]("GET", "/workforce/staff/" + s["staff"]["id"])["assignments"]
     assert all(row["start_time"].startswith("00:00") for row in old)
-    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith("/schedules")) as saved:
-        page.get_by_role("button", name="Lưu lịch tuần", exact=True).click()
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith("/week")) as saved:
+        page.get_by_role("button", name="Lưu phân công tuần", exact=True).click()
     assert saved.value.status == 200
-    assert all(row["start_time"].startswith("09:00") for row in saved.value.json())
+    rows=s["call"]("GET","/workforce/staff/"+s["staff"]["id"])["assignments"]
+    assert all(row["start_time"].startswith("09:00") for row in rows)

@@ -105,12 +105,16 @@ async def test_available_slots_rules(client):
     # Đặt 09:00-10:30 -> slot kế tiếp của KTV là 10:45 (buffer 10 phút, bước 15 phút)
     r = await client.post(f"{B}/bookings", headers=ctx["ch"], json=_body(data["slots"][0]["start_time"], [ctx["s60"], ctx["s30"]], staff))
     assert r.status_code == 201, r.text
+    booking_id = r.json()["id"]
     r = await client.get(f"{B}/bookings/available-slots", headers=ctx["ch"], params={**params, "staff_id": staff})
     assert r.json()["slots"][0]["start_time"].startswith(f"{day}T10:45:00+07:00")
 
     # Ngày nghỉ (is_day_off) -> không có slot
     sched = [{"day_of_week": d, "start_time": "09:00:00", "end_time": "20:00:00"} for d in range(7) if d != _dow(day)]
     sched.append({"day_of_week": _dow(day), "start_time": "09:00:00", "end_time": "20:00:00", "is_day_off": True})
+    assert (await client.put(f"{B}/staff/{staff}/schedules", headers=ctx["ah"], json={"schedules": sched})).status_code == 409
+    # The new assignment policy requires resolving occupied appointments first.
+    assert (await client.patch(f"{B}/bookings/{booking_id}/status", headers=ctx["ah"], json={"status":"CANCELLED"})).status_code == 200
     assert (await client.put(f"{B}/staff/{staff}/schedules", headers=ctx["ah"], json={"schedules": sched})).status_code == 200
     r = await client.get(f"{B}/bookings/available-slots", headers=ctx["ch"], params=params)
     assert r.json()["slots"] == []

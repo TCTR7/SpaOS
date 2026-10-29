@@ -6,7 +6,7 @@ import { Input, Label } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HandoverKit } from "@/components/handover-kit";
 import { formatDateTimeVN } from "@/lib/utils";
-export type OwnerDetail = {id:string;full_name:string;phone_number:string;branches:{id:string;name:string;slug:string;logo_url:string|null;address:string|null;active:boolean}[]};
+export type OwnerDetail = {id:string;spa?:{slug:string;name:string;logo_url:string|null};full_name:string;phone_number:string;branches:{id:string;name:string;slug:string;logo_url:string|null;address:string|null;active:boolean}[]};
 type Event = {id:string;action:string;created_at:string;operator_id:string|null};
 const ACTIONS: Record<string,string> = {OWNER_PROVISIONED:"Cấp tài khoản",OWNER_ACCOUNT_UPDATED:"Cập nhật tài khoản",OWNER_RECOVERY_ISSUED:"Cấp liên kết khôi phục",OWNER_RECOVERY_COMPLETED:"Chủ spa đã đặt lại mật khẩu"};
 export function OperatorOwner({id}: {id:string}): React.ReactElement {
@@ -27,7 +27,7 @@ export function OperatorOwner({id}: {id:string}): React.ReactElement {
       const body={current_password:password,identity_verified:verified};
       if(recovery){
         const result=await operatorRequest<{token:string}>("/owners/"+id+"/recovery-link",body);
-        setLink(window.location.origin+"/admin/recover#"+result.token);setMessage("Đã cấp liên kết dùng một lần, hạn 30 phút. Gửi riêng cho đúng chủ spa.");
+        setLink(window.location.origin+(detail?.spa?`/s/${detail.spa.slug}`:"")+"/admin/recover#"+result.token);setMessage("Đã cấp liên kết dùng một lần, hạn 30 phút. Gửi riêng cho đúng chủ spa.");
       }else{
         const value=await operatorRequest<OwnerDetail>("/owners/"+id,{...body,full_name:name,phone_number:phone},"PATCH");
         setDetail(value);setName(value.full_name);setPhone(value.phone_number);setMessage("Đã cập nhật tài khoản ở các chi nhánh và thu hồi phiên cũ.");

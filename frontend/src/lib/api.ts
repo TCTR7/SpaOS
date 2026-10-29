@@ -1,5 +1,7 @@
+import { currentAdminBookingTarget, rememberAdminBookingTarget } from "./admin-booking-target";
 import { apiErrorMessage } from "./api-error-message";
 import { withAdminWrite } from "./branch-guard";
+import { adminStorageKey, spaPath, spaSlug, unscopedPath } from "./spa-path";
 import type {
   AvailableSlotsResponse,
   BookingCreateInput,
@@ -31,37 +33,37 @@ export function invalidateAdminSessionRequests(): void { sessionRevision += 1; }
 
 export function getAdminSessionIdentity(): string {
   return JSON.stringify([getStoredToken(), sessionRevision,
-    typeof window === "undefined" ? null : window.localStorage.getItem(ADMIN_SESSION_VERSION_KEY)]);
+    typeof window === "undefined" ? null : window.localStorage.getItem(adminStorageKey(ADMIN_SESSION_VERSION_KEY))]);
 }
 
 export function saveVerifiedAdminSlug(slug: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(SLUG_KEY, slug);
+  window.localStorage.setItem(adminStorageKey(SLUG_KEY), slug);
 }
 
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
+  return window.localStorage.getItem(adminStorageKey(TOKEN_KEY));
 }
 
 export function getStoredSlug(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(SLUG_KEY);
+  return window.localStorage.getItem(adminStorageKey(SLUG_KEY));
 }
 
 export function saveAuthSession(token: string, slug: string): void {
   if (typeof window === "undefined") return;
   sessionRevision += 1;
-  window.localStorage.setItem(TOKEN_KEY, token);
-  window.localStorage.setItem(SLUG_KEY, slug);
-  window.localStorage.setItem(ADMIN_SESSION_VERSION_KEY, window.crypto.randomUUID());
+  window.localStorage.setItem(adminStorageKey(TOKEN_KEY), token);
+  window.localStorage.setItem(adminStorageKey(SLUG_KEY), slug);
+  window.localStorage.setItem(adminStorageKey(ADMIN_SESSION_VERSION_KEY), window.crypto.randomUUID());
 }
 
 export function clearAuthSession(): void {
   if (typeof window === "undefined") return;
   sessionRevision += 1;
-  window.localStorage.removeItem(TOKEN_KEY);
-  window.localStorage.setItem(ADMIN_SESSION_VERSION_KEY, window.crypto.randomUUID());
+  window.localStorage.removeItem(adminStorageKey(TOKEN_KEY));
+  window.localStorage.setItem(adminStorageKey(ADMIN_SESSION_VERSION_KEY), window.crypto.randomUUID());
   window.dispatchEvent(new Event(ADMIN_SESSION_CHANGED));
 }
 
@@ -72,6 +74,37 @@ export class ApiError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+let resolving: Promise<boolean> | null = null;
+export async function resolveAdminSession(): Promise<boolean> {
+  if (resolving) return resolving;
+  const token = getStoredToken();
+  const identity = getAdminSessionIdentity();
+  resolving = (async () => {
+    if (!token) return false;
+    const response = await fetch(`${API_BASE_URL}/auth/resolve`, {
+      method: "POST", headers: {Authorization: `Bearer ${token}`}, cache: "no-store",
+    });
+    if (response.status === 401 || response.status === 403) return false;
+    if (!response.ok) throw new ApiError(503, "Chưa xác minh được quyền chi nhánh. Vui lòng thử lại.");
+    const result = await response.json() as TokenResponse;
+    const expected = spaSlug(window.location.pathname);
+    if (!result.spa_slug || (expected && result.spa_slug !== expected)) return false;
+    const verified = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: {Authorization: `Bearer ${result.access_token}`}, cache: "no-store",
+    });
+    if (!verified.ok) throw new ApiError(503, "Quyền chi nhánh vừa thay đổi. Vui lòng thử lại.");
+    const me = await verified.json() as MeResponse;
+    if (identity !== getAdminSessionIdentity()) return true;
+    if (me.spa?.slug !== result.spa_slug) return false;
+    saveAuthSession(result.access_token, me.tenant.slug);
+    sessionStorage.setItem("spaos_session_notice", "Quyền chi nhánh đã thay đổi. Đã mở chi nhánh bạn còn được cấp quyền; thao tác đang dở chưa được gửi lại.");
+    const destination=currentAdminBookingTarget()||(me.user.role==="ADMIN"?"/admin/dashboard":"/admin/bookings");
+    window.location.replace(spaPath(destination,result.spa_slug));
+    return true;
+  })();
+  try { return await resolving; } finally { resolving = null; }
 }
 
 interface RequestOptions {
@@ -114,13 +147,15 @@ export async function apiRequest<T>(
 
   if (response.status === 401 && !options.skipAuthRedirect && token &&
       headers.Authorization === `Bearer ${token}` && session === getAdminSessionIdentity()) {
+    if (await resolveAdminSession()) throw new ApiError(401, "Đang chuyển sang chi nhánh còn quyền truy cập.");
+    rememberAdminBookingTarget();
     clearAuthSession();
     if (
       typeof window !== "undefined" &&
-      !window.location.pathname.startsWith("/admin/login") &&
-      !window.location.pathname.startsWith("/admin/register-tenant")
+      !unscopedPath(window.location.pathname).startsWith("/admin/login") &&
+      !unscopedPath(window.location.pathname).startsWith("/admin/register-tenant")
     ) {
-      window.location.href = "/admin/login";
+      window.location.href = spaPath("/admin/login");
     }
   }
 
@@ -251,6 +286,7 @@ export async function fetchStaffList(): Promise<UserDetail[]> {
 }
 
 export async function createStaff(payload: {
+  branch_ids?: string[];
   full_name: string;
   phone_number: string;
   password: string;
@@ -392,12 +428,14 @@ export async function issueCustomerPackage(payload: {
 // ------------------------- 2.6 Bookings -------------------------
 export async function fetchAvailableSlots(params: {
   booking_id?: string;
+  all_staff?: boolean;
   date: string;
   service_ids: string[];
   staff_id?: string | null;
 }): Promise<AvailableSlotsResponse> {
   const qs = new URLSearchParams();
   qs.set("date", params.date);
+  if (params.all_staff) qs.set("all_staff", "true");
   for (const sid of params.service_ids) {
     qs.append("service_ids", sid);
   }

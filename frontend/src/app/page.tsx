@@ -1,10 +1,12 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/spa-link";
+import { useRouter } from "@/lib/spa-navigation";
+import { spaSlug } from "@/lib/spa-path";
+import { useBranding } from "@/components/brand-provider";
 import { ArrowRight, ArrowUpRight, Clock3, Leaf, MapPin, Phone } from "lucide-react";
 import { SpaLogo } from "@/components/spa-logo";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, ApiError, fetchMe, getStoredToken, resolveAdminSession, clearAuthSession } from "@/lib/api";
 import type { PublicTenantResponse } from "@/lib/types";
 
 type Branch = { id: string; name: string; slug: string; address?: string | null; contact_phone?: string | null };
@@ -12,6 +14,7 @@ type Directory = { brand_name: string; branches: Branch[] };
 type Details = Pick<PublicTenantResponse, "logo_url" | "open_time" | "close_time">;
 
 export default function HomePage(): React.ReactElement {
+  const {branding}=useBranding();
   const router = useRouter();
   const [data, setData] = React.useState<Directory | null>(null);
   const [details, setDetails] = React.useState<Record<string, Details>>({});
@@ -22,7 +25,23 @@ export default function HomePage(): React.ReactElement {
     setError(null); setData(null); setDetails({});
     async function load(): Promise<void> {
       try {
-        const response = await fetch(API_BASE_URL + "/branches/public", { cache: "no-store", signal: controller.signal });
+        const brandSlug = spaSlug(window.location.pathname);
+        if(brandSlug && new URLSearchParams(window.location.search).get("launch")==="1" && getStoredToken()) {
+          try {
+            const me=await fetchMe();
+            if(controller.signal.aborted)return;
+            if(me.spa?.slug!==brandSlug || (me.user.role!=="ADMIN" && me.user.role!=="STAFF")) { clearAuthSession();router.replace("/admin/login");return; }
+            router.replace(me.user.role==="ADMIN"?"/admin/dashboard":"/admin/bookings");return;
+          } catch(error) {
+            if(controller.signal.aborted)return;
+            if(error instanceof ApiError && error.status===401) {
+              if(await resolveAdminSession())return;
+              clearAuthSession();router.replace("/admin/login");return;
+            }
+            throw error;
+          }
+        }
+        const response = await fetch(API_BASE_URL + "/branches/public"+(brandSlug?"?spa_slug="+encodeURIComponent(brandSlug):""), { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error("Không tải được danh sách chi nhánh.");
         const value = await response.json() as Directory;
         if (controller.signal.aborted) return;
@@ -56,7 +75,7 @@ export default function HomePage(): React.ReactElement {
     <header className="border-b border-[#213c35]/10 neu-surface bg-card">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
         <div className="flex min-w-0 items-center gap-3">
-          {onlyBranch && details[onlyBranch.id]?.logo_url ? <SpaLogo name={onlyBranch.name} src={details[onlyBranch.id].logo_url} /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9eee6]"><Leaf className="h-5 w-5" aria-hidden="true" /></span>}
+          {branding.logo_url?<SpaLogo name={brand} src={branding.logo_url}/>:onlyBranch && details[onlyBranch.id]?.logo_url ? <SpaLogo name={onlyBranch.name} src={details[onlyBranch.id].logo_url} /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9eee6]"><Leaf className="h-5 w-5" aria-hidden="true" /></span>}
           <span className="text-lg font-semibold tracking-tight">{brand}</span>
         </div>
         <div className="flex w-full shrink-0 flex-wrap justify-between gap-2 sm:w-auto"><a href="#branches" className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-medium underline-offset-4 hover:underline">Chi nhánh <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></a><Link href="/admin/login" className="inline-flex min-h-11 items-center neu-control rounded-full border border-[#213c35]/30 px-4 text-sm font-semibold hover:bg-white">Đăng nhập quản lý</Link></div>

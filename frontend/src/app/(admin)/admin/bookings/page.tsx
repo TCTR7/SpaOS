@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { GuestInbox } from "@/components/admin/guest-inbox";
 import { BookingHandover } from "@/components/admin/booking-handover";
 import { customerDetail } from "@/lib/experience-api";
 import { useRefreshOnReturn } from "@/lib/use-refresh-on-return";
@@ -377,7 +378,23 @@ export default function AdminBookingsPage(): React.ReactElement {
       setManualNotice({ scope: referenceScope, text: `Đã lưu ${result.booking_ids.length} buổi hẹn. Kiểm tra kết quả không tạo thêm khách, thẻ hoặc lịch.` });
       setModalOpen(false); void refreshAfterMutation(); void loadReferenceData();
     },
-    () => setModalOpen(true));
+    () => setModalOpen(true), (body) => {
+      setModalError(null);setCustomerQuery("");
+      if (!body) {
+        // Legacy/expired recovery IDs still allow checking their result, but
+        // must not reuse the customer and services of another open draft.
+        setModalCustomerId("");setQuickNewCustomer(false);
+        setNewCustomerName("");setNewCustomerPhone("");setNewCustomerNotes("");
+        setSelectedLines([]);setModalStaffId(user?.role === "STAFF" ? user.id : "");
+        setModalNote("");setSessionRows([createEmptySessionRow(selectedDate)]);
+        return;
+      }
+      setModalCustomerId(body.customer_id || ""); setQuickNewCustomer(!!body.new_customer);
+      setNewCustomerName(body.new_customer?.full_name || ""); setNewCustomerPhone(body.new_customer?.phone_number || "");
+      setNewCustomerNotes(body.new_customer?.notes || ""); setSelectedLines(body.items.map(i => ({ service_id:i.service_id, customer_package_id:i.customer_package_id || null })));
+      setModalStaffId(body.staff_id || ""); setModalNote(body.note || "");
+      setSessionRows(body.start_times.map(start => ({...createEmptySessionRow(formatDateISOInVN(new Date(start))),selectedSlotStart:start})));
+    });
   const creatingBooking = manualBatch.busy;
   const manualUncertain = manualBatch.uncertain;
 
@@ -431,11 +448,27 @@ export default function AdminBookingsPage(): React.ReactElement {
     () => selectedLines.map((l) => l.service_id).join(","),
     [selectedLines]
   );
-  const staffChoices = eligibleStaff(staffList, selectedLines.map((l) => l.service_id));
+  const [slotsAttempt, setSlotsAttempt] = React.useState(0);
+  const [freeStaff, setFreeStaff] = React.useState<string[] | null>(null);
+  const [staffAvailabilityError, setStaffAvailabilityError] = React.useState(false);
+  const staffTimeKey = JSON.stringify(sessionRows.map(r=>[r.date,r.selectedSlotStart]));
+  React.useEffect(()=>{
+    if (!modalOpen || !selectedLines.length || user?.role !== "ADMIN") { setFreeStaff(null); return; }
+    let alive=true; setFreeStaff(null); setStaffAvailabilityError(false);
+    void Promise.all(sessionRows.map(async row=>{
+      const result=await fetchAvailableSlots({date:row.date,service_ids:selectedLines.map(l=>l.service_id),all_staff:true});
+      return new Set(result.slots.filter(slot=>!row.selectedSlotStart || new Date(slot.start_time).getTime()===new Date(row.selectedSlotStart).getTime()).flatMap(slot=>slot.available_staff_ids));
+    })).then(sets=>{if(alive)setFreeStaff(staffList.filter(s=>sets.every(ids=>ids.has(s.id))).map(s=>s.id));})
+      .catch(()=>{if(alive){setFreeStaff([]);setStaffAvailabilityError(true);}});
+    return ()=>{alive=false;};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[modalOpen,selectedServiceIdsKey,staffTimeKey,staffList,slotsAttempt,user?.role]);
+  const staffChoices = eligibleStaff(staffList.filter(s=>freeStaff===null || freeStaff.includes(s.id)), selectedLines.map((l) => l.service_id));
   // Bỏ KTV đã chọn nếu sau khi đổi dịch vụ họ không còn phù hợp.
   React.useEffect(() => {
     if (!modalStaffId || selectedLines.length === 0) return;
-    const allowed = [...staffChoices.matching, ...staffChoices.undeclared];
+    const choices = eligibleStaff(staffList, selectedLines.map(l=>l.service_id));
+    const allowed = [...choices.matching, ...choices.undeclared, ...choices.other];
     if (staffList.length > 0 && !allowed.some((member) => member.id === modalStaffId)) setModalStaffId("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedServiceIdsKey, staffList]);
@@ -444,7 +477,7 @@ export default function AdminBookingsPage(): React.ReactElement {
     () => sessionRows.map((r) => `${r.rowId}:${r.date}`).join("|"),
     [sessionRows]
   );
-  const [slotsAttempt, setSlotsAttempt] = React.useState(0);
+
   const sessionSlotScope = (row: ScheduledSessionRow): string => JSON.stringify([row.date, selectedServiceIdsKey, modalStaffId]);
   const sessionSlotVerified = (row: ScheduledSessionRow): boolean => !row.slotsLoading && !row.slotsError && row.slotsScope === sessionSlotScope(row) && row.slots.some((slot) => slot.start_time === row.selectedSlotStart);
 
@@ -621,6 +654,9 @@ export default function AdminBookingsPage(): React.ReactElement {
   const openCreateModal = (): void => {
     if (!referencesReady) return;
     if (manualUncertain) { setModalOpen(true); return; }
+    // A new form gets a new operation; an older request remains in the queue
+    // for reconciliation, including after a check returned 404.
+    manualBatch.defer();
     setModalError(null);
     setShowCourse(false);
     setQuickNewCustomer(false);
@@ -655,7 +691,7 @@ export default function AdminBookingsPage(): React.ReactElement {
     // The link is consumed once; changes inside the modal must not reopen it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [referencesReady, referenceScope]);
-  useRefreshOnReturn(() => void loadBookings(), !statusBusyId && !modalOpen && !detailTarget && !rescheduleTarget);
+  useRefreshOnReturn(() => { void loadBookings(); void loadReferenceData(); }, !statusBusyId && !modalOpen && !detailTarget && !rescheduleTarget);
   const toggleServiceSelection = (
     serviceId: string,
     packageId: string | null = null
@@ -973,6 +1009,15 @@ export default function AdminBookingsPage(): React.ReactElement {
           </Button>
         </div>
       </div>
+      <GuestInbox services={services} onSaved={()=>{void refreshAfterMutation();void loadReferenceData();}}/>
+      {manualBatch.queue.length > 0 && <details className="rounded-xl border bg-card p-4" open>
+        <summary className="cursor-pointer font-semibold">Yêu cầu cần đối chiếu ({manualBatch.queue.length})</summary>
+        <p className="my-2 text-sm text-muted-foreground">Các yêu cầu này chưa chắc đã thành lịch. Bạn vẫn có thể tạo lịch cho khách khác. Bản nháp trong tab được giữ tối đa 8 giờ.</p>
+        {manualBatch.queue.map(entry => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 border-t py-3">
+          <span className="text-sm">{entry.body?.new_customer?.full_name || customerMap.get(entry.body?.customer_id || "")?.full_name || "Yêu cầu tạo lịch"} · {entry.id.slice(0,8)}</span>
+          <Button variant="outline" disabled={creatingBooking || modalOpen} onClick={()=>manualBatch.resume(entry.id)}>Mở lại và kiểm tra</Button>
+        </div>)}
+      </details>}
       {updatedAt && <p className="text-xs text-muted-foreground">Lần tải thành công: {formatTimeVN(updatedAt)} · Làm mới khi cần kiểm tra thay đổi.</p>}
 
       {showAvailability && user?.role === "ADMIN" && <AvailabilityFinder key={referenceScope} services={services} staff={staffList}
@@ -1230,11 +1275,11 @@ export default function AdminBookingsPage(): React.ReactElement {
         description="Hỗ trợ đặt lịch đơn lẻ hoặc lên lịch hẹn nhiều ngày liên tiếp cho gói lộ trình nhiều buổi."
         maxWidthClass="max-w-3xl"
         footer={manualUncertain ? <div className="space-y-2">
-          <p role="alert" className="text-sm">Chưa xác định kết quả. Hãy kiểm tra kết quả trước khi tạo lịch khác. Kiểm tra lại không tạo thêm lịch.</p>
+          <p role="alert" className="text-sm">Chưa xác định kết quả. Kiểm tra lại không tạo thêm lịch. Chọn Kiểm tra sau để tiếp tục phục vụ khách khác.</p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" disabled={creatingBooking} onClick={() => void manualBatch.check()}>Kiểm tra kết quả</Button>
             {manualBatch.canRetry && <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => void manualBatch.retry()}>Thử lại</Button>}
-            <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => setModalOpen(false)}>Kiểm tra sau</Button>
+            <Button type="button" disabled={creatingBooking} variant="outline" onClick={() => { manualBatch.defer(); setModalOpen(false); }}>Kiểm tra sau</Button>
           </div>
         </div> : <div className="space-y-2"><p className="text-xs text-muted-foreground">{quickNewCustomer ? newCustomerName || "Khách mới" : customers.find((customer) => customer.id === modalCustomerId)?.full_name || "Chưa chọn khách"} · {sessionRows.length} buổi · {selectedLines.length} dịch vụ/thẻ{sessionRows[0]?.selectedSlotStart ? " · " + formatDateTimeVN(sessionRows[0].selectedSlotStart) : ""}</p><p className="text-xs">Giá trị dự kiến: {formatCurrency(selectedLines.reduce((total, line) => total + (line.customer_package_id ? 0 : Number(serviceMap.get(line.service_id)?.price || 0) * (serviceMap.get(line.service_id)?.is_package ? 1 : sessionRows.length)), 0))} · Chưa ghi nhận thu tiền</p><Button type="submit" form="manual-booking-form" className="w-full sm:w-auto"
           disabled={creatingBooking || !referencesReady || (!quickNewCustomer && (customerPage.loading || customerQuery.trim() !== customerPage.query || !modalCustomerId)) || selectedLines.length === 0 || sessionRows.some((row) => !sessionSlotVerified(row))}>
@@ -1413,15 +1458,17 @@ export default function AdminBookingsPage(): React.ReactElement {
               <select
                 id="modalStaff"
                 value={modalStaffId}
+                disabled={selectedLines.length > 0 && user?.role === "ADMIN" && freeStaff === null}
                 onChange={(e) => setModalStaffId(e.target.value)}
                 className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
               >
                 <option value="">✨ Spa tự sắp xếp KTV rảnh</option>
-                {staffChoices.matching.map((s) => (
+                <optgroup label="Có đủ kỹ năng phù hợp">{staffChoices.matching.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.full_name} ({s.phone_number})
                   </option>
                 ))}
+                </optgroup>
                 {staffChoices.undeclared.length > 0 && (
                   <optgroup label="Chưa khai báo kỹ năng">
                     {staffChoices.undeclared.map((s) => (
@@ -1431,12 +1478,14 @@ export default function AdminBookingsPage(): React.ReactElement {
                     ))}
                   </optgroup>
                 )}
+                {staffChoices.other.length > 0 && <optgroup label="Nhân viên khác — chưa đủ kỹ năng">{staffChoices.other.map(s=><option key={s.id} value={s.id}>{s.full_name} ({s.phone_number})</option>)}</optgroup>}
               </select>
+              {selectedLines.length > 0 && <p className="text-xs text-muted-foreground">{staffAvailabilityError ? "Chưa tải được KTV rảnh. Thử tải lại giờ trống." : freeStaff===null && user?.role==="ADMIN" ? "Đang kiểm tra nhân viên rảnh..." : "Chỉ gợi ý người có giờ trống trong từng ngày; khi đã chọn giờ, phải rảnh ở tất cả buổi đã chọn."}</p>}
               {selectedLines.length > 0 && user?.role === "ADMIN" && (
                 <p className="text-xs text-muted-foreground">
                   {staffChoices.matching.length === 0
                     ? "Chưa có KTV nào có kỹ năng cho dịch vụ đã chọn. Vào Nhân sự → Hồ sơ để gán kỹ năng."
-                    : "Chỉ hiển thị KTV có kỹ năng phù hợp với dịch vụ đã chọn."}
+                    : "Nhóm nhân viên khác cần chủ spa xác nhận khả năng thực hiện trước khi chọn."}
                 </p>
               )}
             </div>

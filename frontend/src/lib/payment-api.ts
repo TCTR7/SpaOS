@@ -23,4 +23,4 @@ export function formatPaymentCurrency(value: string | number): string {
 }
 
 export const listCollections = (q: string, scope: "outstanding" | "all", offset = 0, customerId?: string): Promise<import("./types").PaymentCollection[]> =>
-  apiRequest(`/payments/collections?q=${encodeURIComponent(q)}&scope=${scope}&limit=50&offset=${offset}${customerId ? "&customer_id=" + encodeURIComponent(customerId) : ""}`);
+  apiRequest(`/payments/collections?q=${encodeURIComponent(q)}&scope=${scope}&limit=51&offset=${offset}${customerId ? "&customer_id=" + encodeURIComponent(customerId) : ""}`);

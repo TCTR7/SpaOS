@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { fetchBookingPage, apiRequest } from "@/lib/api";
 import type { BookingRecord, PaymentCollection } from "@/lib/types";
 import { formatTimeVN } from "@/lib/utils";

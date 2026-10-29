@@ -3,8 +3,8 @@
 import * as React from "react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useCustomerReturnTo, customerAuthHref } from "@/lib/customer-return-to";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/spa-link";
+import { useRouter } from "@/lib/spa-navigation";
 import { Lock, Phone, User as UserIcon } from "lucide-react";
 import { registerCustomer, saveCustomerToken } from "@/lib/customer-api";
 import { useCustomerTenant } from "@/components/customer/customer-context";

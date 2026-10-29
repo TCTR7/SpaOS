@@ -76,7 +76,7 @@ def _conflicts(busy: List[Booking], start: datetime, end: datetime, buffer_minut
     """Booking cũ chiếm [start, end + buffer); khoảng mới là [start, end + buffer)."""
     buf = timedelta(minutes=buffer_minutes)
     new_end_buf = end + buf
-    return any(start < b.end_time + buf and new_end_buf > b.start_time for b in busy)
+    return any(start < b.end_time + timedelta(minutes=getattr(b,"buffer_minutes",buffer_minutes)) and new_end_buf > b.start_time for b in busy)
 
 
 # ---------------------------------------------------------------- loaders
@@ -149,6 +149,9 @@ async def get_schedule_windows(
     result: Dict[uuid.UUID, List[Tuple[datetime, datetime]]] = {sid: [] for sid in staff_ids}
     if not staff_ids:
         return result
+    if tenant.spa_id:
+        from app.services.assignment_service import effective_windows
+        return await effective_windows(db, tenant, staff_ids, d)
     rows = (
         await db.execute(
             select(StaffSchedule).where(
@@ -202,6 +205,11 @@ async def fetch_busy(
         stmt = stmt.with_for_update()
     for b in (await db.execute(stmt)).scalars().all():
         busy[b.staff_id].append(b)
+    if tenant.spa_id:
+        from app.services.assignment_service import cross_branch_busy
+        extra=await cross_branch_busy(db,tenant,staff_ids,day_start,day_end)
+        for sid in staff_ids:
+            busy[sid].extend(extra[sid])
     return busy
 
 
@@ -305,6 +313,8 @@ async def _check_staff_free(
 
 
 async def _lock_staff_row(db: AsyncSession, tenant_id: uuid.UUID, staff_id: uuid.UUID) -> Optional[User]:
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     return (
         await db.execute(
             select(User)
@@ -323,6 +333,8 @@ async def _lock_staff_row(db: AsyncSession, tenant_id: uuid.UUID, staff_id: uuid
 # ---------------------------------------------------------------- create booking
 async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, body: BookingCreate,
                          *, commit: bool = True, staff_candidates: Optional[List[uuid.UUID]] = None) -> Booking:
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     start = ensure_aware(body.start_time).astimezone(timezone.utc)
     now = datetime.now(timezone.utc)
 
@@ -394,8 +406,12 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
         local_day = start.astimezone(TZ).date()
         all_ids = staff_candidates if staff_candidates is not None else await list_active_staff_ids(db, tenant_id, service_ids)
         windows = await get_schedule_windows(db, tenant, all_ids, local_day)
+        # Workforce lock serializes every schedule/booking mutation in this spa.
+        # Read busy candidates once, then retain row locking and final validation
+        # for the chosen technician rather than querying each already-busy one.
+        busy = await fetch_busy(db,tenant,all_ids,*local_day_bounds(local_day))
         # Chỉ lock các KTV có ca làm phù hợp; lock tuần tự theo id tăng dần (tránh deadlock)
-        for sid in (s for s in all_ids if _fits(windows[s], start, end)):
+        for sid in (s for s in all_ids if _fits(windows[s], start, end) and not _conflicts(busy[s],start,end,tenant.buffer_minutes)):
             if await _lock_staff_row(db, tenant_id, sid) is None:
                 continue
             if await _check_staff_free(db, tenant, sid, start, end) is None:
@@ -475,9 +491,12 @@ async def _consume_package_sessions(db: AsyncSession, tenant_id: uuid.UUID, book
 
 
 async def update_booking_status(
-    db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus, actor: Optional[User] = None
+    db: AsyncSession, tenant_id: uuid.UUID, booking_id: uuid.UUID, new_status: BookingStatus, actor: Optional[User] = None,
+    *, commit: bool = True,
 ) -> Tuple[Booking, bool]:
     """Trả về (booking, changed). changed=False khi gửi lại đúng trạng thái hiện tại (no-op)."""
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     if actor is not None:
         await booking_access(db, tenant_id, booking_id, actor, write=True)
     # Booking items are immutable after creation. Read their package IDs without
@@ -511,6 +530,9 @@ async def update_booking_status(
     if actor is not None:
         from app.services.notification_queue import enqueue_event
         enqueue_event(db, tenant_id, booking.id, actor, new_status.value)
+    if not commit:
+        await db.flush()
+        return booking, True
     await db.commit()
 
     await set_tenant_context(db, tenant_id)
@@ -523,6 +545,8 @@ async def cancel_booking(
     db: AsyncSession, tenant_id: uuid.UUID, actor: User, booking_id: uuid.UUID
 ) -> Tuple[Booking, bool]:
     """Trả về (booking, changed)."""
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     await booking_access(db, tenant_id, booking_id, actor, write=True)
     booking = await get_booking_full(db, tenant_id, booking_id, lock=True)
     if booking is None or (actor.role == UserRole.CUSTOMER and booking.customer_id != actor.id):
@@ -624,6 +648,8 @@ async def list_bookings(
 
 async def reschedule_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User,
                              booking_id: uuid.UUID, body: BookingUpdate) -> Booking:
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
     customer = await booking_access(db, tenant_id, booking_id, actor, write=True)
     if body.transfer_customer and actor.role != UserRole.ADMIN:
         raise HTTPException(403, "Chỉ Admin được chuyển người phụ trách")

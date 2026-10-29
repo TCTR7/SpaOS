@@ -1,9 +1,15 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM & KINH DOANH (PRD & BRD)
+
+> **Định hướng mới đã được PO duyệt triển khai — 28/10/2026:** xem [SHARED_SAAS_USER_JOURNEYS.md](SHARED_SAAS_USER_JOURNEYS.md) về hệ thống dùng chung nhiều chủ, nhận diện/PWA riêng và nhân viên nhiều chi nhánh. Tài liệu này chưa chứng nhận mô hình mới đã triển khai; trạng thái thực tế nằm ở PROGRESS và API_CONTRACT. Các giá hosting/lộ trình lịch sử bên dưới không phải báo giá hay phạm vi triển khai mới đã chốt.
 **Dự án:** Nền tảng Quản lý và Đặt lịch Spa chuẩn SaaS
 **Giai đoạn:** MVP (Minimum Viable Product) - Phiên bản 1.1 (Đã nâng cấp Kiến trúc & Lộ trình AI)
 **Ngày cập nhật:** 15/10/2026
 
 ---
+
+## Điều chỉnh PO ngày 29/10/2026
+
+Khách chưa có tài khoản được nhập tên/SĐT và gửi yêu cầu đặt lịch để spa gọi xác minh. Yêu cầu không giữ chỗ và chưa tạo tài khoản/lịch. Sau xác minh, quản lý chọn rõ hồ sơ cũ trong quyền hoặc tạo hồ sơ mới, rồi xác nhận với kiểm tra giờ trống nguyên tử. Liên kết riêng chỉ xem đúng yêu cầu; đăng nhập vẫn cần để dùng thẻ và xem lịch sử. Không tự ghép theo SĐT hoặc phát mật khẩu, chưa đặt cọc tự động. Thay thế yêu cầu buộc đăng nhập cho mọi khách ở các phần lịch sử bên dưới. Trạng thái kiểm chứng xem PROGRESS.
 
 ## 1. TỔNG QUAN DỰ ÁN (PROJECT OVERVIEW)
 
@@ -267,7 +273,7 @@ SpaOS/
 Admin xem danh sách khách cùng dịch vụ/thẻ đã có sẵn, xác nhận tiền mặt/chuyển khoản với số tiền mặc định bằng khoản còn thiếu. Không có bước lập/mở phiếu trên giao diện; tự cộng tổng hôm nay. Trả một phần, hoàn tác có lý do và lịch sử là thao tác phụ. Lịch dùng thẻ không thu thêm; giá giao dịch được giữ theo snapshot; thẻ cũ thiếu giá cần đối chiếu.
 
 ## Định hướng chiến lược đang chờ quyết định — 17/10/2026
-Xem [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) về deployment riêng từng chủ spa và nhiều chi nhánh. PO hiện chỉ yêu cầu lưu định hướng, chưa cho triển khai. Nội dung này chưa thay thế schema/API và các tính năng đang chạy được mô tả ở trên. Conversation mới đọc AGENTS.md, PROGRESS.md và tài liệu chiến lược trước khi bắt đầu task.
+Xem [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) về deployment riêng từng chủ spa và nhiều chi nhánh. Đây là định hướng lịch sử ngày 17/10. PO đã duyệt P0–P6 ngày 28/10/2026 theo SHARED_SAAS_IMPLEMENTATION_PLAN: một deployment nhiều chủ spa. Code/schema mới đang kiểm chứng trên QA riêng; không coi đây là xác nhận cutover production. Conversation mới đọc AGENTS.md, PROGRESS.md và tài liệu chiến lược trước khi bắt đầu task.
 
 ## Triển khai đa chi nhánh được PO phê duyệt — 17/10/2026
 Đã được phép triển khai sau bước lưu chiến lược. tenant_id giữ vai trò mã chi nhánh nội bộ; danh tính quản trị dùng chung qua login_accounts và branch_memberships. Tài khoản quản trị đăng nhập SĐT/mật khẩu, chủ chuyển chi nhánh và xem dashboard tổng hợp; STAFF chỉ có chi nhánh được cấp. Khách chọn chi nhánh theo tên, hồ sơ/thẻ/dịch vụ/giá vẫn riêng. Migration không gộp SĐT trùng; operator đối chiếu. Xem API_CONTRACT, MULTI_BRANCH_STRATEGY và tiến độ kiểm chứng mới nhất.

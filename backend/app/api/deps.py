@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 from typing import AsyncIterator, Callable
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,9 +64,15 @@ async def get_current_tenant_id(token: TokenData = Depends(get_token_data)) -> u
 
 
 async def get_current_user(
+    request: Request,
     token: TokenData = Depends(get_token_data),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> User:
+    # Mutations wait before reading credentials/membership, so a request queued
+    # behind a transfer cannot continue with the pre-transfer identity snapshot.
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        from app.services.assignment_service import lock_workforce
+        await lock_workforce(db, token.tenant_id)
     result = await db.execute(
         select(User).where(User.id == token.user_id, User.tenant_id == token.tenant_id)
     )
@@ -76,12 +82,12 @@ async def get_current_user(
         raise _UNAUTHORIZED
     from app.services.branch_service import membership_for, account_for
     if user.role in (UserRole.ADMIN, UserRole.STAFF):
-        link = await membership_for(db, user)
-        if link:
-            await account_for(db, user)
+        await account_for(db, user)
+    from app.services.spa_service import tenant_spa
+    await tenant_spa(db, token.tenant_id)
     tenant = (await db.execute(select(Tenant).where(Tenant.id == token.tenant_id, Tenant.status == "ACTIVE"))).scalar_one_or_none()
     if tenant is None:
-        raise HTTPException(403, "Chi nhánh đã bị khóa")
+        raise _UNAUTHORIZED
     return user
 
 
@@ -115,4 +121,6 @@ async def get_public_tenant(
     tenant = result.scalar_one_or_none()
     if tenant is None or tenant.status != "ACTIVE":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy Spa")
+    from app.services.spa_service import tenant_spa
+    await tenant_spa(db, tenant.id)
     return tenant

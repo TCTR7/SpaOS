@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import { Modal } from "@/components/ui/modal";
+import { ScreenHelp } from "@/components/screen-help";
 import { ProductGuide } from "@/components/product-guide";
 import { SpaLogo } from "@/components/spa-logo";
 import { ContactLinks } from "@/components/contact-links";
 import { NetworkStatus } from "@/components/network-status";
 import { useBrandColor } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from "@/components/spa-link";
+import { usePathname } from "@/lib/spa-navigation";
 import {
   MoreHorizontal,
   CircleHelp,
@@ -159,13 +160,13 @@ export function CustomerShell({
                 className="inline-flex min-h-11 items-center justify-center rounded-full px-3.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
                 style={{ backgroundColor: themeColor, color: "var(--brand-foreground)" }}
               >
-                Đăng nhập
+                Đăng nhập khách hàng
               </Link>
             )}
           </div>
         </header>
         <NetworkStatus />
-        <div className="px-4"><ContactLinks address={tenant.address} phone={tenant.contact_phone} /></div>
+        <div className="px-4"><Link href="/admin/login" className="action-link text-xs">Dành cho chủ spa / nhân viên → Trang quản lý</Link><ContactLinks address={tenant.address} phone={tenant.contact_phone} /></div>
 
         {/* Main Scrollable Content */}
         <main className="flex-1 px-4 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
@@ -175,6 +176,7 @@ export function CustomerShell({
               <Button variant="outline" onClick={() => void logoutCustomer()}>Đăng xuất</Button></>
               : <p>Đang kiểm tra đăng nhập...</p>}
           </div>}
+          <ScreenHelp role="CUSTOMER" identity={user?.id || tenant.id} slug={slug}/>
           {/* Keep an inline-login draft mounted, but inaccessible until verified. */}
           <div hidden={authLoading || Boolean(authError)}><ProductGuide key={user?.id || "guest"} role="CUSTOMER" slug={slug} identity={user?.id} autoOpen={!authLoading && !authError && pathname === baseHref} />{children}</div>
         </main>

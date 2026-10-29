@@ -31,7 +31,7 @@ export function Modal({
   footer, pending = false, dirty = false, historyGuard = false,
   returnFocusRef,
 }: ModalProps): React.ReactElement | null {
-  const adminSurface = typeof window !== "undefined" && window.location.pathname.startsWith("/admin/");
+  const adminSurface = typeof window !== "undefined" && /^(?:\/s\/[a-z0-9-]+)?\/admin\//.test(window.location.pathname);
   useBranchGuard(adminSurface && open && dirty, adminSurface && open && pending);
   const id = React.useId();
   const dialog = React.useRef<HTMLDialogElement>(null);

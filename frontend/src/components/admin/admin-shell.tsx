@@ -3,12 +3,14 @@
 import * as React from "react";
 import { SpaLogo } from "@/components/spa-logo";
 import { ProductGuide } from "@/components/product-guide";
+import { StaffWorkplace } from "./staff-workplace";
 import { NetworkStatus } from "@/components/network-status";
-import { useBrandColor } from "@/components/brand-provider";
+import { useBrandColor, useBranding } from "@/components/brand-provider";
 import { brandStyle } from "@/lib/brand-theme";
+import { spaPath } from "@/lib/spa-path";
 import { APP_ICON_192 } from "@/lib/app-icons";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "@/components/spa-link";
+import { usePathname, useRouter, useSearchParams } from "@/lib/spa-navigation";
 import {
   Building2,
   BarChart3,
@@ -28,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { BranchDirtyError, withBranchChange } from "@/lib/branch-guard";
+import { ScreenHelp } from "@/components/screen-help";
+import { UnfinishedWork } from "./unfinished-work";
 import type { UserRole } from "@/lib/types";
 
 interface NavItem {
@@ -38,6 +42,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  {href:"/admin/brand",label:"Thương hiệu & Gói",icon:Settings,roles:["ADMIN"]},
   { href: "/admin/work-hours", label: "Ca làm của tôi", icon: CalendarDays, roles: ["STAFF"] },
   { href: "/admin/account", label: "Tài khoản của tôi", icon: UserCheck, roles: ["ADMIN", "STAFF"] },
   { href: "/admin/dashboard", label: "Tổng quan", icon: BarChart3, roles: ["ADMIN"] },
@@ -97,6 +102,7 @@ function AdminShellContent({
 }: {
   children: React.ReactNode;
 }): React.ReactElement {
+  const {branding}=useBranding();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -104,6 +110,12 @@ function AdminShellContent({
   const { user, tenant, loading, authError, refreshMe, logout, branches, changeBranch } = useAdminAuth();
   const brandColor = useBrandColor(tenant?.theme_color);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
+  const [sessionNotice, setSessionNotice] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    const notice = sessionStorage.getItem("spaos_session_notice");
+    if (notice) setSessionNotice(notice);
+    sessionStorage.removeItem("spaos_session_notice");
+  }, []);
 
   React.useEffect(() => {
     const media = window.matchMedia("(min-width: 768px)");
@@ -141,6 +153,8 @@ function AdminShellContent({
     );
   }
 
+  const targetBranch=pathname==="/admin/bookings"?searchParams.get("target_branch"):null;
+  const linkedBranch=branches.find(branch=>branch.tenant.id===targetBranch);
   const allowedNavItems = NAV_ITEMS.filter((item) =>
     item.roles.includes(user.role) && (item.href !== "/admin/branches" || branches.some((b) => b.tenant.id === tenant.id && b.is_owner))
   );
@@ -158,7 +172,7 @@ function AdminShellContent({
     try {
       if (id === "all" || (id === tenant.id && allScope)) {
         await withBranchChange(async () => {
-          window.location.assign(id === "all" ? "/admin/dashboard?scope=all" : "/admin/dashboard");
+          window.location.assign(spaPath(id === "all" ? "/admin/dashboard?scope=all" : "/admin/dashboard"));
         }, discard);
       } else await changeBranch(id, discard);
       setRequestedBranch(null);
@@ -183,7 +197,7 @@ function AdminShellContent({
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border neu-surface bg-card md:flex">
         <div className="flex min-h-24 items-center gap-3 border-b border-border px-4 py-4">
           <Building2 className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
-          <div className="min-w-0 flex-1"><p className="text-base font-bold leading-snug">SpaOS</p><p className="mt-1 text-xs text-muted-foreground">Quản lý spa</p></div>
+          <div className="min-w-0 flex-1"><p className="text-base font-bold leading-snug [overflow-wrap:anywhere]">{branding.name||tenant.name}</p><p className="mt-1 text-xs text-muted-foreground">Quản lý spa</p></div>
         </div>
 
         <nav className="neu-nav flex-1 space-y-2 p-3">
@@ -238,15 +252,16 @@ function AdminShellContent({
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border neu-surface bg-card/90 px-4 backdrop-blur md:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <SpaLogo key={allScope ? "all" : tenant.id} name={allScope ? "SpaOS" : tenant.name} src={allScope ? APP_ICON_192 : tenant.logo_url} className="h-10 w-10 rounded-xl" />
+            <SpaLogo key={allScope ? "all" : tenant.id} name={tenant.name} src={tenant.logo_url} className="h-10 w-10 rounded-xl" />
             <div className="min-w-0">
               <label className="sr-only" htmlFor="activeBranch">Chi nhánh đang làm việc</label>
-              <select id="activeBranch" className="h-11 w-full max-w-[210px] min-w-0 rounded-md border bg-background px-2 text-sm" disabled={branchBusy}
+              <select id="activeBranch" className={cn("h-11 w-full max-w-[210px] min-w-0 rounded-md border bg-background px-2 text-sm",branches.length<=1&&"hidden")} disabled={branchBusy}
                 value={allScope ? "all" : tenant.id} onChange={(event) => void chooseBranch(event.target.value)}>
                 {branches.length === 0 && <option value={tenant.id}>{tenant.name}</option>}
                 {branches.map((b) => <option key={b.tenant.id} value={b.tenant.id}>{b.tenant.name}</option>)}
                 {user.role === "ADMIN" && branches.some((b) => b.tenant.id === tenant.id && b.is_owner) && <option value="all">Tất cả chi nhánh</option>}
               </select>
+              {branches.length<=1&&<span title={tenant.name} className="block max-w-[210px] truncate text-sm font-semibold">{tenant.name}</span>}
             </div>
           </div>
 
@@ -292,7 +307,10 @@ function AdminShellContent({
           </div>
         </Modal>
 
-        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id} identities={branches.map((branch) => branch.user.id)} autoOpen={pathname !== "/admin/help"} />{children}</div></main>
+        <main className="min-w-0 flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6"><UnfinishedWork />{sessionNotice && <p role="status" className="mb-3 rounded-lg border p-3 text-sm">{sessionNotice}</p>}{branchError && <p role="alert" className="mb-3 text-rose-700">{branchError}</p>}<div key={tenant.id} ref={(element) => { element?.toggleAttribute("inert", branchBusy); }}><ProductGuide key={user.id} role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id} identities={branches.map((branch) => branch.user.id)} autoOpen={pathname !== "/admin/help"} /><ScreenHelp role={user.role === "ADMIN" ? "ADMIN" : "STAFF"} identity={user.id}/>{targetBranch&&targetBranch!==tenant.id?<section className="space-y-3 rounded-xl border p-4" aria-label="Chi nhánh của lịch hẹn">
+          <p role="status">{linkedBranch?"Lịch hẹn thuộc chi nhánh "+linkedBranch.tenant.name+". Mở chi nhánh này để xem lịch.":"Bạn không còn được cấp chi nhánh của lịch hẹn này. Liên hệ chủ spa để kiểm tra."}</p>
+          {linkedBranch&&<Button disabled={branchBusy} onClick={()=>void chooseBranch(linkedBranch.tenant.id)}>Mở lịch tại {linkedBranch.tenant.name}</Button>}
+        </section>:<>{user.role === "STAFF" && <StaffWorkplace staffId={user.id} branchId={tenant.id}/>}{children}</>}</div></main>
       </div>
       <nav aria-label="Điều hướng chính" className="neu-nav fixed inset-x-0 bottom-0 z-30 flex border-t border-border neu-surface bg-card/95 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
         {primaryItems.map((item) => {

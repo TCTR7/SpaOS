@@ -109,6 +109,10 @@ async def create_staff(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> StaffDetailOut:
+    from app.services.spa_service import check_staff_limit
+    from app.services.assignment_service import lock_workforce
+    await lock_workforce(db, tenant_id)
+    await check_staff_limit(db, tenant_id)
     staff = User(
         tenant_id=tenant_id,
         role=UserRole.STAFF,
@@ -121,6 +125,11 @@ async def create_staff(
     try:
         await db.flush()
         await provision_account(db, staff)
+        if body.branch_ids:
+            from app.api.v1.branches import grant_staff_access
+            for branch_id in sorted(set(body.branch_ids) - {tenant_id}, key=str):
+                await set_tenant_context(db, tenant_id)
+                await grant_staff_access(db, _user, branch_id, staff.id, commit=False)
         await commit_and_refresh(db, tenant_id, staff)
     except IntegrityError:
         await db.rollback()
@@ -138,6 +147,17 @@ async def update_staff(
 ) -> StaffDetailOut:
     staff = await _get_staff(db, tenant_id, staff_id)
     data = body.model_dump(exclude_unset=True)
+    from app.services.assignment_service import lock_workforce, check_revocation
+    await lock_workforce(db, tenant_id)
+    if data.get("is_active") is False and staff.is_active:
+        await check_revocation(db, tenant_id, staff)
+    if data.get("is_active") is True and not staff.is_active:
+        from app.services.spa_service import check_staff_limit
+        membership = await membership_for(db, staff)
+        await check_staff_limit(db, tenant_id, membership.account_id if membership else None)
+        if membership:
+            await account_context(db,membership.account_id)
+            membership.is_active=True
     password = data.pop("password", None)
     for key, value in data.items():
         if value is None and key not in _NULLABLE_PROFILE:
@@ -197,6 +217,19 @@ async def replace_schedules(
 ) -> List[StaffSchedule]:
     """Ghi đè toàn bộ lịch làm việc của KTV (xóa cũ + thêm mới trong cùng 1 transaction)."""
     await _get_staff(db, tenant_id, staff_id)
+    from app.services.assignment_service import save_assignments
+    from app.schemas.workforce import AssignmentIn
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
+    by_day = {item.day_of_week: item for item in body.schedules}
+    entries = []
+    for weekday in range(7):
+        item = by_day.get(weekday)
+        working = item is not None and not item.is_day_off
+        entries.append(AssignmentIn(weekday=weekday, tenant_id=tenant_id if working else None,
+            start_time=item.start_time if working else None, end_time=item.end_time if working else None))
+    await save_assignments(db, _user, staff_id, entries, today, weekly=True)
     await db.execute(
         delete(StaffSchedule).where(StaffSchedule.tenant_id == tenant_id, StaffSchedule.staff_id == staff_id)
     )

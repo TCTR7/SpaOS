@@ -2,7 +2,51 @@
 
 *Quy tắc cho AI: Sau khi hoàn thành mỗi Sprint hoặc Task lớn, hãy tự động cập nhật trạng thái `[x]` vào file này và ghi chú ngắn gọn các file quan trọng vừa tạo.*
 
+## Review lại code UX — 29/10/2026
+
+- [x] Rà thay đổi UX/guest requests, tenant/RLS, giao dịch booking và frontend recovery. Ba probe Node trên source thực với API/React giả lập xác nhận: CRM ghim lại khách deep link khi tìm kiếm; form mới dùng lại UUID thao tác cũ; tour mở hai modal tại Trợ giúp. `git diff --check` PASS.
+- [x] PO yêu cầu sửa: đã vá cả ba WARNING P2. CRM chỉ mở deep link ở lần tải đầu; form mới tách operation, giữ retry/queue cũ; library không mở tour modal. Regression source-level với API/storage/React giả lập **5/5 PASS (1.60s)**; chưa chạy lại backend/browser suite, DB local còn lỗi mount. Chi tiết: [UX_CODE_REVIEW_2026-10-29.md](UX_CODE_REVIEW_2026-10-29.md). Không sửa DB/secrets.
+- [x] Sau vá: `npm run build` production PASS, gồm lint/TypeScript strict và tạo trang; `git diff --check` PASS. Giữ nguyên cấu hình TypeScript strict/noImplicitAny. Không deploy.
+
+## Cải thiện UX và khách chưa có tài khoản — 29/10/2026
+
+- PO đã cho phép triển khai toàn bộ phản ánh sau review; phạm vi: [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md).
+- [x] Code: hàng đợi nhiều batch và khôi phục nháp theo tab/người dùng/chi nhánh; sửa lỗi definitive rejection khóa form; xác nhận xóa; KTV theo kỹ năng/giờ rảnh; CRM/Thu tiền quay đúng khách; thiết lập/chuyển nhánh và chỉ vị trí tab đang dở; bố cục mobile; hướng dẫn từng màn hình và tour có thể bỏ qua/xem lại.
+- [x] Code API/UI khách gửi yêu cầu không cần đăng nhập, không giữ slot hoặc tạo tài khoản trước xác minh; hộp yêu cầu chờ gọi; capability riêng chỉ xem một yêu cầu; migration 0013 tenant FORCE RLS. Xác nhận dùng transaction/khóa chung với booking, không tự ghép hồ sơ theo số điện thoại.
+- [x] QA bước đầu: hồi quy booking/shared **26/26 PASS (58.61s)**; nhóm guest mới **5/5 PASS (12.32s)** sau sửa timezone response. Build production/strict TypeScript PASS trước các điều chỉnh cuối. Không gộp nhiều lượt thành full suite.
+- [x] Backend full **161/161 PASS (384.40s)** trên DB QA tạm; có 25 cảnh báo Alembic path_separator đã có từ trước.
+- [x] E2E mở rộng production **52 PASS/2 lỗi fixture (192.47s)**; 43 ca hồi quy đều qua. Hai fixture đòi dropdown hiện ở spa một chi nhánh đã sửa. Production build/TypeScript và nhóm mới **11/11 PASS (39.72s)**; ảnh mobile/tour/khách xác nhận đã kiểm tra.
+- [x] Sau bổ sung liên kết khách đọc giờ/trạng thái sau dời/hủy: backend guest **5/5 PASS (9.74s)**, TypeScript strict PASS, browser dev **1/1 PASS (18.09s)**. Lượt full 161 phía trên là trước chỉnh cuối này.
+- [x] Hai vá cuối về gửi yêu cầu tiếp theo/bản nháp hết hạn qua nhóm **12 ca mới** trong lượt production **53 PASS/2 ERROR fixture HTTP 401 (192.48s)**, không có assertion FAIL; chạy lại đúng hai ca trên browser dev **2/2 PASS (16.70s)**. Không gọi là một lượt 55/55 sạch.
+- [x] Đồng bộ spa xác nhận → lịch CONFIRMED trong cùng transaction. Backend booking/batch/quyền/thông báo/guest **34 PASS/2 lỗi chuẩn bị dữ liệu (89.66s)**; log xác định `ImmatureSignatureError`, `iat` đi trước 2.32–3.13 giây sau clock Docker lùi. Hai ca chạy lại **2/2 PASS (5.46s)**; không nới JWT. Bản cuối production build/strict TypeScript + SSR/rewrite PASS, E2E guest **1/1 PASS (6.48s)** gồm xác nhận/hủy/gửi lần tiếp theo. Báo cáo và ảnh: [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md).
+- Docker DB ứng dụng đã dừng do lỗi host mount `docker/init-db.sh`; QA cuối dùng PostgreSQL/API tạm độc lập, không restart/migrate DB ứng dụng. Đã dọn container/network/DB QA. Gate clock ổn định và full suite sạch vẫn mở; không gộp các lượt thành full PASS.
+- Push: runtime và hai dòng VAPID trong `.env` đều trống. Đã sinh cặp VAPID local vào `.env`, không in khóa/không ghi đè khóa có sẵn. Chưa restart backend, chưa áp migration vào DB ứng dụng hoặc deploy production; push thiết bị thật vẫn cần HTTPS/Android/iOS.
+
+## Bộ automation mặc định và đối chiếu yêu cầu — 28/10/2026
+
+- [x] E2E mặc định dùng duy nhất `automation_test/pytest.ini`: features + reviews/test_shared_saas.py. Runner chạy từ automation_test, giữ path/node từ root và option-only `-k`; explicit path vẫn chạy riêng. Không collect backend hoặc review probes lịch sử trong bộ mặc định.
+- [x] Collection thật: **271 E2E (11 shared SaaS, không trùng)** và **156 backend**, gồm auto-migration. Harness **30/30 PASS (2.653s)**. Đây là kiểm tra lựa chọn test/runner, không gọi là full nghiệp vụ PASS.
+- [x] Viết [TEST_COVERAGE.md](TEST_COVERAGE.md), đối chiếu **31 nhóm yêu cầu / 61 tham chiếu test** đã kiểm tra tồn tại; ghi rõ 10 khoảng trống/giới hạn. Thêm automation_test/README.md và cập nhật release runbook. Chưa đo line/branch coverage.
+- [x] Smoke production chọn shared SaaS bằng `-- -k canonical_login_routes_brand_manifest_and_worker` qua bộ mặc định: **1/1 PASS (4.53s), 270 deselected**. Build/TypeScript và SSR/rewrite isolation PASS; QA riêng đã dọn, không chạm dữ liệu ứng dụng. Không gọi đây là lượt full 271 E2E hoặc 156 backend đều PASS.
+
+## Cập nhật startup — 28/10/2026
+
+- [x] PO yêu cầu giữ Start Command Uvicorn và tự detect version/migrate khi cần. FastAPI lifespan gọi prepare_database_schema: đọc revision runtime, chỉ chạy Alembic subprocess khi chưa ở head, giữ advisory lock nhiều worker và verify schema/ownership sau nâng. Migration lỗi thì dừng trước API/worker; không tự mapping/seed/reset. start_service cũ vẫn tương thích.
+- [x] Kiểm thử riêng `tests/test_startup.py`: **13/13 PASS (13.02s)** trên DB QA tạm, gồm DB trống/0011, hai lifespan đồng thời, lần boot tiếp không nâng lại, lỗi migration không mở API/không lộ output con và production unmapped vẫn bị chặn. Không chạy migration vào DB ứng dụng, không đổi .env hoặc settings dịch vụ đang deploy.
+
 ## Đọc trước khi bắt đầu task: định hướng đa chi nhánh
+
+- **28/10/2026 — PO duyệt triển khai toàn bộ P0–P6 theo thứ tự.** Đã chốt phần mã nguồn shared SaaS và QA local trên FastAPI + Next.js + PostgreSQL; vẫn giữ tenant_id là chi nhánh, không tự gộp dữ liệu/tài khoản cũ. QA dùng DB/container tạm, chưa áp migration/mapping vào DB ứng dụng, chưa deploy/mua hosting.
+- [x] **P0–P4, phần code và QA local:** schema 0012/spa FORCE RLS; operator nhiều spa/branding; gói hai nhánh/10 danh tính STAFF; phân công tuần có hiệu lực, ngoại lệ/nghỉ và thu hồi quyền sau bàn giao; booking/batch/slots dùng chung khóa/phân công; phiên theo spa, resolve quyền mới, bảo vệ nhiều tab; tạm ngưng/mở lại chi nhánh kiểm tra bàn giao/quota. Ca hôm nay cập nhật qua ngày, không tự đổi chi nhánh giữa form. Đã vá pool/outbox, queued write sau thu hồi và mẫu tuần nhánh còn lại.
+- [x] **P5, phần code/browser:** canonical `/s/{spa}/...`, SSR branding, manifest/worker/storage theo spa, QR/PDF/recovery/push deep link; thông báo trong app giữ scope. Next.js vá **14.2.35**, production build/TypeScript PASS. Chưa chứng nhận native Android/iOS hoặc push thiết bị thật.
+- [x] **P6, diễn tập local:** mapping legacy 0011→0012 giữ ID, rollback/retry; tải ba spa × 10 staff PASS (60 tranh lịch → 30×201/30×409; 600/600 reads 200; p95 booking cao nhất 4599.3 ms, ngưỡng local 5000 ms); backup QA 197,226 bytes, restore **31 bảng/RLS/policies/context probes PASS**. Snapshot sau tải 137.3 MiB/CPU 5.80%, DB QA 10,681,367 bytes; không phải peak/sức chứa/chi phí production. QA dump/container/DB đã dọn.
+- **Kiểm chứng mới nhất:** backend full **150/150 PASS (292.08s)** trước điều chỉnh cuối kiểm tra COMPLETED/NO_SHOW một nơi/ngày; nhóm shared/migration/booking sau điều chỉnh **27/27 PASS (65.80s)**. Runner harness **25/25 PASS**. Production hồi quy mã cuối **37/37 PASS (118.86s)**; full E2E 267 ca kết thúc **265 PASS/2 ERROR (759.84s)**; hai lỗi fixture do clock/JWT, không có assertion FAIL. Sau bổ sung deep link qua login/hết phiên, production build PASS; nhóm liên quan 48 PASS/1 lỗi fixture token reseed đã sửa, lượt production shared cuối **11/11 PASS (23.38s)**. Lượt full E2E trước: 256 PASS/6 FAIL/3 ERROR; sáu lỗi đã sửa và qua nhóm 37 ca, ba lỗi fixture có clock/JWT. Không gộp nhiều lượt thành một full pass.
+- [ ] **Gate nghiệm thu còn mở:** một lượt full E2E sạch sau cùng trên môi trường clock ổn định; đồng hồ Docker (đã có JWT mới đi trước đến 5.68 giây, không nới kiểm tra để che lỗi); native PWA/HTTPS/push Android/iOS; hạ tầng đích, backup ngoài server/roles/secrets và mapping/cutover dữ liệu thật theo chỉ thị riêng.
+- Chi tiết bàn giao: [SHARED_SAAS_IMPLEMENTATION_REPORT.md](SHARED_SAAS_IMPLEMENTATION_REPORT.md); [technical design](SHARED_SAAS_TECHNICAL_DESIGN.md), [migration runbook](SHARED_SAAS_MIGRATION_RUNBOOK.md), [API contract](API_CONTRACT.md). Các mốc dưới đây là lịch sử, không thay trạng thái hiện tại.
+
+- [x] **28/10/2026 — Lập kế hoạch chờ duyệt:** [SHARED_SAAS_IMPLEMENTATION_PLAN.md](SHARED_SAAS_IMPLEMENTATION_PLAN.md) gồm P0–P6, schema/RLS/auth, operator/branding/gói thử nghiệm, phân công mỗi ngày một chi nhánh, booking đồng bộ, phiên/PWA và migration/pilot. PO đồng ý quy tắc sản phẩm: SĐT vận hành duy nhất, một chủ/danh tính, điều chuyển sau bàn giao, một PWA/thương hiệu, gói 10 USD/hai chi nhánh/10 nhân viên. Bỏ phương án thời gian di chuyển; đã đồng bộ ví dụ trong USER_JOURNEYS. **Chờ PO duyệt triển khai plan; phiên này chỉ sửa tài liệu, không đổi code/schema/DB/.env/deploy.** Hosting và hạn mức GB chờ đo.
+
+- [x] **28/10/2026 — Tổng hợp định hướng SaaS dùng chung (mốc trước chốt quy tắc):** đã viết [SHARED_SAAS_USER_JOURNEYS.md](SHARED_SAAS_USER_JOURNEYS.md). Đã đối chiếu staff-access/membership nhiều chi nhánh hiện có. Các điểm lúc đầu còn mở về SĐT, điều chuyển, PWA và gói thử nghiệm đã được PO đồng ý như mục kế hoạch phía trên; phân công theo ngày thay cho travel-time. Chưa triển khai code/schema/deploy mô hình mới.
 
 - [x] Đã lưu [MULTI_BRANCH_STRATEGY.md](MULTI_BRANCH_STRATEGY.md) ngày 17/10/2026: deployment riêng từng chủ spa, nhiều chi nhánh, đăng nhập chung và dashboard tổng hợp.
 - [x] **PO đã cho phép triển khai ngày 17/10/2026.** Đang thực hiện; xem mục triển khai đa chi nhánh ở cuối tài liệu.

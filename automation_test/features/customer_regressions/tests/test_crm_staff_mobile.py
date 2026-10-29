@@ -95,15 +95,15 @@ def test_failed_staff_read_cannot_save_defaults_and_back_keeps_draft(scenario):
     s = scenario
     other = s["call"]("POST", "/staff", json={"full_name": "QA Second", "phone_number": random_phone(), "password": "Staff@123"})
     page, url = admin_page(s, "staff", 360)
-    pattern = "**/api/v1/staff/" + s["staff"]["id"] + "/schedules"
+    pattern = "**/api/v1/workforce/staff/" + s["staff"]["id"]
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "QA schedules unavailable"}))
     page.goto(url)
     page.get_by_role("button").filter(has_text="QA Staff").click()
     expect(page.get_by_role("main").get_by_role("alert")).to_contain_text("Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.")
-    expect(page.get_by_role("button", name="Lưu lịch tuần", exact=True)).to_be_disabled()
+    expect(page.get_by_role("button", name="Lưu phân công tuần", exact=True)).to_have_count(0)
     expect(page.locator("input[type=time]")).to_have_count(0)
     page.unroute(pattern)
-    page.get_by_role("button", name="Thử tải lại ca làm", exact=True).click()
+    page.get_by_role("button", name="Thử lại phân công", exact=True).click()
     expect(page.locator("input[type=time]")).to_have_count(14)
     page.locator("input[type=time]").first.fill("02:00")
     page.get_by_role("button", name="Quay lại danh sách KTV", exact=True).click()
@@ -114,7 +114,8 @@ def test_failed_staff_read_cannot_save_defaults_and_back_keeps_draft(scenario):
     page.get_by_role("button").filter(has_text="QA Second").click()
     expect(page.get_by_role("dialog", name="Bỏ thay đổi chưa lưu?", exact=True)).to_be_visible()
     page.get_by_role("button", name="Bỏ thay đổi và chọn KTV", exact=True).click()
-    expect(page.get_by_role("heading", name="Lịch làm việc 7 ngày — QA Second", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Phân công chi nhánh theo ngày", exact=True)).to_be_visible()
+    expect(page.locator("input[type=time]")).to_have_count(0)
 
 
 def test_old_customer_packages_cannot_replace_new_profile(scenario):
@@ -160,22 +161,25 @@ def test_mobile_profile_can_return_after_edit_no_longer_matches_search(scenario)
 def test_old_staff_schedule_cannot_replace_new_staff(scenario):
     s = scenario
     second = s["call"]("POST", "/staff", json={"full_name": "ZZ Second Staff", "phone_number": random_phone(), "password": "Staff@123"})
+    original=s["call"]("GET","/workforce/staff/"+s["staff"]["id"])
     page, url = admin_page(s, "staff")
     held = []
     def hold(route):
         held.append(route)
         page.evaluate("window.qaScheduleHeld = true")
-    page.route("**/api/v1/staff/" + s["staff"]["id"] + "/schedules", hold)
+    page.route("**/api/v1/workforce/staff/" + s["staff"]["id"], hold)
     page.goto(url)
     page.get_by_role("button").filter(has_text="QA Staff").click()
     page.wait_for_function("window.qaScheduleHeld === true")
     page.get_by_role("button", name="Quay lại danh sách KTV", exact=True).click()
     page.get_by_role("button").filter(has_text="ZZ Second Staff").click()
+    expect(page.locator("input[type=time]")).to_have_count(0)
+    page.get_by_label("Chi nhánh Thứ 2",exact=True).select_option(page.locator("#activeBranch").input_value())
     expect(page.locator("input[type=time]").first).to_have_value("09:00")
 
     for route in held:
-        with page.expect_response(lambda r: s["staff"]["id"] + "/schedules" in r.url):
-            route.fulfill(json=[{"day_of_week": d, "start_time": "15:00:00", "end_time": "18:00:00", "is_day_off": False} for d in range(7)])
+        with page.expect_response(lambda r: "/workforce/staff/"+s["staff"]["id"] in r.url):
+            route.fulfill(json={**original,"assignments":[{**row,"start_time":"15:00:00"} for row in original["assignments"]]})
     page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
     expect(page.locator("input[type=time]").first).to_have_value("09:00")
 

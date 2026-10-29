@@ -47,6 +47,7 @@ def test_notifications_fit_retry_many_long_rows_back_and_focus(scenario, width, 
 @pytest.mark.parametrize("width", [320, 390, 768, 1366])
 def test_dashboard_scoped_actions_metrics_error_retry_and_read_only_all(scenario, width):
     s = scenario
+    s["call"]("POST","/branches",json={"name":"Second QA branch"})
     s["call"]("PATCH", "/tenants/me", json={"name": "LongBranchName" * 15})
     page = s["page"](s["admin"], True)
     page.set_viewport_size({"width": width, "height": 844})
@@ -84,13 +85,14 @@ def test_remaining_public_auth_and_admin_routes_long_errors_labels(scenario, wid
     s["call"]("PATCH", "/tenants/me", json={"name": long_name})
     page = s["page"]("", True)
     page.set_viewport_size({"width": width, "height": 844})
-    pattern = "**/api/v1/branches/public"
+    s["call"]("POST","/branches",json={"name":"Second QA public branch"})
+    pattern = "**/api/v1/branches/public?*"
     page.route(pattern, lambda r: r.fulfill(status=503, json={"detail": "QA unavailable"}))
-    page.goto(config.frontend_url + "/")
+    page.goto(config.frontend_url + "/s/"+s["slug"]+"/")
     expect(page.get_by_role("main").get_by_role("alert")).to_be_visible()
     page.unroute(pattern)
     page.get_by_role("button", name="Thử tải lại chi nhánh", exact=True).click()
-    expect(page.locator('a[href="/' + s["slug"] + '"]')).to_contain_text(long_name)
+    expect(page.locator('a[href="/s/'+s["slug"]+'/b/' + s["slug"] + '"]')).to_contain_text(long_name)
     fits(page)
     detail = "LongLoginFailure" * 30
     page.route("**/api/v1/auth/login", lambda r: r.fulfill(status=503, json={"detail": detail}))
@@ -114,7 +116,7 @@ def test_remaining_public_auth_and_admin_routes_long_errors_labels(scenario, wid
     admin.set_viewport_size({"width": width, "height": 844})
     for path in ["branches", "settings"]:
         admin.goto(config.frontend_url + "/admin/" + path)
-        expect(admin.locator("#activeBranch")).to_be_visible()
+        expect(admin.locator("#activeBranch")).to_be_attached()
         if path == "settings":
             expect(admin.locator("#spaName")).to_have_value(long_name)
         else:

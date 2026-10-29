@@ -25,7 +25,7 @@ async def operator_env(client, monkeypatch):
         sessions = async_sessionmaker(connection, expire_on_commit=False, join_transaction_mode="create_savepoint")
         async def clean(db):
             for key in ("app.current_operator_id", "app.operator_phone", "app.current_tenant_id",
-                        "app.current_account_id", "app.login_phone"):
+                        "app.current_account_id", "app.login_phone", "app.current_spa_id", "app.public_spa_slug"):
                 await db.execute(text("SELECT set_config(:key,'',true)"), {"key": key})
         async def plain():
             async with sessions() as db:
@@ -131,15 +131,18 @@ async def test_operator_bruteforce_locks_and_no_context_rls(operator_env):
         assert (await db.execute(select(OwnerProvision))).scalars().all() == []
 
 @pytest.mark.asyncio
-async def test_production_owner_guard_does_not_merge_existing_data(operator_env, monkeypatch):
+async def test_production_provisions_separate_spa_without_claiming_legacy_data(operator_env, monkeypatch):
     client, sessions = operator_env
     async with sessions() as db:
         db.add(Tenant(name="Existing", slug="existing-"+uuid.uuid4().hex))
         await db.commit()
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     headers = await login(client)
-    assert (await client.post(B+"/operator/owners", headers=headers, json=owner_body())).status_code == 409
-    assert (await client.get(B+"/operator/owners", headers=headers)).json() == []
+    response = await client.post(B+"/operator/owners", headers=headers, json=owner_body())
+    assert response.status_code == 201, response.text
+    assert len((await client.get(B+"/operator/owners", headers=headers)).json()) == 1
+    detail = (await client.get(B+"/operator/owners/"+response.json()["id"], headers=headers)).json()
+    assert len(detail["branches"]) == 1 and detail["branches"][0]["name"] != "Existing"
 
 @pytest.mark.asyncio
 async def test_owner_input_forbids_role_and_requires_confirmation_fields(operator_env):

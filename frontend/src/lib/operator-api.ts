@@ -5,6 +5,7 @@ export interface OwnerProvision {
   owner_name: string; phone_number: string; created_at: string;
 }
 export interface OwnerCreate {
+  spa_name?: string; logo_data?:string; cover_data?:string;
   request_id: string; branch_name: string; owner_full_name: string; phone_number: string; password: string; theme_color?: string;
 }
 const KEY = "spaos_operator_token";

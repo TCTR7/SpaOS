@@ -102,7 +102,7 @@ def test_late_calendar_page_cannot_replace_new_filter(scenario, old_status):
     expect(page.get_by_role("main").get_by_role("alert")).to_have_count(0)
 
 
-def test_public_staff_does_not_disappear_when_today_has_no_slots(scenario):
+def test_public_staff_follows_daily_workplace_and_returns_on_next_working_day(scenario):
     s = scenario
     today = datetime.now(timezone(timedelta(hours=7))).date()
     dow = (today.weekday() + 1) % 7
@@ -114,15 +114,15 @@ def test_public_staff_does_not_disappear_when_today_has_no_slots(scenario):
     wizard.step1_select_service_by_name("QA Treatment")
     page.locator("details > summary").click()
     staff = page.get_by_role("button", name="QA Staff", exact=False)
-    expect(staff).to_be_visible()
-    staff.click()
-    expect(staff).to_have_attribute("aria-pressed", "true")
+    expect(staff).to_have_count(0)
     expect(page.get_by_text("Rất tiếc, ngày", exact=False)).to_be_visible()
     page.get_by_role("button", name="Quay lại", exact=True).click()
     page.get_by_role("button", name="Tiếp tục", exact=True).click()
-    expect(staff).to_be_visible()
-    expect(staff).to_have_attribute("aria-pressed", "true")
+    expect(staff).to_have_count(0)
     page.locator("#wizDate").fill((today + timedelta(days=1)).isoformat())
+    expect(staff).to_be_visible()
+    staff.click()
+    expect(staff).to_have_attribute("aria-pressed", "true")
     expect(page.get_by_role("button", name="Tiếp tục", exact=True)).to_be_disabled()
     page.locator("button:has-text('KTV trống')").first.click()
     expect(page.get_by_role("button", name="Tiếp tục", exact=True)).to_be_enabled()

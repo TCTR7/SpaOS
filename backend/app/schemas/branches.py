@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 from datetime import date
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
@@ -39,3 +40,8 @@ class DashboardOut(BaseModel):
     timezone: str = "Asia/Ho_Chi_Minh"
     branches: list[DashboardBranch]
     totals: DashboardMetrics
+
+
+class BranchStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["ACTIVE", "INACTIVE"]

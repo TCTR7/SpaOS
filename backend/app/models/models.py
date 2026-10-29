@@ -74,8 +74,54 @@ class TenantOwnedMixin:
     )
 
 
+class Spa(TimestampMixin, Base):
+    """Brand/owner boundary. No branch tenant_id; protected by spa-scoped FORCE RLS."""
+    __tablename__ = "spas"
+    __table_args__ = (
+        CheckConstraint("theme_color ~ '^#[0-9a-f]{6}$'", name="ck_spa_color"),
+        CheckConstraint("branch_limit > 0 AND staff_limit > 0", name="ck_spa_limits"),
+    )
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    theme_color: Mapped[str] = mapped_column(String(7), nullable=False, default="#be185d", server_default="#be185d")
+    logo_url: Mapped[Optional[str]] = mapped_column(String(500))
+    logo_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, deferred=True)
+    cover_url: Mapped[Optional[str]] = mapped_column(String(500))
+    cover_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, deferred=True)
+    contact_phone: Mapped[Optional[str]] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ACTIVE", server_default="ACTIVE")
+    branch_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    staff_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    operator_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("deployment_operators.id"))
+
+
+class StaffAssignment(TimestampMixin, Base):
+    """Weekly versions or dated exceptions for one management identity."""
+    __tablename__ = "staff_assignments"
+    __table_args__ = (
+        UniqueConstraint("account_id", "day", name="uq_assignment_date"),
+        UniqueConstraint("account_id", "effective_from", "weekday", name="uq_assignment_week"),
+        ForeignKeyConstraint(["account_id", "spa_id"], ["login_accounts.id", "login_accounts.spa_id"]),
+        ForeignKeyConstraint(["tenant_id", "spa_id"], ["tenants.id", "tenants.spa_id"]),
+        CheckConstraint("(day IS NOT NULL AND weekday IS NULL) OR (day IS NULL AND weekday IS NOT NULL AND weekday BETWEEN 0 AND 6)", name="ck_assignment_kind"),
+        CheckConstraint("day IS NULL OR effective_from = day", name="ck_assignment_date"),
+        CheckConstraint("(tenant_id IS NULL AND start_time IS NULL AND end_time IS NULL) OR (tenant_id IS NOT NULL AND start_time IS NOT NULL AND end_time IS NOT NULL AND end_time > start_time)", name="ck_assignment_hours"),
+    )
+    spa_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("spas.id"), nullable=False, index=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("login_accounts.id"), nullable=False, index=True)
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"))
+    day: Mapped[Optional[date]] = mapped_column(Date)
+    weekday: Mapped[Optional[int]] = mapped_column(Integer)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    start_time: Mapped[Optional[time]] = mapped_column(Time)
+    end_time: Mapped[Optional[time]] = mapped_column(Time)
+
+
 class Tenant(TimestampMixin, Base):
     __tablename__ = "tenants"
+    __table_args__ = (UniqueConstraint("id", "spa_id", name="uq_tenant_spa"),)
+
+    spa_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("spas.id"), index=True)
 
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -271,6 +317,9 @@ class AuditLog(TimestampMixin, TenantOwnedMixin, Base):
 class LoginAccount(TimestampMixin, Base):
     """Deployment-level authentication identity; no business/customer data."""
     __tablename__ = "login_accounts"
+    __table_args__ = (UniqueConstraint("id", "spa_id", name="uq_account_spa"),)
+    spa_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("spas.id"), index=True)
+    default_branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"))
     phone_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
@@ -430,3 +479,20 @@ class StaffPhoto(TimestampMixin, TenantOwnedMixin, Base):
     staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     content_type: Mapped[str] = mapped_column(String(20), nullable=False, default="image/png", server_default="image/png")
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class GuestBookingRequest(TimestampMixin, TenantOwnedMixin, Base):
+    __tablename__ = "guest_booking_requests"
+    __table_args__ = (UniqueConstraint("tenant_id", "request_id", name="uq_guest_request"),
+        CheckConstraint("status IN ('PENDING','CONFIRMED','REJECTED')", name="ck_guest_request_status"))
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(String(950))
+    service_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+    staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING", server_default="PENDING")
+    booking_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"))

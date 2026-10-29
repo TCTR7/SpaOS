@@ -11,7 +11,8 @@ class OperatorPage:
         self.page.locator("#operatorPhone").fill("0998888777")
         self.page.locator("#operatorPassword").fill("OperatorOnlyForQa@2026")
         self.page.get_by_role("button", name="Đăng nhập quản trị", exact=True).click()
-        expect(self.page.locator("#ownerName")).to_be_visible()
+        self.page.wait_for_url(config.frontend_url + "/operator")
+        expect(self.page.locator("#ownerName")).to_be_visible(timeout=15000)
 
     def fill_owner(self):
         phone = random_phone()

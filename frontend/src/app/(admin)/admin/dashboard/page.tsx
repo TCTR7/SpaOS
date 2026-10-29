@@ -1,8 +1,8 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/spa-link";
 import { Building2, CalendarDays, Wallet, CircleDollarSign, Ticket } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "@/lib/spa-navigation";
 import { SetupGuide } from "@/components/admin/setup-guide";
 import { QuickActions } from "@/components/admin/quick-actions";
 import { DashboardPanel } from "@/components/admin/dashboard-panel";

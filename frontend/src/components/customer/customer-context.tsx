@@ -13,6 +13,7 @@ import {
   CUSTOMER_SESSION_CHANGED,
 } from "@/lib/customer-api";
 import { ApiError } from "@/lib/api";
+import { spaSlug } from "@/lib/spa-path";
 import type { AuthUser, PublicTenantResponse } from "@/lib/types";
 
 interface CustomerTenantContextValue {
@@ -71,6 +72,8 @@ function ScopedCustomerTenantProvider({
     setTenantNotFound(false); setTenant(null); setTenantError(null);
     try {
       const data = await fetchPublicTenant(normalizedSlug);
+      const brand = spaSlug(window.location.pathname);
+      if(brand&&data.spa_slug!==brand)throw new ApiError(404,"La chi nhánh của spa khác");
       if (request === tenantRequest.current) setTenant(data);
     } catch (error) {
       if (request === tenantRequest.current) {

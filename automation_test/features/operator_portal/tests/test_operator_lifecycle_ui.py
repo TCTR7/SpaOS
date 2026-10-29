@@ -1,3 +1,4 @@
+import re
 import base64
 import json
 import os
@@ -75,7 +76,7 @@ def test_handover_update_recovery_and_concurrent_claim(operator_ui):
     customer=page_for()
     customer.goto(recovery_url)
     expect(customer.get_by_role("heading",name="Đặt lại mật khẩu chủ spa",exact=True)).to_be_visible()
-    expect(customer).to_have_url(config.frontend_url+"/admin/recover")
+    expect(customer).to_have_url(re.compile(re.escape(config.frontend_url)+r"/s/[^/]+/admin/recover$"))
     assert customer.evaluate("location.hash") == ""
     customer.get_by_label("Mật khẩu mới",exact=True).fill("RecoveryOwner@2026")
     customer.get_by_label("Nhập lại mật khẩu",exact=True).fill("RecoveryOwner@2026")
@@ -85,7 +86,7 @@ def test_handover_update_recovery_and_concurrent_claim(operator_ui):
     customer.locator("#phone").fill(phone)
     customer.locator("#password").fill("RecoveryOwner@2026")
     customer.get_by_role("button",name="Đăng nhập",exact=True).click()
-    expect(customer).to_have_url(config.frontend_url+"/admin/dashboard")
+    expect(customer).to_have_url(re.compile(re.escape(config.frontend_url)+r"/s/[^/]+/admin/dashboard$"))
     # Fresh grant: two simultaneous claims must have exactly one winner.
     page.get_by_label("Tôi đã xác minh đúng chủ spa",exact=True).check()
     page.get_by_label("Mật khẩu operator để xác nhận",exact=True).fill("OperatorOnlyForQa@2026")

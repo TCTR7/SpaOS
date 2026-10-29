@@ -5,6 +5,7 @@ import { useBranchGuard } from "@/lib/branch-guard";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { spaPath } from "@/lib/spa-path";
 export function RecoveryLink({ customerId, slug }: {customerId: string; slug: string}): React.ReactElement {
   const [verified, setVerified] = React.useState(false), [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false), [link, setLink] = React.useState("");
@@ -22,7 +23,7 @@ export function RecoveryLink({ customerId, slug }: {customerId: string; slug: st
       if (flight.current) return; flight.current = true; setBusy(true); setError(""); setLink("");
       try {
         const result = await apiRequest<{token: string}>("/customers/" + customerId + "/recovery-link", { method: "POST", body: { identity_verified: verified, current_password: password } });
-        setLink(window.location.origin + "/" + encodeURIComponent(slug) + "/activate#" + result.token); setPassword("");
+        setLink(window.location.origin + spaPath("/" + encodeURIComponent(slug) + "/activate") + "#" + result.token); setPassword("");
       } catch (e) { setError(e instanceof Error ? e.message : "Chưa cấp được liên kết"); }
       finally { flight.current = false; setBusy(false); }
     }}>{busy ? "Đang cấp..." : "Cấp liên kết cho khách"}</Button>

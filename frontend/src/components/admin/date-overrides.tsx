@@ -23,7 +23,7 @@ export function DateOverrides({ staffId, onBusyChange, onDirtyChange }: {staffId
     return () => { cancelled = true; };
   }, [staffId, attempt]);
   const mutate = async (remove?: string) => {
-    if (flight.current || !loaded) return; flight.current = true; setBusy(true); setError("");
+    if (flight.current || !loaded || (remove && !window.confirm("Bỏ ca ngoại lệ ngày " + remove + " và trở về ca tuần?"))) return; flight.current = true; setBusy(true); setError("");
     try { if (remove) await removeDateOverride(staffId, remove); else await saveDateOverride(staffId, { day, start_time: start, end_time: end, is_day_off: off }); if (!remove) baseline.current = JSON.stringify([day, off, start, end]); setAttempt((value) => value + 1); }
     catch (e) { setError(e instanceof Error ? e.message : "Chưa cập nhật được ca theo ngày"); }
     finally { flight.current = false; setBusy(false); }
