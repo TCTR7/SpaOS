@@ -94,6 +94,7 @@ class ServiceDeleteOut(BaseModel):
 
 # ---------- Public ----------
 class PublicStaffOut(BaseModel):
+    photo_url: Optional[str] = None
     id: uuid.UUID
     full_name: str
 
@@ -178,6 +179,7 @@ class CustomerAssignment(BaseModel):
 
 
 class CustomerUpdate(BaseModel):
+    password: Optional[str] = Field(default=None, min_length=6, max_length=72)
     model_config = ConfigDict(extra="forbid")
     full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     notes: Optional[str] = None

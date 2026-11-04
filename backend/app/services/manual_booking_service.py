@@ -34,7 +34,9 @@ async def get_result(db, tenant_id, actor, request_id):
     return ManualBatchOut.model_validate(row)
 
 
-async def create_batch(db, tenant_id, actor, body, *, commit=True):
+async def create_batch(db, tenant_id, actor, body, *, commit=True, defer_ownership=False):
+    if commit and defer_ownership:
+        raise ValueError("Deferred ownership requires a caller-owned transaction")
     from app.services.assignment_service import lock_workforce
     await lock_workforce(db, tenant_id)
     digest = hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True,
@@ -97,8 +99,11 @@ async def create_batch(db, tenant_id, actor, body, *, commit=True):
             booking = await bookings.create_booking(db, tenant_id, actor, BookingCreate(
                 customer_id=customer.id, staff_id=body.staff_id, start_time=start,
                 items=items, note=" ".join(p for p in (prefix, body.note) if p) or None),
-                commit=False, staff_candidates=candidates)
+                commit=False, staff_candidates=candidates, defer_ownership=True)
             created.append(str(booking.id))
+        # Keep the verified owner until every row has passed authorization.
+        if not defer_ownership:
+            bookings.assign_booked_staff(db, tenant_id, actor, customer, booking.staff_id)
         result = ManualBookingBatch(tenant_id=tenant_id, actor_id=actor.id, request_id=body.request_id,
             payload_hash=digest, customer_id=customer.id, package_ids=[str(p) for p in issued.values()],
             booking_ids=created)

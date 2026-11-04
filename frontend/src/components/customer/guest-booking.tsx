@@ -19,6 +19,18 @@ export async function guestApi<T>(slug: string, path: string, body: unknown): Pr
 export function GuestBooking({slug,start,services,staff,note}: {slug:string;start:string;services:string[];staff:string|null;note:string}): React.ReactElement {
   const router = useRouter();
   const [name,setName]=React.useState(""),[phone,setPhone]=React.useState("");
+  React.useEffect(() => {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem("spaos_guest_contact") || "null");
+      if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+        const contact = saved as Record<string, unknown>;
+        const fullName = contact.full_name ?? contact.name;
+        const phoneNumber = contact.phone_number ?? contact.phone;
+        if (typeof fullName === "string") setName(fullName.slice(0, 255));
+        if (typeof phoneNumber === "string") setPhone(phoneNumber.slice(0, 20));
+      }
+    } catch { /* Optional convenience only. */ }
+  }, []);
   const [busy,setBusy]=React.useState(false),[error,setError]=React.useState(""),[pending,setPending]=React.useState(false);
   const flight=React.useRef(false);
   const storage="spaos_guest_request_"+slug;
@@ -27,8 +39,10 @@ export function GuestBooking({slug,start,services,staff,note}: {slug:string;star
   const open=(value:GuestKey):void=>{
     // A known saved enquiry is no longer an uncertain submission. Keep its
     // private viewing link separately so another visit can start a new request.
-    sessionStorage.setItem("spaos_guest_view_"+slug,encodeURIComponent(JSON.stringify(value)));
-    sessionStorage.removeItem(storage);
+    try {
+      sessionStorage.setItem("spaos_guest_view_"+slug,encodeURIComponent(JSON.stringify(value)));
+      sessionStorage.removeItem(storage);
+    } catch { /* The fragment still carries the result to the confirmation page. */ }
     key.current=null;setPending(false);
     router.push("/"+slug+"/request#"+encodeURIComponent(JSON.stringify(value)));
   };
@@ -45,15 +59,16 @@ export function GuestBooking({slug,start,services,staff,note}: {slug:string;star
     {pending?<div className="space-y-2"><p className="text-sm">Có yêu cầu đã gửi từ tab này.</p><Button disabled={busy} onClick={()=>void check()}>Kiểm tra yêu cầu đã gửi</Button><p className="text-xs">Nếu chưa gửi thành công, nhấn Gửi lại để dùng cùng mã chống trùng.</p></div>:null}
     <form id="guest-request-form" className="space-y-3" onSubmit={async event=>{
       event.preventDefault();if(flight.current||!start)return;flight.current=true;setBusy(true);setError("");
-      if(!key.current){const bytes=crypto.getRandomValues(new Uint8Array(32));key.current={request_id:crypto.randomUUID(),token:Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("")};sessionStorage.setItem(storage,JSON.stringify(key.current));}
       try{
+        if(!key.current){const bytes=crypto.getRandomValues(new Uint8Array(32));key.current={request_id:crypto.randomUUID(),token:Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("")};try{sessionStorage.setItem(storage,JSON.stringify(key.current));}catch{/* Keep the retry key in memory when storage is blocked. */}}
         // After a lost response, check before retrying the same request.
         if(pending){try{await guestApi<GuestResult>(slug,"/status",key.current);open(key.current);return;}catch(e){if(!(e instanceof ApiError&&e.status===404))throw e;}}
+        try{localStorage.setItem("spaos_guest_contact",JSON.stringify({full_name:name.trim(),phone_number:phone.trim()}));}catch{/* Optional convenience only. */}
         await guestApi<GuestResult>(slug,"",{...key.current,full_name:name.trim(),phone_number:phone.trim(),service_ids:services,staff_id:staff,start_time:start,note:note.trim()||null});
         setPending(true);open(key.current);
       }catch(e){
         setError(e instanceof Error?e.message:"Chưa xác định kết quả. Hãy kiểm tra yêu cầu trước khi gửi lại.");
-        if(e instanceof ApiError&&[400,403,404,422,429].includes(e.status)){sessionStorage.removeItem(storage);key.current=null;setPending(false);}else setPending(true);
+        if(e instanceof ApiError&&[400,403,404,422,429].includes(e.status)){try{sessionStorage.removeItem(storage);}catch{/* Optional persistence. */}key.current=null;setPending(false);}else setPending(true);
       }finally{flight.current=false;setBusy(false);}
     }}>
       <div><Label htmlFor="guest-name">Họ và tên</Label><Input id="guest-name" autoComplete="name" required maxLength={255} disabled={busy} value={name} onChange={e=>setName(e.target.value)}/></div>

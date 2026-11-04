@@ -139,9 +139,12 @@ async def decide(request_id: uuid.UUID, body: Decision, background_tasks: Backgr
         batch = ManualBatchIn(request_id=row.request_id, customer_id=body.customer_id,
             new_customer=None if body.customer_id else ManualCustomerIn(full_name=row.full_name,phone_number=row.phone_number),
             staff_id=row.staff_id, items=[{"service_id":s} for s in row.service_ids], start_times=[row.start_time], note=row.note)
-        result = await create_batch(db, tid, actor, batch, commit=False)
+        result = await create_batch(db, tid, actor, batch, commit=False, defer_ownership=True)
         row.booking_id, row.status = result.booking_ids[0], "CONFIRMED"
-        await bookings.update_booking_status(db, tid, row.booking_id, BookingStatus.CONFIRMED, actor, commit=False)
+        booking, _ = await bookings.update_booking_status(db, tid, row.booking_id, BookingStatus.CONFIRMED, actor, commit=False)
+        from app.services.customer_access import customer_access
+        customer = await customer_access(db, tid, booking.customer_id, actor, write=True)
+        bookings.assign_booked_staff(db, tid, actor, customer, booking.staff_id)
     audit(db, tid, actor, "GUEST_REQUEST_" + row.status, "guest_request", row.id)
     result = {"status":row.status,"booking_id":row.booking_id}
     confirmed = row.status == "CONFIRMED"

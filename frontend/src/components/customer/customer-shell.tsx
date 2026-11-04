@@ -16,10 +16,13 @@ import {
   CircleHelp,
   AlertTriangle,
   CalendarCheck2,
-  Clock,
   Sparkles,
-  Ticket,
+  Clock,
   User as UserIcon,
+
+
+
+
 } from "lucide-react";
 import { useCustomerTenant } from "./customer-context";
 import { CustomerNotificationBell } from "./customer-notification-bell";
@@ -106,8 +109,8 @@ export function CustomerShell({
     },
     {
       href: `${baseHref}/profile`,
-      label: "Thẻ & Hồ sơ",
-      icon: Ticket,
+      label: "Tài khoản",
+      icon: UserIcon,
       exact: false,
     },
   ];

@@ -381,7 +381,7 @@ export async function createCustomer(payload: {
 
 export async function updateCustomer(
   id: string,
-  payload: { full_name?: string; notes?: string | null }
+  payload: { full_name?: string; notes?: string | null; password?: string }
 ): Promise<UserDetail> {
   return apiRequest<UserDetail>(`/customers/${id}`, {
     method: "PATCH",

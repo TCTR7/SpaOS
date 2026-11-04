@@ -8,6 +8,7 @@ export interface SpaBrand {
 }
 
 export interface AuthUser {
+  photo_url?: string | null;
   id: string;
   tenant_id: string;
   role: UserRole;
@@ -68,7 +69,7 @@ export interface PublicTenantResponse {
   close_time: string;
   buffer_minutes: number;
   services: ServiceItem[];
-  staff?: { id: string; full_name: string }[];
+  staff?: { id: string; full_name: string; photo_url?: string | null }[];
 }
 
 export interface UserDetail {
