@@ -1,0 +1,20 @@
+{
+  "name": "spaos-monorepo",
+  "version": "0.2.1",
+  "private": true,
+  "description": "SpaOS — Multi-tenant & Shared SaaS Spa Platform (FastAPI + PostgreSQL RLS + Next.js 14 PWA + Pytest/Playwright E2E)",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "db:up": "node scripts/qa_orchestrator.mjs db-up",
+    "db:seed:dev": "node scripts/qa_orchestrator.mjs seed-dev",
+    "db:reset-and-seed": "node scripts/qa_orchestrator.mjs reset-and-seed",
+    "test:backend": "node scripts/qa_orchestrator.mjs test-backend",
+    "test:harness": "node scripts/qa_orchestrator.mjs test-harness",
+    "test:e2e": "node scripts/qa_orchestrator.mjs e2e",
+    "test:e2e:multi": "node scripts/qa_orchestrator.mjs e2e",
+    "verify:all": "node scripts/qa_orchestrator.mjs verify-all",
+    "ship": "npm run build && npm run test:backend && npm run verify:all"
+  }
+}

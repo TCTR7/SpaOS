@@ -62,6 +62,7 @@ class UserOut(BaseModel):
     full_name: str
     phone_number: str
     is_active: bool
+    photo_url: Optional[str] = None
 
 
 class TenantOut(BaseModel):
@@ -80,7 +81,7 @@ class TenantOut(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    spa_slug: str | None = None
+    spa_slug: Optional[str] = None
     access_token: str
     token_type: str = "bearer"
     expires_in: int
@@ -90,4 +91,4 @@ class TokenResponse(BaseModel):
 class MeResponse(BaseModel):
     user: UserOut
     tenant: TenantOut
-    spa: dict | None = None
+    spa: Optional[dict] = None

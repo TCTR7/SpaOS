@@ -30,6 +30,13 @@ router = APIRouter(prefix="/staff", tags=["staff"])
 public_router = APIRouter(tags=["staff"])
 
 _admin = require_roles(UserRole.ADMIN)
+_admin_or_self = require_roles(UserRole.ADMIN, UserRole.STAFF)
+
+
+def _require_admin_or_self(user: User, staff_id: uuid.UUID) -> None:
+    """ADMIN manages any photo; STAFF may only change their own profile photo."""
+    if user.role != UserRole.ADMIN and user.id != staff_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bạn chỉ được đổi ảnh đại diện của chính mình")
 
 
 async def _get_staff(db: AsyncSession, tenant_id: uuid.UUID, staff_id: uuid.UUID) -> User:
@@ -266,12 +273,13 @@ async def replace_skills(
 async def upload_photo(
     staff_id: uuid.UUID,
     body: StaffPhotoIn,
-    _user: User = Depends(_admin),
+    _user: User = Depends(_admin_or_self),
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> StaffDetailOut:
     """Ảnh đại diện nhân viên: PNG hoặc JPEG, tối đa 256 KB và 2048 × 2048."""
-    staff = await _get_staff(db, tenant_id, staff_id)
+    _require_admin_or_self(_user, staff_id)
+    staff = _user if _user.id == staff_id else await _get_staff(db, tenant_id, staff_id)
     try:
         data = base64.b64decode(body.data, validate=True)
     except (ValueError, binascii.Error):
@@ -293,11 +301,12 @@ async def upload_photo(
 @router.delete("/{staff_id}/photo", response_model=StaffDetailOut)
 async def delete_photo(
     staff_id: uuid.UUID,
-    _user: User = Depends(_admin),
+    _user: User = Depends(_admin_or_self),
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_tenant_db),
 ) -> StaffDetailOut:
-    staff = await _get_staff(db, tenant_id, staff_id)
+    _require_admin_or_self(_user, staff_id)
+    staff = _user if _user.id == staff_id else await _get_staff(db, tenant_id, staff_id)
     await db.execute(delete(StaffPhoto).where(StaffPhoto.tenant_id == tenant_id, StaffPhoto.staff_id == staff_id))
     staff.photo_url = None
     await commit_and_refresh(db, tenant_id, staff)

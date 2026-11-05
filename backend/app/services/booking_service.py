@@ -331,8 +331,22 @@ async def _lock_staff_row(db: AsyncSession, tenant_id: uuid.UUID, staff_id: uuid
 
 
 # ---------------------------------------------------------------- create booking
+def assign_booked_staff(db: AsyncSession, tenant_id: uuid.UUID, actor: User,
+                        customer: User, staff_id: Optional[uuid.UUID]) -> None:
+    """Apply ownership under the caller's workforce/customer transaction locks."""
+    if staff_id is not None and customer.assigned_staff_id != staff_id:
+        previous_owner = customer.assigned_staff_id
+        customer.assigned_staff_id = staff_id
+        audit(db, tenant_id, actor, "CUSTOMER_ASSIGNED", "customer", customer.id,
+              {"from_staff_id": str(previous_owner) if previous_owner else None,
+               "to_staff_id": str(staff_id), "source": "latest_booking"})
+
+
 async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, body: BookingCreate,
-                         *, commit: bool = True, staff_candidates: Optional[List[uuid.UUID]] = None) -> Booking:
+                         *, commit: bool = True, staff_candidates: Optional[List[uuid.UUID]] = None,
+                         defer_ownership: bool = False) -> Booking:
+    if commit and defer_ownership:
+        raise ValueError("Deferred ownership requires a caller-owned transaction")
     from app.services.assignment_service import lock_workforce
     await lock_workforce(db, tenant_id)
     start = ensure_aware(body.start_time).astimezone(timezone.utc)
@@ -422,11 +436,9 @@ async def create_booking(db: AsyncSession, tenant_id: uuid.UUID, actor: User, bo
                 status_code=status.HTTP_409_CONFLICT, detail="Không còn kỹ thuật viên trống trong khung giờ này"
             )
 
-    # First successful booking establishes an owner; future bookings never transfer it.
-    if customer.assigned_staff_id is None:
-        customer.assigned_staff_id = staff_id
-        audit(db, tenant_id, actor, "CUSTOMER_ASSIGNED", "customer", customer.id,
-              {"from_staff_id": None, "to_staff_id": str(staff_id), "source": "first_booking"})
+    # Latest booked technician becomes the profile owner (PO 03/11/2026).
+    if not defer_ownership:
+        assign_booked_staff(db, tenant_id, actor, customer, staff_id)
 
     # 5. Tạo booking + items
     items: List[BookingItem] = []

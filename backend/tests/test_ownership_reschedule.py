@@ -51,10 +51,11 @@ async def test_fixed_owner_permissions_and_admin_transfer(client):
     assert r.status_code == 200
     await denied(a["h"], assigned=True)
     assert (await client.get(f"{B}/bookings/{booking['id']}", headers=b["h"])).status_code == 200
-    # A later appointment with A must not silently transfer the permanent owner back.
+    # A later appointment with A automatically updates assigned_staff_id to the latest booked technician (A).
     await _book(client, c["ch"], f"{_day()}T16:00:00+07:00", [c["s30"]], a["id"])
-    rows = (await client.get(f"{B}/customers", headers=b["h"])).json()
-    assert rows[0]["assigned_staff_id"] == b["id"]
+    assert (await client.get(f"{B}/customers", headers=b["h"])).json() == []
+    rows = (await client.get(f"{B}/customers", headers=a["h"])).json()
+    assert rows[0]["assigned_staff_id"] == a["id"]
 
 
 @pytest.mark.asyncio
@@ -183,3 +184,23 @@ async def test_stale_notification_draft_does_not_push_to_previous_owner(client, 
         [notices.Draft(uuid.UUID(a["id"]), "Sensitive", "Customer information")],
         "BOOKING_CREATED", uuid.UUID(bk["id"]))
     assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_customer_direct_password_reset_and_staff_self_photo_permissions(client):
+    c = await _setup(client)
+    a, b = c["staff"]
+    # Admin directly resets customer password via PATCH /customers/{id}
+    r = await client.patch(
+        f"{B}/customers/{c['customer_id']}",
+        headers=c["ah"],
+        json={"password": "newpassword123"},
+    )
+    assert r.status_code == 200
+    # Old customer token is invalidated because auth_version incremented
+    assert (await client.get(f"{B}/auth/me", headers=c["ch"])).status_code == 401
+
+    # Staff A can delete their own photo (200), but cannot delete Staff B's photo (403)
+    assert (await client.delete(f"{B}/staff/{a['id']}/photo", headers=a["h"])).status_code == 200
+    assert (await client.delete(f"{B}/staff/{b['id']}/photo", headers=a["h"])).status_code == 403
+

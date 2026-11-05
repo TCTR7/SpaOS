@@ -398,3 +398,13 @@ Không tích hợp đặt cọc/ngân hàng trong thay đổi này. Liên kết 
 Bổ sung response public guest: `booking_status:null|PENDING|CONFIRMED|IN_PROGRESS|COMPLETED|CANCELLED|NO_SHOW`. Sau khi tiếp nhận, `start_time` và thông điệp được đọc từ chính lịch liên kết trong tenant context, phản ánh dời/hủy; không trả CRM, thông tin thẻ hoặc lịch khác. Sau khi xác minh yêu cầu đã lưu, frontend bỏ trạng thái gửi chưa rõ kết quả và giữ liên kết xem riêng, cho khách gửi yêu cầu mới trong cùng tab.
 
 Khi spa chọn xác nhận yêu cầu khách, lịch được chuyển sang `CONFIRMED` trong cùng transaction với tạo khách/thẻ/batch và cập nhật yêu cầu; ghi audit và outbox trạng thái bằng luồng booking hiện hành, không commit trung gian. Lỗi ở bước đổi trạng thái cũng rollback toàn bộ. Luồng tạo lịch trực tiếp/tại quầy khác vẫn mặc định `PENDING` như trước.
+
+
+## Đơn giản hóa UX & Quy trình vận hành — 03/11/2026
+
+- `GET /public/tenants/{slug}`: mỗi phần tử trong `staff` bổ sung `photo_url: string|null` (`/api/v1/public/tenants/{slug}/staff/{staff_id}/photo?v=...` khi nhân viên có ảnh đại diện), giúp khách xem ảnh KTV ngay tại bước chọn kỹ thuật viên.
+- `GET /auth/me`: `user` (`UserOut`) bổ sung `photo_url: string|null`.
+- `POST /staff/{staff_id}/photo` và `DELETE /staff/{staff_id}/photo`: cho phép `ADMIN` hoặc chính `STAFF` sở hữu hồ sơ (`current_user.id == staff_id`) tải lên/xóa ảnh đại diện của mình trong cùng chi nhánh; `STAFF` thao tác lên hồ sơ người khác trả `403`.
+- `PATCH /customers/{customer_id}` (`ADMIN` hoặc `STAFF` phụ trách hồ sơ): bổ sung trường tùy chọn `password` (6–72 ký tự). Khi được gửi, hệ thống băm mật khẩu mới, tăng `users.auth_version` để thu hồi phiên cũ và ghi `CUSTOMER_UPDATED` trong cùng transaction (thay quy trình tạo link khôi phục một lần trên UI).
+- `POST /bookings` (và các luồng xác nhận yêu cầu đặt lịch / tạo batch gọi qua `create_booking`): khi lịch có `staff_id` và `customer.assigned_staff_id != staff_id`, hệ thống tự động cập nhật `customer.assigned_staff_id = staff_id` theo kỹ thuật viên của lịch hẹn mới nhất và ghi audit `CUSTOMER_ASSIGNED` (`source="latest_booking"`) trong cùng transaction.
+- Bổ sung audit 04/11/2026: batch nhiều buổi chỉ chuyển người phụ trách sau khi tạo thành công tất cả buổi (theo KTV của buổi cuối trong thứ tự `start_times` tăng dần); xác nhận guest request chuyển sau bước đổi trạng thái `CONFIRMED`, trước commit. Giữ nguyên kiểm tra quyền đầu vào, khóa workforce/customer, rollback toàn bộ và từ chối replay từ STAFF đã mất quyền hồ sơ. Không thêm trường/endpoint HTTP.

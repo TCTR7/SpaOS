@@ -1,5 +1,13 @@
 # Chạy thử trước phát hành SpaOS
 
+## Render dừng ở `Shared spa ownership mapping is incomplete`
+
+Điều kiện này ở `backend/app/core/schema.py`: production còn ít nhất một `tenants.spa_id IS NULL`. Kết nối DB và Alembic có thể đã thành công; nâng schema không thay việc đối chiếu quyền sở hữu dữ liệu legacy. Thông báo quét port xuất hiện trước lỗi không đủ để kết luận cấu hình PORT sai.
+
+Trong `backend/`, dùng môi trường kết nối đúng DB triển khai, chạy `python -m scripts.shared_spa_migration` để lấy inventory chỉ đọc. Nếu Render không có shell hoặc tiến trình không lên, cần dùng môi trường vận hành riêng có code/dependencies và kết nối được DB; không đưa connection URL vào chat/log/argv.
+
+Đối chiếu `unmapped_branch_ids` và membership `account_id`/`tenant_id`/`is_owner`, lập mapping rồi dry-run theo [runbook chuyển đổi](SHARED_SAAS_MIGRATION_RUNBOOK.md). Chỉ apply sau backup/bảo trì và xác nhận mapping. Không đổi ENVIRONMENT sang development, bỏ guard, stamp migration, seed demo hoặc reset DB để vượt lỗi này.
+
 ## Cập nhật UX 29/10/2026
 
 FE/BE cần cùng bản, migration head `0013_guest_requests`. Phạm vi, bằng chứng QA và giới hạn: [UX_UPDATE_2026-10-29.md](UX_UPDATE_2026-10-29.md). Trước triển khai giữ backup/cutover theo runbook shared SaaS; không dùng `stamp` thay migration. Phiên cập nhật này không migrate DB ứng dụng hoặc deploy production.

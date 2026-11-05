@@ -686,6 +686,15 @@ export default function AdminBookingsPage(): React.ReactElement {
       openCreateModal();
       setReferenceData((old) => ({ ...old, customers: [...old.customers.filter((item) => item.id !== customer.id), customer] }));
       setModalCustomerId(customer.id);
+      const params = new URLSearchParams(window.location.search);
+      const prefillServices = params.get("service_ids")?.split(",").filter(Boolean) || [];
+      const prefillStaff = params.get("staff_id") || "";
+      const prefillStart = params.get("start_time") || "";
+      const prefillNote = params.get("note") || "";
+      if (prefillServices.length > 0) setSelectedLines(prefillServices.map((sid) => ({ service_id: sid, customer_package_id: null })));
+      if (prefillStaff) setModalStaffId(prefillStaff);
+      if (prefillNote) setModalNote(prefillNote);
+      if (prefillStart) setSessionRows([{ ...createEmptySessionRow(formatDateISOInVN(new Date(prefillStart))), selectedSlotStart: prefillStart }]);
     }).catch(() => { if (!cancelled) setError("Chưa mở được khách đã chọn. Hãy tìm khách hoặc thử lại từ hồ sơ."); });
     return () => { cancelled = true; };
     // The link is consumed once; changes inside the modal must not reopen it.
@@ -1009,7 +1018,25 @@ export default function AdminBookingsPage(): React.ReactElement {
           </Button>
         </div>
       </div>
-      <GuestInbox services={services} onSaved={()=>{void refreshAfterMutation();void loadReferenceData();}}/>
+      <GuestInbox services={services} staff={staffList} onSaved={()=>{void refreshAfterMutation();void loadReferenceData();}}
+        onPrefill={(row) => {
+          if (!referencesReady || manualUncertain || creatingBooking) return;
+          openCreateModal();
+          const existing = customers.find((c) => c.phone_number === row.phone_number);
+          if (existing) {
+            setQuickNewCustomer(false);
+            setModalCustomerId(existing.id);
+          } else {
+            setQuickNewCustomer(true);
+            setNewCustomerName(row.full_name);
+            setNewCustomerPhone(row.phone_number);
+          }
+          setSelectedLines(row.service_ids.map((sid) => ({ service_id: sid, customer_package_id: null })));
+          setModalStaffId(row.staff_id || "");
+          setModalNote(row.note || "");
+          const dayISO = formatDateISOInVN(new Date(row.start_time));
+          setSessionRows([{ ...createEmptySessionRow(dayISO), selectedSlotStart: row.start_time }]);
+        }}/>
       {manualBatch.queue.length > 0 && <details className="rounded-xl border bg-card p-4" open>
         <summary className="cursor-pointer font-semibold">Yêu cầu cần đối chiếu ({manualBatch.queue.length})</summary>
         <p className="my-2 text-sm text-muted-foreground">Các yêu cầu này chưa chắc đã thành lịch. Bạn vẫn có thể tạo lịch cho khách khác. Bản nháp trong tab được giữ tối đa 8 giờ.</p>
@@ -1350,7 +1377,7 @@ export default function AdminBookingsPage(): React.ReactElement {
           </div>
 
           {/* 2. Customer Active Packages (if any) */}
-          {!quickNewCustomer && customerPackages.length > 0 && (
+          {false && !quickNewCustomer && customerPackages.length > 0 && (
             <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
               <Label className="text-primary">
                 Thẻ liệu trình của khách — chọn để dùng buổi trong thẻ

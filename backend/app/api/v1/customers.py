@@ -106,7 +106,17 @@ async def update_customer(
     db: AsyncSession = Depends(get_tenant_db),
 ) -> User:
     customer = await customer_access(db, tenant_id, customer_id, _user, write=True)
-    apply_patch(customer, body, nullable=("notes",))
+    data = body.model_dump(exclude_unset=True)
+    new_password = data.pop("password", None)
+    if "password" in body.model_fields_set and new_password is None:
+        raise HTTPException(status_code=422, detail="Mật khẩu mới không hợp lệ")
+    for key, value in data.items():
+        if value is None and key != "notes":
+            raise HTTPException(status_code=422, detail=f"Trường '{key}' không được để null")
+        setattr(customer, key, value)
+    if new_password:
+        customer.password_hash = hash_password(new_password)
+        customer.auth_version = (customer.auth_version or 0) + 1
     audit(db, tenant_id, _user, "CUSTOMER_UPDATED", "customer", customer.id,
           {"fields": sorted(body.model_fields_set)})
     await commit_and_refresh(db, tenant_id, customer)

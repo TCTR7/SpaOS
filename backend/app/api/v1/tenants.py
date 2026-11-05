@@ -30,7 +30,7 @@ async def get_public_tenant_info(slug: str, day: str | None = None, db: AsyncSes
     ).scalars().all()
     from app.services.spa_service import tenant_spa
     spa = await tenant_spa(db, tenant.id)
-    staff = (await db.execute(select(User.id, User.full_name).where(
+    staff = (await db.execute(select(User.id, User.full_name, User.photo_url).where(
         User.tenant_id == tenant.id, User.role == UserRole.STAFF, User.is_active.is_(True)
     ).order_by(User.full_name, User.id))).all()
     if day:
@@ -54,7 +54,7 @@ async def get_public_tenant_info(slug: str, day: str | None = None, db: AsyncSes
         close_time=tenant.close_time,
         buffer_minutes=tenant.buffer_minutes,
         services=[ServiceOut.model_validate(s) for s in services],
-        staff=[PublicStaffOut(id=row.id, full_name=row.full_name) for row in staff],
+        staff=[PublicStaffOut(id=row.id, full_name=row.full_name, photo_url=row.photo_url) for row in staff],
     )
 
 
