@@ -65,3 +65,11 @@ Thumbs.db
 
 # User-requested local review accounts (contains passwords)
 /local-data/
+
+# AI Agent & Test artifacts
+.codegraph/
+/automation_test/artifacts/
+playwright-report/
+test-results/
+.pytest_cache/
+

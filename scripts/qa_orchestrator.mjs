@@ -243,7 +243,19 @@ switch (action) {
     break;
   }
   case "test-backend": {
-    runBackendIsolated(resolveCompose(), extraArgs);
+    const cleanArgs = extraArgs[0] === "--" ? extraArgs.slice(1) : extraArgs;
+    runBackendIsolated(resolveCompose(), cleanArgs);
+    break;
+  }
+  case "test-ai-unit": {
+    const cleanArgs = extraArgs[0] === "--" ? extraArgs.slice(1) : extraArgs;
+    runBackendIsolated(resolveCompose(), ["--maxfail=1", "--tb=short", "-q", ...cleanArgs]);
+    break;
+  }
+  case "test-ai-e2e": {
+    process.env.AI_AGENT = "1";
+    const cleanArgs = extraArgs[0] === "--" ? extraArgs.slice(1) : extraArgs;
+    runPlaywrightE2E(resolveCompose(), ["--maxfail=1", "--tb=short", "-q", ...cleanArgs]);
     break;
   }
   case "test-harness": {
@@ -251,7 +263,8 @@ switch (action) {
     break;
   }
   case "e2e": {
-    runPlaywrightE2E(resolveCompose(), extraArgs);
+    const cleanArgs = extraArgs[0] === "--" ? extraArgs.slice(1) : extraArgs;
+    runPlaywrightE2E(resolveCompose(), cleanArgs);
     break;
   }
   case "verify-all": {
@@ -259,13 +272,14 @@ switch (action) {
     console.log("=== [1/2] KIỂM ĐỊNH MIGRATION & SEED DATA (DB QA CÔ LẬP) ===");
     runResetAndSeed(compose);
     console.log("=== [2/2] CHẠY PLAYWRIGHT E2E TEST SUITE (MULTI-ROLE QA) ===");
-    runPlaywrightE2E(compose, extraArgs);
+    const cleanArgs = extraArgs[0] === "--" ? extraArgs.slice(1) : extraArgs;
+    runPlaywrightE2E(compose, cleanArgs);
     console.log("=== HOÀN TẤT VERIFY:ALL (SEED DATA + PLAYWRIGHT E2E PASS) ===");
     break;
   }
   default: {
     console.error(
-      "Usage: node scripts/qa_orchestrator.mjs <db-up|seed-dev|reset-and-seed|test-backend|test-harness|e2e|verify-all> [args...]"
+      "Usage: node scripts/qa_orchestrator.mjs <db-up|seed-dev|reset-and-seed|test-backend|test-harness|e2e|verify-all|test-ai-unit|test-ai-e2e> [args...]"
     );
     process.exit(1);
   }

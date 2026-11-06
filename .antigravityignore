@@ -1,19 +1,33 @@
-# Bỏ qua thư mục cài đặt của Backend (Python FastAPI)
+# Bỏ qua thư mục sinh rác và môi trường để tối ưu hóa AI Indexing & Context
+node_modules/
+.next/
+frontend/.next/
+frontend/.next-qa/
+frontend/.qa/
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.codegraph/
+automation_test/artifacts/
+backups/
+local-data/
+postgres_data/
+
+# Backend (Python FastAPI)
 backend/venv/
 backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/
 *.pyc
 
-# Bỏ qua thư mục cài đặt & build của Frontend (Next.js)
+# Frontend (Next.js)
 frontend/node_modules/
-frontend/.next/
 frontend/out/
 frontend/build/
 frontend/package-lock.json
 frontend/yarn.lock
 frontend/pnpm-lock.yaml
 
-# Bỏ qua dữ liệu ổ cứng của Docker Postgres
-postgres_data/
+# Environment & Docker
 .env
